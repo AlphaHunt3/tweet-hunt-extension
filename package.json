@@ -11,6 +11,7 @@
   "dependencies": {
     "@plasmohq/messaging": "^0.6.0",
     "@plasmohq/storage": "^1.9.0",
+    "ahooks": "^3.7.8",
     "plasmo": "^0.84.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
