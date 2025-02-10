@@ -125,7 +125,7 @@ function TwitterPanel() {
             <div className="mb-4">
               <h3 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300">Top 10 推文</h3>
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                {(kolStats?.top10Tweets || []).map((tweet, index) => (
+                {('top10Tweets' in kolStats && kolStats?.top10Tweets || []).map((tweet, index) => (
                   <div key={index}>
                     {index + 1}. "{tweet.content}" - {tweet.retweetCount} 转发
                   </div>
