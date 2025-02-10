@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Storage } from "@plasmohq/storage"
-
+import "./style.css";
 const storage = new Storage()
 
 function IndexPopup() {
@@ -34,7 +34,7 @@ function IndexPopup() {
   return (
     <div className="w-64 p-4 bg-black text-white">
       <h1 className="text-xl font-bold mb-4">TweetHunt 设置</h1>
-      
+
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <label className="text-sm">显示悬浮面板</label>

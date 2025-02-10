@@ -29,9 +29,6 @@
     "host_permissions": [
       "https://*.x.com/*",
       "https://*.twitter.com/*"
-    ],
-    "icons": {
-      "128": "assets/icon.png"
-    }
+    ]
   }
 }

@@ -1,44 +1,24 @@
-import { useEffect, useState } from "react"
 import type { PlasmoContentScript } from "plasmo"
+import { useEffect, useState } from "react"
 import { Storage } from "@plasmohq/storage"
+import cssText from "data-text:~/style.css"
 
+// 导出必要的 Plasmo 配置
 export const config: PlasmoContentScript = {
-  matches: ["https://*.x.com/*", "https://*.twitter.com/*"]
+  matches: ["https://*.twitter.com/*", "https://*.x.com/*"]
 }
 
-interface KOLStats {
-  globalKOLs: number
-  chineseKOLs: number
-  top100KOLs: number
-  top10List: string[]
-}
-
-interface ProfitStats {
-  winRate30d: number
-  winRate90d: number
-  currentProfit: number
-  maxProfit: number
-}
-
-interface DeletedTweet {
-  id: string
-  content: string
-  deletedAt: string
-}
-
-interface Settings {
-  showPanel: boolean
-  showKOLStats: boolean
-  showTop10List: boolean
-  showProfitStats: boolean
-  showDeletedTweets: boolean
-  darkMode: boolean
+// 注入 Tailwind 样式
+export const getStyle = () => {
+  const style = document.createElement("style")
+  style.textContent = cssText
+  return style
 }
 
 const storage = new Storage()
 
-const TweetHuntPanel = () => {
-  const [settings, setSettings] = useState<Settings>({
+function TwitterPanel() {
+  const [settings, setSettings] = useState({
     showPanel: true,
     showKOLStats: true,
     showTop10List: true,
@@ -46,44 +26,6 @@ const TweetHuntPanel = () => {
     showDeletedTweets: true,
     darkMode: true
   })
-
-  const [kolStats, setKolStats] = useState<KOLStats>({
-    globalKOLs: 15000,
-    chineseKOLs: 3500,
-    top100KOLs: 100,
-    top10List: [
-      "@user1",
-      "@user2",
-      "@user3",
-      "@user4",
-      "@user5",
-      "@user6",
-      "@user7",
-      "@user8",
-      "@user9",
-      "@user10"
-    ]
-  })
-
-  const [profitStats, setProfitStats] = useState<ProfitStats>({
-    winRate30d: 68.5,
-    winRate90d: 72.3,
-    currentProfit: 25000,
-    maxProfit: 45000
-  })
-
-  const [deletedTweets, setDeletedTweets] = useState<DeletedTweet[]>([
-    {
-      id: "1",
-      content: "Sample deleted tweet 1",
-      deletedAt: "2023-11-20"
-    },
-    {
-      id: "2",
-      content: "Sample deleted tweet 2",
-      deletedAt: "2023-11-19"
-    }
-  ])
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -93,15 +35,6 @@ const TweetHuntPanel = () => {
       }
     }
     loadSettings()
-
-    // 监听设置变化
-    storage.watch({
-      settings: (value) => {
-        if (value) {
-          setSettings(JSON.parse(value))
-        }
-      }
-    })
   }, [])
 
   if (!settings.showPanel) {
@@ -109,88 +42,56 @@ const TweetHuntPanel = () => {
   }
 
   return (
-    <div className={`fixed top-16 right-4 z-50 w-80 ${settings.darkMode ? 'bg-black' : 'bg-white'} rounded-xl border border-gray-700 ${settings.darkMode ? 'text-white' : 'text-black'} shadow-lg`}>
-      <div className="p-4">
-        <h2 className="text-xl font-bold mb-4">TweetHunt Analytics</h2>
-        
-        {/* KOL Statistics */}
-        {settings.showKOLStats && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2 text-gray-300">KOL Statistics</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">Global KOLs</p>
-                <p className="text-lg font-bold">{kolStats.globalKOLs.toLocaleString()}</p>
-              </div>
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">Chinese KOLs</p>
-                <p className="text-lg font-bold">{kolStats.chineseKOLs.toLocaleString()}</p>
-              </div>
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">Top 100 KOLs</p>
-                <p className="text-lg font-bold">{kolStats.top100KOLs}</p>
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="fixed top-20 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50">
+      <h2 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">
+        TweetHunt 分析面板
+      </h2>
 
-        {/* Top 10 KOLs */}
-        {settings.showTop10List && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2 text-gray-300">Top 10 KOLs</h3>
-            <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} rounded p-2`}>
-              {kolStats.top10List.map((kol, index) => (
-                <div key={kol} className="flex items-center py-1">
-                  <span className="w-6 text-gray-400">{index + 1}.</span>
-                  <span className="text-blue-400 hover:underline cursor-pointer">{kol}</span>
-                </div>
-              ))}
-            </div>
+      {settings.showKOLStats && (
+        <div className="mb-4">
+          <h3 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300">KOL 统计</h3>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>关注者: 10,234</div>
+            <div>互动率: 5.2%</div>
+            <div>平均转发: 156</div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Profit Statistics */}
-        {settings.showProfitStats && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2 text-gray-300">Performance</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">30D Win Rate</p>
-                <p className="text-lg font-bold text-green-400">{profitStats.winRate30d}%</p>
-              </div>
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">90D Win Rate</p>
-                <p className="text-lg font-bold text-green-400">{profitStats.winRate90d}%</p>
-              </div>
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">Current Profit</p>
-                <p className="text-lg font-bold">${profitStats.currentProfit.toLocaleString()}</p>
-              </div>
-              <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} p-2 rounded`}>
-                <p className="text-sm text-gray-400">Max Profit</p>
-                <p className="text-lg font-bold">${profitStats.maxProfit.toLocaleString()}</p>
-              </div>
-            </div>
+      {settings.showTop10List && (
+        <div className="mb-4">
+          <h3 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300">Top 10 推文</h3>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>1. "这是最热门的推文" - 1,234 转发</div>
+            <div>2. "第二热门的推文" - 987 转发</div>
+            <div>3. "第三热门的推文" - 654 转发</div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Deleted Tweets */}
-        {settings.showDeletedTweets && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-gray-300">Deleted Tweets</h3>
-            <div className={`${settings.darkMode ? 'bg-gray-900' : 'bg-gray-100'} rounded p-2`}>
-              {deletedTweets.map((tweet) => (
-                <div key={tweet.id} className="border-b border-gray-700 last:border-0 py-2">
-                  <p className="text-sm">{tweet.content}</p>
-                  <p className="text-xs text-gray-400 mt-1">Deleted: {tweet.deletedAt}</p>
-                </div>
-              ))}
-            </div>
+      {settings.showProfitStats && (
+        <div className="mb-4">
+          <h3 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300">盈利统计</h3>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>总收入: $12,345</div>
+            <div>本月收入: $2,345</div>
+            <div>增长率: +15%</div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {settings.showDeletedTweets && (
+        <div className="mb-4">
+          <h3 className="text-md font-semibold mb-2 text-gray-700 dark:text-gray-300">已删除推文</h3>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>• 昨天删除的一条推文</div>
+            <div>• 上周删除的推文</div>
+            <div>• 更早之前删除的推文</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-export default TweetHuntPanel
+export default TwitterPanel
