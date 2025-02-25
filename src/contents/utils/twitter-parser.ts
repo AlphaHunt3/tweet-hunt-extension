@@ -1,6 +1,6 @@
 interface TwitterUserInfo {
-  userId: string
-  username: string
+  // userId: string
+  // username: string
   displayName: string
 }
 
@@ -48,22 +48,8 @@ export const parseTwitterUserInfo = async (): Promise<TwitterUserInfo | null> =>
     }
 
     const displayName = displayNameElement.textContent || ''
-    const username = usernameSpanElement.textContent?.replace('@', '') || ''
-
-    // 从 URL 中获取用户 ID（实际上就是用户名）
-    // Twitter 的用户页面 URL 格式为: twitter.com/username
-    const userId = username // 直接使用用户名作为 ID
-
-    // 等待关注统计元素加载
-    const followStatsElements = await waitForElement('[data-testid="UserProfileHeader_Items"]')
-    if (!followStatsElements) {
-      console.log('未找到关注统计元素')
-      return null
-    }
 
     return {
-      userId,
-      username,
       displayName
     }
   } catch (error) {

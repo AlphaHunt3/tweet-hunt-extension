@@ -1,74 +1,39 @@
-interface KOLStats {
-  engagementRate: number
-  averageRetweets: number
-  top10Tweets: Array<{
-    content: string
-    retweetCount: number
-  }>
-  profitStats: {
-    totalIncome: number
-    monthlyIncome: number
-    growthRate: number
-  }
-  deletedTweets: Array<{
-    content: string
-    deletedAt: string
-  }>
+interface KolFollower {
+  avatar: string; // 头像 URL
+  name: string; // 名称
+  username: string; // 用户名
 }
 
-// Mock 数据生成函数
-const generateMockData = (userId: string): KOLStats => {
-  return {
-    engagementRate: 5.2,
-    averageRetweets: 156,
-    top10Tweets: [
-      {
-        content: "Web3 的未来发展趋势分析",
-        retweetCount: 1234
-      },
-      {
-        content: "如何成为一名优秀的开发者",
-        retweetCount: 987
-      }
-    ],
-    profitStats: {
-      totalIncome: 12345,
-      monthlyIncome: 2345,
-      growthRate: 15.7
-    },
-    deletedTweets: [
-      {
-        content: "这是一条已删除的推文1",
-        deletedAt: "2024-01-20T10:30:00Z"
-      },
-      {
-        content: "这是一条已删除的推文2",
-        deletedAt: "2024-01-19T15:45:00Z"
-      },
-      {
-        content: "这是一条已删除的推文3",
-        deletedAt: "2024-01-18T08:20:00Z"
-      }
-    ]
+interface KolFollowData {
+  cnKolFollowers: number; // 中国 KOL 粉丝数
+  globalKolFollowers: number; // 全球 KOL 粉丝数
+  topKolFollowersCount: number; // Top KOL 粉丝总数
+  topKolFollowersSlice10: KolFollower[]; // Top 10 KOL 粉丝列表
+}
+
+interface MentionData {
+  maxProfitAvg: number
+  maxProfitAvgPct: number
+  nowProfitAvg: number
+  nowProfitAvgPct: number
+  winRate: number
+  winRatePct: number
+}
+
+export interface TwitterInfo {
+  kolFollow: KolFollowData;
+  kolTokenMention: {
+    day30: MentionData
+    day90: MentionData
   }
 }
 
-// 模拟 API 延迟
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-export const fetchKOLStats = async (userId: string): Promise<KOLStats> => {
+export const fetchTwitterInfo = async (userId: string): Promise<TwitterInfo> => {
   try {
-    // 模拟网络延迟 500-1500ms
-    await delay(500 + Math.random() * 1000)
-
-    // 模拟偶尔的网络错误
-    if (Math.random() < 0.1) { // 10% 的概率发生错误
-      throw new Error('网络请求失败')
-    }
-
-    return generateMockData(userId)
-  } catch (error) {
-    console.error('Error fetching KOL stats:', error)
-    throw error
+    const retJSON = await fetch(`https://kota.chaineye.tools/api/plugin/twitter/info?username=${userId}`);
+    const ret = await retJSON.json();
+    return ret?.data;
+  } catch (err) {
+    return null;
   }
 }
