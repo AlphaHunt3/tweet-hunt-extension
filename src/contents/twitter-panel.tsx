@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Heart,
   Repeat,
-  Minimize2,
+  // Minimize2,
   GripVertical
 } from 'lucide-react';
 import { Storage } from '@plasmohq/storage'
@@ -38,7 +38,7 @@ const storage = new Storage()
 /**
  * 从给定的 URL 中提取用户名
  * @param url - 完整的 URL 字符串，例如 "https://x.com/aixbt_agent"
- * @returns 提取的用户名，如果无法提取或域名不是 x.com 则返回空字符串
+ * @returns 提取的用户名，如果无法提取或域名不是 x.com 或是导航页则返回空字符串
  */
 function extractUsernameFromUrl(url: string): string {
   try {
@@ -56,8 +56,25 @@ function extractUsernameFromUrl(url: string): string {
     // 去掉路径开头的斜杠并分割路径
     const segments = path.split('/').filter(segment => segment.length > 0);
 
+    // 定义已知的导航页面路径（黑名单）
+    const navigationPages = new Set([
+      'home',          // 首页
+      'explore',       // 探索页
+      'notifications', // 通知页
+      'messages',      // 消息页
+      'search',        // 搜索页
+      'settings',      // 设置页
+      'i',             // 内部页面（如设置子页面）
+    ]);
+
+    // 如果路径的第一个部分是导航页面，则返回空字符串
+    const firstSegment = segments[0];
+    if (navigationPages.has(firstSegment)) {
+      return '';
+    }
+
     // 返回路径的第一个有效部分作为用户名
-    return segments[0] || '';
+    return firstSegment || '';
   } catch (error) {
     // 如果 URL 格式无效，捕获错误并返回空字符串
     console.error('Invalid URL:', error);
@@ -68,11 +85,7 @@ function extractUsernameFromUrl(url: string): string {
 function TwitterPanel() {
   const [settings, setSettings] = useState({
     showPanel: true,
-    showKOLStats: true,
-    showTop10List: true,
-    showProfitStats: true,
     showDeletedTweets: true,
-    darkMode: true
   })
   const [userId, setUserId] = useState('');
   const [deletedTweets, setDeletedTweets] = useState([]);
@@ -154,6 +167,7 @@ function TwitterPanel() {
   useEffect(() => {
     const loadSettings = async () => {
       const savedSettings = await storage.get('settings')
+      // console.log(savedSettings, 'savedSettings')
       if (savedSettings) {
         setSettings(JSON.parse(savedSettings))
       }
@@ -180,7 +194,7 @@ function TwitterPanel() {
   if (!settings.showPanel) {
     return null
   }
-  if ((loading && !userStats) || error || !userStats) {
+  if ((loading && !userStats) || error || !userStats || !userId) {
     return <></>
   }
   return <DraggablePanel
@@ -237,9 +251,11 @@ function TwitterPanel() {
 							<p className="text-xs text-gray-400 mb-1">Top KOL Followers</p>
 							<div className="flex flex-wrap gap-0">
                 {(userStats?.kolFollow?.topKolFollowersSlice10 || []).map((follower) => (
-                  <div
+                  <a
                     key={follower.username}
-                    className="relative group -ml-1 first:ml-0"
+                    href={`https://x.com/${follower.username}`}
+                    target={'_blank'}
+                    className="block relative group -ml-1 first:ml-0"
                   >
                     <img
                       src={follower.avatar}
@@ -249,14 +265,14 @@ function TwitterPanel() {
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20">
                       {follower.name}
                     </div>
-                  </div>
+                  </a>
                 ))}
 							</div>
 						</div>
 					</div>
 
           {/*Token Performance Section*/}
-          {showTokenPerformance && (
+          {(
             <div className="p-3 border-b border-gray-700">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="w-4 h-4 text-green-400" />
@@ -312,7 +328,7 @@ function TwitterPanel() {
           )}
 
           {/* Deleted Tweets Section */}
-          {showDeletedTweets && (
+          {settings?.showDeletedTweets && (
             <div>
               <div
                 className="p-3 flex items-center justify-between cursor-pointer border-b border-gray-700"
@@ -331,29 +347,30 @@ function TwitterPanel() {
 
               <div className={`${isExpanded ? '' : 'h-0'} overflow-hidden transition-[height] duration-200`}>
                 <div className="p-3 space-y-4">
-                  {loadingDel && <span className={'block text-center'}>loading...</span>}
-                  {!deletedTweets?.length && !loadingDel && <span className={'block text-center'}>No data</span>}
+                  {loadingDel && <span className={'block text-center text-xs text-gray-500'}>loading...</span>}
+                  {!deletedTweets?.length && !loadingDel &&
+										<span className={'block text-center text-xs text-gray-500'}>No data</span>}
                   {!loadingDel && deletedTweets?.length ? deletedTweets.map(tweet => (
-                    <div key={tweet.id} className="text-xs space-y-1.5">
-                      <p className="text-gray-200 leading-normal">{tweet.text}</p>
+                    <div key={tweet?.id} className="text-xs space-y-1.5">
+                      <p className="text-gray-200 leading-normal">{tweet?.text}</p>
                       <div className="flex items-center gap-4 text-gray-500">
-                        <span>{formatDate(tweet.createTime)}</span>
+                        <span>{formatDate(tweet?.createTime)}</span>
                         <div className="flex items-center gap-3">
                             <span className="flex items-center gap-1">
                               <Eye className="w-3.5 h-3.5" />
-                              {formatNumber(tweet.viewCount)}
+                              {formatNumber(tweet?.viewCount)}
                             </span>
                           <span className="flex items-center gap-1">
                               <Repeat className="w-3.5 h-3.5" />
-                            {tweet.retweetCount}
+                            {formatNumber(tweet?.retweetCount)}
                             </span>
                           <span className="flex items-center gap-1">
                               <MessageCircle className="w-3.5 h-3.5" />
-                            {tweet.replyCount}
+                            {formatNumber(tweet?.replyCount)}
                             </span>
                           <span className="flex items-center gap-1">
                               <Heart className="w-3.5 h-3.5" />
-                            {tweet.likeCount}
+                            {formatNumber(tweet?.likeCount)}
                             </span>
                         </div>
                       </div>
