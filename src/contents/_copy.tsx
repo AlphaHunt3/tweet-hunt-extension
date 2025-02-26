@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
-import { Users, TrendingUp, Trash2, ChevronDown, ChevronUp, Eye, MessageCircle, Heart, Repeat, Minimize2, GripVertical } from 'lucide-react';
+import { Users2, TrendingUp, Trash2, ChevronDown, ChevronUp, Eye, MessageCircle, Heart, Repeat, Minimize2, GripVertical } from 'lucide-react';
 import Draggable from 'react-draggable';
+import numeral from 'numeral';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { AnalyticsIcon } from './components/AnalyticsIcon';
+
+dayjs.extend(relativeTime);
+
+interface AppProps {
+    showDeletedTweets: boolean;
+    showTokenPerformance: boolean;
+    language: 'en' | 'zh';
+}
 
 interface KolFollower {
     username: string;
@@ -19,7 +31,7 @@ interface DeletedTweet {
     viewCount: number;
 }
 
-function App() {
+function App({ showDeletedTweets, showTokenPerformance, language }: AppProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
@@ -118,59 +130,43 @@ function App() {
     }));
 
     const formatNumber = (num: number) => {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        }
-        if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
-        return num.toString();
+        return numeral(num).format('0.[0]a').toUpperCase();
     };
 
     const formatPercentage = (num: number) => {
-        return (num * 100).toFixed(1) + '%';
+        return numeral(num).format('0.0%');
     };
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+        const date = dayjs(dateString);
+        const now = dayjs();
+        const hoursAgo = now.diff(date, 'hour');
 
-        if (diffInHours < 24) {
-            return `${diffInHours}h`;
+        if (hoursAgo < 24) {
+            return date.fromNow();
         } else {
-            const month = date.toLocaleString('default', { month: 'short' });
-            const day = date.getDate();
-            return `${month} ${day}`;
+            return date.format('MMM D');
         }
     };
 
     return (
-        <div className="min-h-screen bg-black relative">
-            {/* Main content would go here */}
-
-            {/* Floating Analytics Panel */}
-            <Draggable
-                defaultPosition={{ x: window.innerWidth - (isMinimized ? 64 : 336), y: 16 }}
-                handle=".drag-handle"
-                bounds="parent"
-                disabled={isMinimized}
-            >
+        <Draggable
+            defaultPosition={{ x: window.innerWidth - 336, y: 16 }}
+            handle=".drag-handle"
+            bounds="parent"
+        >
+            <div className="fixed w-[320px]">
+                {/* Panel Content */}
                 <div
-                    className={`fixed bg-[#15202b] rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] text-white ${
+                    className={`absolute top-0 right-0 w-full bg-[#15202b] rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] text-white overflow-hidden ${
                         isHovered ? 'opacity-100 shadow-[0_8px_24px_rgba(0,0,0,0.25)]' : 'opacity-90'
                     } ${
-                        isMinimized ? 'w-12 h-12 overflow-hidden' : 'w-80'
+                        isMinimized ? 'invisible' : ''
                     }`}
-                    style={{
-                        transition: 'width 200ms ease, height 200ms ease',
-                        willChange: 'transform'
-                    }}
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
                 >
-                    {!isMinimized && (
-                        <div className="absolute right-2 top-2 flex items-center gap-1 z-50">
+                    {/* Sticky Header */}
+                    <div className="sticky top-0 z-50 bg-[#15202b]/95 backdrop-blur-sm border-b border-gray-700/50">
+                        <div className="absolute right-2 top-2 flex items-center gap-1">
                             <div className="drag-handle p-1.5 rounded-full hover:bg-gray-700/50 transition-colors cursor-grab active:cursor-grabbing">
                                 <GripVertical className="w-4 h-4 text-gray-400" />
                             </div>
@@ -181,87 +177,114 @@ function App() {
                                 <Minimize2 className="w-4 h-4 text-gray-400" />
                             </button>
                         </div>
-                    )}
+                        <div className="p-3 pt-2">
+                            <h1 className="text-sm font-semibold pl-1">Analytics Dashboard</h1>
+                        </div>
+                    </div>
 
-                    {/* Panel Content */}
-                    <div className={`transition-opacity duration-200 ${isMinimized ? 'opacity-0' : 'opacity-100'}`}>
-                        <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
-                            {/* KOL Followers Section */}
-                            <div className="p-3 border-b border-gray-700">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Users className="w-4 h-4 text-blue-400" />
-                                    <h2 className="font-bold text-sm">KOL Following Analytics</h2>
-                                </div>
+                    <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar">
+                        {/* KOL Followers Section */}
+                        <div className="p-3 border-b border-gray-700">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Users2 className="w-4 h-4 text-blue-400" />
+                                <h2 className="font-bold text-sm">KOL Following Analytics</h2>
+                            </div>
 
-                                <div className="grid grid-cols-3 gap-2 mb-2">
-                                    <div>
-                                        <p className="text-xs text-gray-400">Global KOLs</p>
-                                        <p className="font-bold text-sm">{formatNumber(kolData.kolFollow.globalKolFollowers)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">CN KOLs</p>
-                                        <p className="font-bold text-sm">{formatNumber(kolData.kolFollow.cnKolFollowers)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">Top 100</p>
-                                        <p className="font-bold text-sm">{kolData.kolFollow.topKolFollowersCount}</p>
-                                    </div>
-                                </div>
-
+                            <div className="grid grid-cols-3 gap-2 mb-2">
                                 <div>
-                                    <p className="text-xs text-gray-400 mb-1">Top KOL Followers</p>
-                                    <div className="grid grid-cols-5 gap-[2px]">
-                                        {kolData.kolFollow.topKolFollowersSlice10.map((follower) => (
-                                            <div
-                                                key={follower.username}
-                                                className="relative group"
-                                            >
-                                                <img
-                                                    src={follower.avatar}
-                                                    alt={follower.name}
-                                                    className="w-8 h-8 rounded-full hover:ring-2 hover:ring-blue-400 transition-all"
-                                                />
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">
-                                                    {follower.name}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <p className="text-xs text-gray-400">Global KOLs</p>
+                                    <p className="font-bold text-sm">{formatNumber(kolData.kolFollow.globalKolFollowers)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400">CN KOLs</p>
+                                    <p className="font-bold text-sm">{formatNumber(kolData.kolFollow.cnKolFollowers)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400">Top 100</p>
+                                    <p className="font-bold text-sm">{kolData.kolFollow.topKolFollowersCount}</p>
                                 </div>
                             </div>
 
-                            {/* Token Performance Section */}
+                            <div>
+                                <p className="text-xs text-gray-400 mb-1">Top KOL Followers</p>
+                                <div className="flex flex-wrap gap-0">
+                                    {kolData.kolFollow.topKolFollowersSlice10.map((follower) => (
+                                        <div
+                                            key={follower.username}
+                                            className="relative group -ml-1 first:ml-0"
+                                        >
+                                            <img
+                                                src={follower.avatar}
+                                                alt={follower.name}
+                                                className="w-7 h-7 rounded-full hover:ring-2 hover:ring-blue-400 transition-all border-2 border-[#15202b] hover:relative hover:z-10"
+                                            />
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20">
+                                                {follower.name}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Token Performance Section */}
+                        {showTokenPerformance && (
                             <div className="p-3 border-b border-gray-700">
-                                <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-2 mb-3">
                                     <TrendingUp className="w-4 h-4 text-green-400" />
                                     <h2 className="font-bold text-sm">Token Performance</h2>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                                    <div className="space-y-0.5">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-gray-400">30D Win</span>
-                                            <span className="font-medium">{formatPercentage(kolData.kolTokenMention.day30.winRate)}</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">30D Win Rate</span>
+                                            <span className="text-xs font-medium">
+                        {formatPercentage(kolData.kolTokenMention.day30.winRate)}
+                      </span>
                                         </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-gray-400">Max Profit</span>
-                                            <span className="font-medium text-green-400">+{formatPercentage(kolData.kolTokenMention.day30.maxProfitAvg)}</span>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">Max Profit</span>
+                                            <span className="text-xs font-medium text-green-400">
+                        +{formatPercentage(kolData.kolTokenMention.day30.maxProfitAvg)}
+                      </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">Current</span>
+                                            <span className={`text-xs font-medium ${kolData.kolTokenMention.day30.nowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {kolData.kolTokenMention.day30.nowProfitAvg >= 0 ? '+' : ''}
+                                                {formatPercentage(kolData.kolTokenMention.day30.nowProfitAvg)}
+                      </span>
                                         </div>
                                     </div>
-                                    <div className="space-y-0.5">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-gray-400">90D Win</span>
-                                            <span className="font-medium">{formatPercentage(kolData.kolTokenMention.day90.winRate)}</span>
+
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">90D Win Rate</span>
+                                            <span className="text-xs font-medium">
+                        {formatPercentage(kolData.kolTokenMention.day90.winRate)}
+                      </span>
                                         </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-gray-400">Max Profit</span>
-                                            <span className="font-medium text-green-400">+{formatPercentage(kolData.kolTokenMention.day90.maxProfitAvg)}</span>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">Max Profit</span>
+                                            <span className="text-xs font-medium text-green-400">
+                        +{formatPercentage(kolData.kolTokenMention.day90.maxProfitAvg)}
+                      </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-400">Current</span>
+                                            <span className={`text-xs font-medium ${kolData.kolTokenMention.day90.nowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {kolData.kolTokenMention.day90.nowProfitAvg >= 0 ? '+' : ''}
+                                                {formatPercentage(kolData.kolTokenMention.day90.nowProfitAvg)}
+                      </span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        )}
 
-                            {/* Deleted Tweets Section */}
+                        {/* Deleted Tweets Section */}
+                        {showDeletedTweets && (
                             <div>
                                 <div
                                     className="p-3 flex items-center justify-between cursor-pointer border-b border-gray-700"
@@ -310,19 +333,21 @@ function App() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Minimized State Icon */}
-                    <div
-                        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${isMinimized ? 'opacity-100 cursor-pointer' : 'opacity-0 pointer-events-none'}`}
-                        onClick={() => setIsMinimized(false)}
-                    >
-                        <Users className="w-6 h-6 text-blue-400" />
+                        )}
                     </div>
                 </div>
-            </Draggable>
-        </div>
+
+                {/* Minimized State Icon */}
+                <button
+                    onClick={() => setIsMinimized(false)}
+                    className={`absolute top-0 right-0 w-12 h-12 bg-[#15202b] rounded-2xl flex items-center justify-center ${
+                        isMinimized ? 'cursor-pointer' : 'invisible'
+                    }`}
+                >
+                    <AnalyticsIcon />
+                </button>
+            </div>
+        </Draggable>
     );
 }
 
