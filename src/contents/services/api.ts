@@ -28,9 +28,33 @@ export interface TwitterInfo {
   }
 }
 
-export const fetchTwitterInfo = async (userId: string): Promise<TwitterInfo> => {
+
+interface DeletedTweet {
+  id: string;
+  text: string;
+  createTime: string;
+  retweetCount: number;
+  replyCount: number;
+  likeCount: number;
+  quoteCount: number;
+  viewCount: number;
+}
+
+export type DeletedTweetAry = DeletedTweet[]
+
+export const fetchTwitterInfo = async (userId: string): Promise<TwitterInfo | null> => {
   try {
     const retJSON = await fetch(`https://kota.chaineye.tools/api/plugin/twitter/info?username=${userId}`);
+    const ret = await retJSON.json();
+    return ret?.data;
+  } catch (err) {
+    return null;
+  }
+}
+
+export const fetchDelTwitterInfo = async (userId: string): Promise<DeletedTweetAry | null> => {
+  try {
+    const retJSON = await fetch(`https://kota.chaineye.tools/api/plugin/twitter/deletedtweets?username=${userId}`);
     const ret = await retJSON.json();
     return ret?.data;
   } catch (err) {

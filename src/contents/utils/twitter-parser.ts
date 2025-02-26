@@ -4,7 +4,7 @@ interface TwitterUserInfo {
   displayName: string
 }
 
-const waitForElement = (selector: string, maxAttempts = 10, interval = 1000): Promise<Element | null> => {
+const waitForElement = (selector: string, maxAttempts = 5, interval = 800): Promise<Element | null> => {
   return new Promise((resolve) => {
     let attempts = 0
 
