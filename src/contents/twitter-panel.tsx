@@ -14,13 +14,11 @@ import {
   GripVertical
 } from 'lucide-react';
 import { Storage } from '@plasmohq/storage'
-import { useDebounceEffect, useLockFn, useThrottleEffect } from 'ahooks'
+import { useDebounceEffect, useDebounceFn, useLockFn } from 'ahooks'
 import cssText from 'data-text:~/style.css'
-import { parseTwitterUserInfo } from './utils/twitter-parser'
 import { fetchDelTwitterInfo, fetchTwitterInfo } from './services/api'
 import type { TwitterInfo } from './services/api'
 import { AnalyticsIcon } from './compontents/AnalyticsIcon.tsx';
-import Draggable from 'react-draggable';
 import numeral from 'numeral';
 import dayjs from 'dayjs';
 import { DraggablePanel } from '~contents/compontents/DraggablePanel.tsx';
@@ -76,17 +74,15 @@ function TwitterPanel() {
     showDeletedTweets: true,
     darkMode: true
   })
-  // const [userInfo, setUserInfo] = useState<{
-  //   userId: string
-  // }>(null)
   const [userId, setUserId] = useState('');
   const [deletedTweets, setDeletedTweets] = useState([]);
   const [userStats, setUserStats] = useState<TwitterInfo>(null);
   const [loading, setLoading] = useState(true)
+  const [loadingDel, setLoadingDel] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUrl, setCurrentUrl] = useState(window.location.href)
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  // const [isHovered, setIsHovered] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const showTokenPerformance = true;
   const showDeletedTweets = true;
@@ -110,18 +106,36 @@ function TwitterPanel() {
       return date.format('MMM D');
     }
   };
+  const { run: fetchDelData } = useDebounceFn(async () => {
+    try {
+      if (!userId || String(userId) <= 4) return;
+      setLoadingDel(true);
+      setError(null);
+      const [{ value: deletedAry }] = await Promise.allSettled([
+        fetchDelTwitterInfo(userId),
+      ]);
+      setDeletedTweets(deletedAry);
+    } catch (err) {
+      // setError(err instanceof Error ? err.message : '获取数据失败')
+    } finally {
+      setLoadingDel(false)
+    }
+  }, {
+    leading: true,
+    trailing: false,
+    wait: 1000
+  })
 
   const loadData = useLockFn(async () => {
     try {
       if (!userId || String(userId) <= 4) return;
       setLoading(true);
       setError(null);
-      const [{ value: userStats }, { value: deletedAry }] = await Promise.allSettled([
+      fetchDelData().then(r => r);
+      const [{ value: userStats }] = await Promise.allSettled([
         fetchTwitterInfo(userId),
-        fetchDelTwitterInfo(userId)
       ]);
       setUserStats(userStats);
-      setDeletedTweets(deletedAry);
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取数据失败')
     } finally {
@@ -192,7 +206,7 @@ function TwitterPanel() {
             {/*</button>*/}
 					</div>
 					<div className="p-3 pt-2">
-						<h1 className="text-sm font-semibold pl-1">@{userId}</h1>
+						<h1 className="text-sm font-semibold pl-1">{loading ? 'loading...' : `@${userId}`}</h1>
 					</div>
 				</div>
 
@@ -317,7 +331,9 @@ function TwitterPanel() {
 
               <div className={`${isExpanded ? '' : 'h-0'} overflow-hidden transition-[height] duration-200`}>
                 <div className="p-3 space-y-4">
-                  {deletedTweets.map(tweet => (
+                  {loadingDel && <span className={'block text-center'}>loading...</span>}
+                  {!deletedTweets?.length && !loadingDel && <span className={'block text-center'}>No data</span>}
+                  {!loadingDel && deletedTweets?.length ? deletedTweets.map(tweet => (
                     <div key={tweet.id} className="text-xs space-y-1.5">
                       <p className="text-gray-200 leading-normal">{tweet.text}</p>
                       <div className="flex items-center gap-4 text-gray-500">
@@ -343,7 +359,7 @@ function TwitterPanel() {
                       </div>
                       <div className="border-b border-gray-700/50 pt-2" />
                     </div>
-                  ))}
+                  )) : null}
                 </div>
               </div>
             </div>
