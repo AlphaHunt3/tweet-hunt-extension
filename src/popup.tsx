@@ -1,38 +1,11 @@
-import { useEffect, useState } from 'react'
-import { Storage } from '@plasmohq/storage'
 import './style.css';
 import { MessageCircle, Settings } from 'lucide-react';
-
-const storage = new Storage()
+import { useStorage } from '@plasmohq/storage/dist/hook';
 
 function IndexPopup() {
-  const [settings, setSettings] = useState({
-    showPanel: true,
-    // showKOLStats: true,
-    // showProfitStats: true,
-    showDeletedTweets: true,
-    // darkMode: true
-  })
-
-  useEffect(() => {
-    // 加载保存的设置
-    const loadSettings = async () => {
-      const savedSettings = await storage.get('settings')
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings))
-      }
-    }
-    loadSettings()
-  }, [])
-
-  // 保存设置
-  const handleSettingChange = async (key: string, value: boolean) => {
-    const newSettings = { ...settings, [key]: value }
-    setSettings(newSettings)
-    await storage.set('settings', JSON.stringify(newSettings))
-  }
-  // const language = '';
-  return <div className="bg-[#15202b]/90 backdrop-blur-sm px-4 py-2 text-white w-[280px] shadow-lg">
+  const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
+  const [showDeletedTweets, setShowDeletedTweets] = useStorage('@settings/showDeletedTweets', true);
+  return <div className="bg-[#000000]/90 backdrop-blur-sm px-4 py-2 text-white w-[280px] shadow-lg">
     <div className="flex items-center gap-2 mb-4">
       <Settings className="w-4 h-4 text-blue-400" />
       <h2 className="text-sm font-bold">Settings</h2>
@@ -62,8 +35,8 @@ function IndexPopup() {
           <input
             type="checkbox"
             className="sr-only peer"
-            checked={settings.showPanel}
-            onChange={(e) => handleSettingChange("showPanel", e.target.checked)}
+            checked={showPanel}
+            onChange={(e) => setShowPanel(e.target.checked)}
           />
           <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
         </label>
@@ -75,25 +48,12 @@ function IndexPopup() {
           <input
             type="checkbox"
             className="sr-only peer"
-            checked={settings.showDeletedTweets}
-            onChange={(e) => handleSettingChange("showDeletedTweets", e.target.checked)}
+            checked={showDeletedTweets}
+            onChange={(e) => setShowDeletedTweets(e.target.checked)}
           />
           <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
         </label>
       </div>
-
-      {/*<div className="flex items-center justify-between">*/}
-      {/*  <span className="text-sm">Show Token Performance</span>*/}
-      {/*  <label className="relative inline-flex items-center cursor-pointer">*/}
-      {/*    <input*/}
-      {/*      type="checkbox"*/}
-      {/*      className="sr-only peer"*/}
-      {/*      // checked={showTokenPerformance}*/}
-      {/*      // onChange={onToggleTokenPerformance}*/}
-      {/*    />*/}
-      {/*    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>*/}
-      {/*  </label>*/}
-      {/*</div>*/}
     </div>
 
     <div className="mt-6 pt-4 border-t border-gray-700/50">

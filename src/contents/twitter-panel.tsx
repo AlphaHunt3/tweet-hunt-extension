@@ -1,5 +1,4 @@
-import type { PlasmoContentScript } from 'plasmo'
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Users2,
   TrendingUp,
@@ -11,9 +10,8 @@ import {
   Heart,
   Repeat,
   // Minimize2,
-  GripVertical
+  GripVertical, Loader2
 } from 'lucide-react';
-import { Storage } from '@plasmohq/storage'
 import { useDebounceEffect, useDebounceFn, useLockFn } from 'ahooks'
 import cssText from 'data-text:~/style.css'
 import { fetchDelTwitterInfo, fetchTwitterInfo } from './services/api'
@@ -22,9 +20,11 @@ import { AnalyticsIcon } from './compontents/AnalyticsIcon.tsx';
 import numeral from 'numeral';
 import dayjs from 'dayjs';
 import { DraggablePanel } from '~contents/compontents/DraggablePanel.tsx';
+import { useStorage } from '@plasmohq/storage/hook'
+import { extractUsernameFromUrl } from '~contents/utils';
 
-export const config: PlasmoContentScript = {
-  matches: ['https://*.twitter.com/*', 'https://*.x.com/*']
+export const config = {
+  matches: ['https://*.x.com/*']
 }
 
 export const getStyle = () => {
@@ -33,60 +33,9 @@ export const getStyle = () => {
   return style
 }
 
-const storage = new Storage()
-
-/**
- * 从给定的 URL 中提取用户名
- * @param url - 完整的 URL 字符串，例如 "https://x.com/aixbt_agent"
- * @returns 提取的用户名，如果无法提取或域名不是 x.com 或是导航页则返回空字符串
- */
-function extractUsernameFromUrl(url: string): string {
-  try {
-    // 使用 URL 构造函数解析 URL
-    const parsedUrl = new URL(url);
-
-    // 检查域名是否为 x.com
-    if (parsedUrl.hostname !== 'x.com') {
-      return '';
-    }
-
-    // 获取路径部分（去掉开头的斜杠）
-    const path = parsedUrl.pathname;
-
-    // 去掉路径开头的斜杠并分割路径
-    const segments = path.split('/').filter(segment => segment.length > 0);
-
-    // 定义已知的导航页面路径（黑名单）
-    const navigationPages = new Set([
-      'home',          // 首页
-      'explore',       // 探索页
-      'notifications', // 通知页
-      'messages',      // 消息页
-      'search',        // 搜索页
-      'settings',      // 设置页
-      'i',             // 内部页面（如设置子页面）
-    ]);
-
-    // 如果路径的第一个部分是导航页面，则返回空字符串
-    const firstSegment = segments[0];
-    if (navigationPages.has(firstSegment)) {
-      return '';
-    }
-
-    // 返回路径的第一个有效部分作为用户名
-    return firstSegment || '';
-  } catch (error) {
-    // 如果 URL 格式无效，捕获错误并返回空字符串
-    console.error('Invalid URL:', error);
-    return '';
-  }
-}
-
 function TwitterPanel() {
-  const [settings, setSettings] = useState({
-    showPanel: true,
-    showDeletedTweets: true,
-  })
+  const [showPanel] = useStorage('@settings/showPanel', true);
+  const [showDeletedTweets] = useStorage('@settings/showDeletedTweets', true);
   const [userId, setUserId] = useState('');
   const [deletedTweets, setDeletedTweets] = useState([]);
   const [userStats, setUserStats] = useState<TwitterInfo>(null);
@@ -95,10 +44,7 @@ function TwitterPanel() {
   const [error, setError] = useState<string | null>(null)
   const [currentUrl, setCurrentUrl] = useState(window.location.href)
   const [isExpanded, setIsExpanded] = useState(false);
-  // const [isHovered, setIsHovered] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const showTokenPerformance = true;
-  const showDeletedTweets = true;
 
   const formatNumber = (num: number | undefined) => {
     return numeral(num || 0).format('0.[0]a').toUpperCase();
@@ -162,18 +108,7 @@ function TwitterPanel() {
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
     setUserId(uid);
-  }, [currentUrl], { wait: 1000 })
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      const savedSettings = await storage.get('settings')
-      // console.log(savedSettings, 'savedSettings')
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings))
-      }
-    }
-    loadSettings()
-  }, [])
+  }, [currentUrl], { wait: 500 })
 
   useEffect(() => {
     // 使用 MutationObserver 监听 URL 变化
@@ -191,10 +126,10 @@ function TwitterPanel() {
     }
   }, [currentUrl])
 
-  if (!settings.showPanel) {
+  if (!showPanel) {
     return null
   }
-  if ((loading && !userStats) || error || !userStats || !userId) {
+  if (error || !userId) {
     return <></>
   }
   return <DraggablePanel
@@ -206,6 +141,12 @@ function TwitterPanel() {
       {!isMinimized && <div
 				className={`absolute top-0 right-0 w-full bg-[#15202b] rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] text-white overflow-hidden opacity-100 shadow-[0_8px_24px_rgba(0,0,0,0.25)]`}
 			>
+        {loading && (
+          <div className="absolute inset-0 bg-[#15202b]/70 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center pointer-events-auto">
+            <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-2" />
+            <p className="text-sm text-blue-200">Loading...</p>
+          </div>
+        )}
         {/* Sticky Header */}
 				<div className="sticky top-0 z-50 bg-[#15202b]/95 backdrop-blur-sm border-b border-gray-700/50">
 					<div className="absolute right-2 top-2 flex items-center gap-1">
@@ -220,7 +161,7 @@ function TwitterPanel() {
             {/*</button>*/}
 					</div>
 					<div className="p-3 pt-2">
-						<h1 className="text-sm font-semibold pl-1">{loading ? 'loading...' : `@${userId}`}</h1>
+						<h1 className="text-sm font-semibold pl-1">{`@${userId}`}</h1>
 					</div>
 				</div>
 
@@ -328,10 +269,10 @@ function TwitterPanel() {
           )}
 
           {/* Deleted Tweets Section */}
-          {settings?.showDeletedTweets && (
+          {showDeletedTweets && (
             <div>
               <div
-                className="p-3 flex items-center justify-between cursor-pointer border-b border-gray-700"
+                className="p-3 flex items-center justify-between cursor-pointer border-gray-700"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 <div className="flex items-center gap-2">
