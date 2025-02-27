@@ -1,0 +1,13 @@
+{
+  "settings": "设置",
+  "language": "语言",
+  "showAnalytics": "显示分析数据",
+  "showDeletedTweets": "显示已删除的推文",
+  "contactUs": "通过 Telegram 联系我们",
+  "version": "版本",
+  "loading": "加载中...",
+  "kFollowingAnalytics": "KOL 跟踪分析",
+  "tokenPerformance": "代币表现",
+  "deletedTweets": "已删除的推文",
+  "topKFollowers": "Top KOL 关注着"
+}

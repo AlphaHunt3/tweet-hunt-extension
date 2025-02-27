@@ -1,0 +1,13 @@
+{
+  "settings": "Settings",
+  "language": "Language",
+  "showAnalytics": "Show Analytics",
+  "showDeletedTweets": "Show Deleted Tweets",
+  "contactUs": "Contact us on Telegram",
+  "version": "Version",
+  "loading": "Loading...",
+  "kFollowingAnalytics": "KOL Following Analytics",
+  "tokenPerformance": "Token Performance",
+  "deletedTweets": "Deleted Tweets",
+  "topKFollowers": "Top KOL Followers"
+}

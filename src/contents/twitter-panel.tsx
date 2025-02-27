@@ -22,6 +22,7 @@ import dayjs from 'dayjs';
 import { DraggablePanel } from '~contents/compontents/DraggablePanel.tsx';
 import { useStorage } from '@plasmohq/storage/hook'
 import { extractUsernameFromUrl } from '~contents/utils';
+import { useI18n } from '~contents/hooks/i18n.ts';
 
 export const config = {
   matches: ['https://*.x.com/*']
@@ -45,6 +46,7 @@ function TwitterPanel() {
   const [currentUrl, setCurrentUrl] = useState(window.location.href)
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const { t } = useI18n();
 
   const formatNumber = (num: number | undefined) => {
     return numeral(num || 0).format('0.[0]a').toUpperCase();
@@ -144,7 +146,7 @@ function TwitterPanel() {
         {loading && (
           <div className="absolute inset-0 bg-[#15202b]/70 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center pointer-events-auto">
             <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-2" />
-            <p className="text-sm text-blue-200">Loading...</p>
+            <p className="text-sm text-blue-200">{t('loading')}</p>
           </div>
         )}
         {/* Sticky Header */}
@@ -170,7 +172,7 @@ function TwitterPanel() {
 					<div className="p-3 border-b border-gray-700">
 						<div className="flex items-center gap-2 mb-2">
 							<Users2 className="w-4 h-4 text-blue-400" />
-							<h2 className="font-bold text-sm">KOL Following Analytics</h2>
+							<h2 className="font-bold text-sm">{t('kFollowingAnalytics')}</h2>
 						</div>
 
 						<div className="grid grid-cols-3 gap-2 mb-2">
@@ -189,7 +191,7 @@ function TwitterPanel() {
 						</div>
 
 						<div>
-							<p className="text-xs text-gray-400 mb-1">Top KOL Followers</p>
+							<p className="text-xs text-gray-400 mb-1">{t("topKFollowers")}</p>
 							<div className="flex flex-wrap gap-0">
                 {(userStats?.kolFollow?.topKolFollowersSlice10 || []).map((follower) => (
                   <a
@@ -217,7 +219,7 @@ function TwitterPanel() {
             <div className="p-3 border-b border-gray-700">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="w-4 h-4 text-green-400" />
-                <h2 className="font-bold text-sm">Token Performance</h2>
+                <h2 className="font-bold text-sm">{t("tokenPerformance")}</h2>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -277,7 +279,7 @@ function TwitterPanel() {
               >
                 <div className="flex items-center gap-2">
                   <Trash2 className="w-4 h-4 text-red-400" />
-                  <h2 className="font-bold text-sm">Deleted Tweets</h2>
+                  <h2 className="font-bold text-sm">{t("deletedTweets")}</h2>
                 </div>
                 {isExpanded ? (
                   <ChevronUp className="w-4 h-4 text-gray-400" />
