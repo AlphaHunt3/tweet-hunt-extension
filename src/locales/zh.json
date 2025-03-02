@@ -6,8 +6,9 @@
   "contactUs": "通过 Telegram 联系我们",
   "version": "版本",
   "loading": "加载中...",
-  "kFollowingAnalytics": "KOL 跟踪分析",
-  "tokenPerformance": "代币表现",
+  "kFollowingAnalytics": "KOL关注分析",
+  "tokenPerformance": "提及代币表现",
   "deletedTweets": "已删除的推文",
-  "topKFollowers": "Top KOL 关注着"
+  "topKFollowers": "Top KOL 关注着",
+  "mentionedTokens": "提及代币"
 }

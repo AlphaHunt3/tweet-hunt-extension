@@ -1,3 +1,7 @@
+export const config = {
+  matches: ['https://*.x.com/*']
+}
+
 interface TwitterUserInfo {
   // userId: string
   // username: string
@@ -11,7 +15,6 @@ const waitForElement = (selector: string, maxAttempts = 5, interval = 800): Prom
     const check = () => {
       attempts++
       const element = document.querySelector(selector)
-      console.log('attempts', element, selector)
       if (element) {
         resolve(element)
         return

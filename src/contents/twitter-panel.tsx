@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Users2,
-  TrendingUp,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  MessageCircle,
-  Heart,
-  Repeat,
-  // Minimize2,
-  GripVertical, Loader2, Hash
-} from 'lucide-react';
+import { GripVertical, Loader2, Tags } from 'lucide-react';
 import { useDebounceEffect, useDebounceFn, useLockFn } from 'ahooks'
 import cssText from 'data-text:~/css/style.css'
 import tipCss from 'data-text:~/css/tippy.css'
@@ -137,7 +125,12 @@ function TwitterPanel() {
             </div>
           </div>
           <div className="p-3 pt-2">
-            <h1 className="text-sm font-semibold pl-1">{`@${userId}`}</h1>
+            <h1 className="text-sm font-semibold pl-1">
+              {`@${userId}`}
+              {userStats?.basicInfo?.isKol && <Tags className="w-4 h-4 ml-4 mb-0.5 text-gray-400 inline-flex" />}
+              {userStats?.basicInfo?.classification && (userStats?.basicInfo?.classification !== 'unknown') &&
+								<span className="text-xs text-gray-400 ml-1">{userStats?.basicInfo?.classification}</span>}
+            </h1>
           </div>
         </div>
 
@@ -146,10 +139,11 @@ function TwitterPanel() {
           <KolFollowersSection kolData={userStats} />
 
           {/*Token Performance Section*/}
-          <TokenPerformanceSection kolData={userStats} />
+          {userStats?.basicInfo?.classification === 'person' && <TokenPerformanceSection kolData={userStats} />}
 
           {/* Deleted Tweets Section */}
-          <DeletedTweetsSection deletedTweets={deletedTweets} loadingDel={loadingDel}/>
+          {(userStats?.basicInfo?.isKol || deletedTweets?.length) ?
+            <DeletedTweetsSection deletedTweets={deletedTweets} loadingDel={loadingDel} /> : null}
         </div>
       </div>}
 

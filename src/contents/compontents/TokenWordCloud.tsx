@@ -40,8 +40,8 @@ function TokenWordCloud({ tokens, height = 160 }: TokenWordCloudProps) {
   // Process tokens to ensure they have text and value properties
   const processedTokens = useMemo(() => {
     return tokens.map(token => ({
-      text: token.text || token.symbol || token.token || '',
-      value: token.value || token.mentionCount || 1
+      text: token.symbol || token.token || '',
+      value: token.mentionCount || 1
     })).filter(token => token.text);
   }, [tokens]);
 
@@ -105,7 +105,7 @@ function TokenWordCloud({ tokens, height = 160 }: TokenWordCloudProps) {
     const maxValue = sortedTokens.length > 0 ? sortedTokens[0].value : 2;
     const fontSizeScale = d3.scaleLog()
     .domain([Math.max(1, minValue), Math.max(2, maxValue)])
-    .range([14, 30])
+    .range([14, 28])
     .clamp(true);
 
     // Set up the layout
@@ -151,11 +151,12 @@ function TokenWordCloud({ tokens, height = 160 }: TokenWordCloudProps) {
       .style('font-weight', 'bold')
       .style('fill', (d) => {
         // Assign colors based on value - more important tokens get more vibrant colors
-        const colorIndex = Math.min(
-          Math.floor((d.value / maxValue) * colors.length),
-          colors.length - 1
-        );
-        return colors[colorIndex];
+        // const colorIndex = Math.min(
+        //   Math.floor((d.value / maxValue) * colors.length),
+        //   colors.length - 1
+        // );
+        // return colors[colorIndex];
+        return colors[Math.floor(Math.random() * colors.length)];
       })
       .attr('text-anchor', 'middle')
       .attr('transform', d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
@@ -222,7 +223,7 @@ function TokenWordCloud({ tokens, height = 160 }: TokenWordCloudProps) {
   return (
     <div
       ref={containerRef}
-      className="w-full bg-[#101823] rounded-md overflow-hidden flex items-center justify-center"
+      className="w-full bg-[#101823] rounded-md overflow-hidden flex items-center justify-center pointer-events-none"
       style={{ height: `${height}px` }}
     >
       <svg ref={svgRef} />

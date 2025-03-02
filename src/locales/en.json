@@ -7,7 +7,8 @@
   "version": "Version",
   "loading": "Loading...",
   "kFollowingAnalytics": "KOL Following Analytics",
-  "tokenPerformance": "Token Performance",
+  "tokenPerformance": "Mentioned Token Performance",
   "deletedTweets": "Deleted Tweets",
-  "topKFollowers": "Top KOL Followers"
+  "topKFollowers": "Top KOL Followers",
+  "mentionedTokens": "Mentioned Tokens"
 }

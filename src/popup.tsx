@@ -5,7 +5,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 
 function IndexPopup() {
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
-  const [showDeletedTweets, setShowDeletedTweets] = useStorage('@settings/showDeletedTweets', true);
+  // const [showDeletedTweets, setShowDeletedTweets] = useStorage('@settings/showDeletedTweets', true);
   const [lang, setLang] = useStorage('@settings/lan', 'en');
   const { t } = useI18n();
   return <div className="bg-[#000000]/90 backdrop-blur-sm px-4 py-2 text-white w-[280px] shadow-lg">
@@ -45,18 +45,18 @@ function IndexPopup() {
         </label>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-sm">{t('showDeletedTweets')}</span>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            className="sr-only peer"
-            checked={showDeletedTweets}
-            onChange={(e) => setShowDeletedTweets(e.target.checked)}
-          />
-          <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
-        </label>
-      </div>
+      {/*<div className="flex items-center justify-between">*/}
+      {/*  <span className="text-sm">{t('showDeletedTweets')}</span>*/}
+      {/*  <label className="relative inline-flex items-center cursor-pointer">*/}
+      {/*    <input*/}
+      {/*      type="checkbox"*/}
+      {/*      className="sr-only peer"*/}
+      {/*      checked={showDeletedTweets}*/}
+      {/*      onChange={(e) => setShowDeletedTweets(e.target.checked)}*/}
+      {/*    />*/}
+      {/*    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>*/}
+      {/*  </label>*/}
+      {/*</div>*/}
     </div>
 
     <div className="mt-6 pt-4 border-t border-gray-700/50">

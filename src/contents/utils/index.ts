@@ -1,3 +1,7 @@
+export const config = {
+  matches: ['https://*.x.com/*']
+}
+
 /**
  * 从给定的 URL 中提取用户名
  * @param url - 完整的 URL 字符串，例如 "https://x.com/aixbt_agent"
