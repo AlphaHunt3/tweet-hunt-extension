@@ -1,48 +1,6 @@
-interface KolFollower {
-  avatar: string; // 头像 URL
-  name: string; // 名称
-  username: string; // 用户名
-}
+import { DeletedTweet, KolData } from '~types';
 
-interface KolFollowData {
-  cnKolFollowers: number; // 中国 KOL 粉丝数
-  globalKolFollowers: number; // 全球 KOL 粉丝数
-  topKolFollowersCount: number; // Top KOL 粉丝总数
-  topKolFollowersSlice10: KolFollower[]; // Top 10 KOL 粉丝列表
-}
-
-interface MentionData {
-  maxProfitAvg: number
-  maxProfitAvgPct: number
-  nowProfitAvg: number
-  nowProfitAvgPct: number
-  winRate: number
-  winRatePct: number
-}
-
-export interface TwitterInfo {
-  kolFollow: KolFollowData;
-  kolTokenMention: {
-    day30: MentionData
-    day90: MentionData
-  }
-}
-
-
-interface DeletedTweet {
-  id: string;
-  text: string;
-  createTime: string;
-  retweetCount: number;
-  replyCount: number;
-  likeCount: number;
-  quoteCount: number;
-  viewCount: number;
-}
-
-export type DeletedTweetAry = DeletedTweet[]
-
-export const fetchTwitterInfo = async (userId: string): Promise<TwitterInfo | null> => {
+export const fetchTwitterInfo = async (userId: string): Promise<KolData | null> => {
   try {
     const retJSON = await fetch(`https://kota.chaineye.tools/api/plugin/twitter/info?username=${userId}`);
     const ret = await retJSON.json();
@@ -52,7 +10,7 @@ export const fetchTwitterInfo = async (userId: string): Promise<TwitterInfo | nu
   }
 }
 
-export const fetchDelTwitterInfo = async (userId: string): Promise<DeletedTweetAry | null> => {
+export const fetchDelTwitterInfo = async (userId: string): Promise<DeletedTweet[] | null> => {
   try {
     const retJSON = await fetch(`https://kota.chaineye.tools/api/plugin/twitter/deletedtweets?username=${userId}`);
     const ret = await retJSON.json();

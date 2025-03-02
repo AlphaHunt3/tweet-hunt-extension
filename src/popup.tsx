@@ -1,4 +1,4 @@
-import './style.css';
+import './css/style.css';
 import { MessageCircle, Settings } from 'lucide-react';
 import { useStorage } from '@plasmohq/storage/dist/hook';
 import { useI18n } from '~contents/hooks/i18n.ts';
