@@ -139,7 +139,8 @@ function TwitterPanel() {
           <KolFollowersSection kolData={userStats} />
 
           {/*Token Performance Section*/}
-          {userStats?.basicInfo?.classification === 'person' && <TokenPerformanceSection kolData={userStats} />}
+          {userStats?.basicInfo?.classification === 'person' && userStats.kolTokenMention &&
+						<TokenPerformanceSection kolData={userStats} />}
 
           {/* Deleted Tweets Section */}
           {(userStats?.basicInfo?.isKol || deletedTweets?.length) ?
