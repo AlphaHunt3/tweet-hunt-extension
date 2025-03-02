@@ -36,10 +36,5 @@
     "copy-webpack-plugin": "^12.0.2",
     "postcss": "^8.4.29",
     "typescript": "^5.2.2"
-  },
-  "manifest": {
-    "host_permissions": [
-      "https://*.x.com/*"
-    ]
   }
 }

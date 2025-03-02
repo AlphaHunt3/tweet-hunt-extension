@@ -1,5 +1,5 @@
 export const config = {
-  matches: ['https://*.x.com/*']
+  matches: ['https://x.com/*']
 }
 
 interface TwitterUserInfo {

@@ -15,7 +15,7 @@ import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.t
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 
 export const config = {
-  matches: ['https://*.x.com/*']
+  matches: ['https://x.com/*']
 }
 
 export const getStyle = () => {
