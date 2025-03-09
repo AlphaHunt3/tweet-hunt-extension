@@ -1,3 +1,5 @@
+import numeral from 'numeral';
+
 export const config = {
   matches: ['https://x.com/*']
 }
@@ -51,3 +53,8 @@ export function extractUsernameFromUrl(url: string): string {
     return '';
   }
 }
+
+export const formatPercentage = (num: number | null | undefined) => {
+  if (!num) return 'N/A';
+  return numeral(num).format('0.0%');
+};

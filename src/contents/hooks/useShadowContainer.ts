@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 
 export default function useShadowContainer({
+  pageId,
   selector,
   styleText = '',
   shadowStyle = '',
   shadowMode = 'closed',
 }: {
+  pageId: string;
   selector: string;
   styleText?: string;
   shadowStyle?: string;
@@ -14,6 +16,9 @@ export default function useShadowContainer({
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
 
   useEffect(() => {
+    if (!pageId) {
+      return;
+    }
     let observer: MutationObserver | null = null;
 
     function createShadowContainer(): boolean {
@@ -55,7 +60,7 @@ export default function useShadowContainer({
     return () => {
       observer && observer.disconnect();
     };
-  }, [selector, styleText, shadowStyle, shadowMode]);
+  }, [selector, styleText, shadowStyle, shadowMode, pageId]);
 
   return shadowRoot;
 }

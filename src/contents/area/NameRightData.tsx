@@ -6,27 +6,49 @@ import { MainData } from '~contents/hooks/useMainData.ts';
 import React from 'react';
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
+import { formatPercentage } from '~contents/utils';
 
 export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId }: MainData) {
-  if (error || !userId) {
-    return <></>
-  }
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
-    shadowStyle: 'width: 100%'
+    shadowStyle: 'width: 100%',
+    pageId: userId
   })
+
+  console.log(shadowRoot, 'shadowRoot===')
 
   // 利用 React Portal 把组件渲染到目标元素内部
   if (!shadowRoot) return null;
+  console.log(error, userId, '====================xxx', shadowRoot)
+
+  if (error || !userId) {
+    return <></>
+  }
+  const isPerson = twInfo?.basicInfo?.classification === 'person';
+  const isKol = twInfo?.basicInfo?.isKol;
+  const day90TokenMentionsLength = String(twInfo?.kolTokenMention?.day90?.tokenMentions?.length);
+  const day90NowProfitAvg = twInfo?.kolTokenMention?.day90?.nowProfitAvg;
+  const day90NowProfitAvgStr = (day90NowProfitAvg >= 0 ? '+' : '') + formatPercentage(day90NowProfitAvg)
   return ReactDOM.createPortal(
     <div className="flex flex-wrap items-center w-full mh-[40px] h-auto mt-4">
-      <HoverStatItem label={'投资人'} value={'8'} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} />
-      {/*{twInfo?.basicInfo?.classification === 'person' && twInfo.kolTokenMention &&*/}
-      {/*  <TokenPerformanceSection kolData={twInfo} />}*/}
-      <HoverStatItem label={'90d谈及代币'} value={'10'} hoverContent={<TokenPerformanceSection kolData={twInfo} />} />
-      <HoverStatItem label={'90d收益率'} value={'+10%'} hoverContent={'33'} valueClassName="text-green-400" />
-      {deletedTweets && deletedTweets?.length ?
+      {!loadingTwInfo ? <>
+        {/*投资人*/}
+        <HoverStatItem label={'投资人'} value={'8'} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} />
+
+        {/*90d谈及代币*/}
+        {isPerson && Number(day90TokenMentionsLength) ?
+          <HoverStatItem label={'90d谈及代币'} value={day90TokenMentionsLength} hoverContent={
+            <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'WordCloud'} />} valueClassName={'text-[#1D9BF0]'} /> : null}
+
+        {/*90d收益率*/}
+        {isPerson && day90NowProfitAvg ? <HoverStatItem label={'90d收益率'} value={day90NowProfitAvgStr} hoverContent={
+          <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
+
+      </> : <HoverStatItem label={'loading'} value={'loading'} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
+
+      {/*删帖*/}
+      {isKol && !loadingDel && deletedTweets && deletedTweets?.length ?
         <HoverStatItem label={'删帖'} value={String(deletedTweets?.length)} hoverContent={
           <DeletedTweetsSection isHoverPanel={true} deletedTweets={deletedTweets} loadingDel={loadingDel} />
         } valueClassName="text-red-400" /> : null}
