@@ -19,27 +19,32 @@ export default function useShadowContainer({
     function createShadowContainer(): boolean {
       const target = document.querySelector(selector);
       if (target) {
-        // 每次创建一个新的容器，不依赖于固定 id
-        const container = document.createElement('div');
-        container.style.cssText = shadowStyle;
-        target.appendChild(container);
-        const shadow = container.attachShadow({ mode: shadowMode });
-        // 创建 style 标签并注入传入的 CSS 文本
-        const styleEl = document.createElement('style');
-        styleEl.textContent = styleText;
-        shadow.appendChild(styleEl);
+        // 检查是否已经存在唯一的容器
+        let container = target.querySelector('[data-plasmo-shadow-container="true"]') as HTMLElement | null;
+        if (!container) {
+          container = document.createElement('div');
+          container.setAttribute('data-plasmo-shadow-container', 'true');
+          container.style.cssText = shadowStyle;
+          target.appendChild(container);
+        }
+        // 获取或创建 shadowRoot
+        let shadow = container.shadowRoot;
+        if (!shadow) {
+          shadow = container.attachShadow({ mode: shadowMode });
+          const styleEl = document.createElement('style');
+          styleEl.textContent = styleText;
+          shadow.appendChild(styleEl);
+        }
         setShadowRoot(shadow);
         return true;
       }
       return false;
     }
 
-    // 如果目标元素一开始就存在则直接创建
     if (createShadowContainer()) {
       return;
     }
 
-    // 否则使用 MutationObserver 等待目标元素出现
     observer = new MutationObserver(() => {
       if (createShadowContainer()) {
         observer && observer.disconnect();
@@ -50,7 +55,7 @@ export default function useShadowContainer({
     return () => {
       observer && observer.disconnect();
     };
-  }, [selector, styleText, shadowStyle]);
+  }, [selector, styleText, shadowStyle, shadowMode]);
 
   return shadowRoot;
 }
