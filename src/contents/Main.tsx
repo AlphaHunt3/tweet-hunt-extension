@@ -22,7 +22,7 @@ const Main = () => {
       <FixedTwitterPanel {...mainData} />
 
       {/*推特个人详情页名字右边极简数据*/}
-      <NameRightData />
+      <NameRightData {...mainData}/>
     </>
   )
 }

@@ -2,8 +2,15 @@ import cssText from 'data-text:~/css/style.css'
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import { HoverStatItem } from '~contents/compontents/HoverStatItem.tsx';
+import { MainData } from '~contents/hooks/useMainData.ts';
+import React from 'react';
+import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
+import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
 
-export function NameRightData() {
+export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId }: MainData) {
+  if (error || !userId) {
+    return <></>
+  }
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
@@ -14,10 +21,15 @@ export function NameRightData() {
   if (!shadowRoot) return null;
   return ReactDOM.createPortal(
     <div className="flex flex-wrap items-center w-full mh-[40px] h-auto mt-4">
-      <HoverStatItem label={'投资人'} value={'8'} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'}/>
-      <HoverStatItem label={'90d谈及代币'} value={'10'} hoverContent={'33'}/>
-      <HoverStatItem label={'90d收益率'} value={'+10%'} hoverContent={'33'} valueClassName="text-green-400"/>
-      <HoverStatItem label={'删帖'} value={'2'} hoverContent={'33'} valueClassName="text-red-400"/>
+      <HoverStatItem label={'投资人'} value={'8'} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} />
+      {/*{twInfo?.basicInfo?.classification === 'person' && twInfo.kolTokenMention &&*/}
+      {/*  <TokenPerformanceSection kolData={twInfo} />}*/}
+      <HoverStatItem label={'90d谈及代币'} value={'10'} hoverContent={<TokenPerformanceSection kolData={twInfo} />} />
+      <HoverStatItem label={'90d收益率'} value={'+10%'} hoverContent={'33'} valueClassName="text-green-400" />
+      {deletedTweets && deletedTweets?.length ?
+        <HoverStatItem label={'删帖'} value={String(deletedTweets?.length)} hoverContent={
+          <DeletedTweetsSection isHoverPanel={true} deletedTweets={deletedTweets} loadingDel={loadingDel} />
+        } valueClassName="text-red-400" /> : null}
     </div>,
     shadowRoot
   );
