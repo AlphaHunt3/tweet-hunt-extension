@@ -30,6 +30,7 @@ export function HoverStatItem({ label, value, hoverContent, valueClassName = '',
       <div className="flex items-center gap-1 cursor-pointer">
         <span className={`text-sm ${labelClassName}`}>{label}</span>
         <span className={`text-sm ${valueClassName}`}>{value}</span>
+        {/*<div className={"absolute z-50 bottom-[2px] w-full h-[1px] bg-[transparent] hover:bg-[#eeeeeee8]"}></div>*/}
       </div>
 
       {/* Hover Panel Container */}

@@ -3,17 +3,16 @@ import { Users2 } from 'lucide-react';
 import { KolData, KolTabType, KolFollower } from '~types';
 import numeral from 'numeral';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { formatNumber } from '~contents/utils';
 
 interface KolFollowersSectionProps {
   kolData: KolData;
+  isHoverPanel?: boolean;
+  defaultTab?: KolTabType;
 }
 
-export function KolFollowersSection({ kolData }: KolFollowersSectionProps) {
-  const [activeKolTab, setActiveKolTab] = useState<KolTabType>('global');
-
-  const formatNumber = (num: number) => {
-    return numeral(num).format('0.[0]a').toUpperCase();
-  };
+export function KolFollowersSection({ kolData, defaultTab = 'global', isHoverPanel = false }: KolFollowersSectionProps) {
+  const [activeKolTab, setActiveKolTab] = useState<KolTabType>(defaultTab as KolTabType);
 
   const getActiveKolList = (): KolFollower[] => {
     let result: KolFollower[] = [];
@@ -48,34 +47,34 @@ export function KolFollowersSection({ kolData }: KolFollowersSectionProps) {
 
   return (
     <div className="p-3 border-b border-gray-700">
-      <div className="flex items-center gap-2 mb-2">
-        <Users2 className="w-4 h-4 text-blue-400" />
-        <h2 className="font-bold text-sm">{t("kFollowingAnalytics")}</h2>
-      </div>
+      {!isHoverPanel && <div className="flex items-center gap-2 mb-2">
+				<Users2 className="w-4 h-4 text-blue-400" />
+				<h2 className="font-bold text-sm">{t('kFollowingAnalytics')}</h2>
+			</div>}
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <button
-          className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'global' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
-          onClick={() => setActiveKolTab('global')}
-        >
-          <p className="text-gray-400">Global KOLs</p>
-          <p className="font-bold">{formatNumber(globalFollowers)}</p>
-        </button>
-        <button
-          className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'cn' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
-          onClick={() => setActiveKolTab('cn')}
-        >
-          <p className="text-gray-400">CN KOLs</p>
-          <p className="font-bold">{formatNumber(cnFollowers)}</p>
-        </button>
-        <button
-          className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'top100' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
-          onClick={() => setActiveKolTab('top100')}
-        >
-          <p className="text-gray-400">Top 100</p>
-          <p className="font-bold">{formatNumber(topFollowers)}</p>
-        </button>
-      </div>
+      {!isHoverPanel && <div className="grid grid-cols-3 gap-2 mb-3">
+				<button
+					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'global' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
+					onClick={() => setActiveKolTab('global')}
+				>
+					<p className="text-gray-400">Global KOLs</p>
+					<p className="font-bold">{formatNumber(globalFollowers)}</p>
+				</button>
+				<button
+					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'cn' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
+					onClick={() => setActiveKolTab('cn')}
+				>
+					<p className="text-gray-400">CN KOLs</p>
+					<p className="font-bold">{formatNumber(cnFollowers)}</p>
+				</button>
+				<button
+					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'top100' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
+					onClick={() => setActiveKolTab('top100')}
+				>
+					<p className="text-gray-400">Top 100</p>
+					<p className="font-bold">{formatNumber(topFollowers)}</p>
+				</button>
+			</div>}
 
       {activeKolList && activeKolList?.length ? <div>
         <div className="flex flex-wrap gap-0">

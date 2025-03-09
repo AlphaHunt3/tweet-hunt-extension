@@ -67,7 +67,7 @@ export default function useShadowContainer({
       let target: Element | null = null;
       if (useSiblings) {
         if (!baseEl.parentElement) {
-          console.warn('useShadowContainer: Base element has no parent, cannot search siblings.');
+          // console.warn('useShadowContainer: Base element has no parent, cannot search siblings.');
           return false;
         }
         const siblings = Array.from(baseEl.parentElement.children).filter(el => el !== baseEl);
@@ -122,12 +122,15 @@ export default function useShadowContainer({
     // 设置最大等待时间
     timeoutId = setTimeout(() => {
       observer && observer.disconnect();
-      console.warn(`useShadowContainer: Timeout reached (${maxWaitTime}ms), target element not found.`);
+      // console.warn(`useShadowContainer: Timeout reached (${maxWaitTime}ms), target element not found.`);
     }, Number(maxWaitTime));
 
     return () => {
       observer && observer.disconnect();
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        // console.info('useShadowContainer: Cleanup observer and timeout.')
+        clearTimeout(timeoutId);
+      }
     };
   }, [selector, useSiblings, targetFilter, styleText, shadowMode, currentUrl, waitTime], {
     wait: waitTime,

@@ -24,9 +24,11 @@ export function extractUsernameFromUrl(url: string): string {
 
     // 去掉路径开头的斜杠并分割路径
     const segments = path.split('/').filter(segment => segment.length > 0);
-    // if ((segments || [])?.length > 1) {
-    //   return '';
-    // }
+    const path1Arg = ['with_replies', 'highlights', 'media', 'superfollows']
+
+    if ((segments || [])?.length > 1 && !path1Arg.includes(segments[1])) {
+      return '';
+    }
 
     // 定义已知的导航页面路径（黑名单）
     const navigationPages = new Set([
@@ -57,4 +59,8 @@ export function extractUsernameFromUrl(url: string): string {
 export const formatPercentage = (num: number | null | undefined) => {
   if (!num) return 'N/A';
   return numeral(num).format('0.0%');
+};
+
+export const formatNumber = (num: number) => {
+  return numeral(num).format('0.[0]a').toUpperCase();
 };

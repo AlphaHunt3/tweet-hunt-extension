@@ -4,12 +4,16 @@ import { MainData } from '~contents/hooks/useMainData.ts';
 import React, { useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { HoverStatItem } from '~contents/compontents/HoverStatItem.tsx';
+import { formatNumber } from '~contents/utils';
+import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.tsx';
+
 const targetFilter = (el: any) => {
   return el.tagName.toLowerCase() === 'div' &&
     el.textContent.includes('Following') &&
     el.textContent.includes('Followers');
 };
-export function FollowedRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId }: MainData) {
+
+export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
@@ -18,12 +22,18 @@ export function FollowedRightData({ twInfo, deletedTweets, loadingTwInfo, loadin
   });
   if (!shadowRoot) return null;
 
-  if (error || !userId) {
+  if (error || !userId || loadingTwInfo) {
     return <></>
   }
   return ReactDOM.createPortal(<>
-    <HoverStatItem label={'2k'} value={'KOL Followers'} hoverContent={'33'} labelClassName={"font-bold"} valueClassName={'text-[#71767A]'} className={'ml-6'} />
-    <HoverStatItem label={'16'} value={'TOP100 KOLs'} hoverContent={'33'} labelClassName={"font-bold"} valueClassName={'text-[#71767A]'} />
-    <HoverStatItem label={'24,312'} value={'CN KOLs'} hoverContent={'33'} labelClassName={"font-bold"} valueClassName={'text-[#71767A]'} />
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.globalKolFollowersCount || 0)} value={'KOL Followers'} hoverContent={
+      <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'global'} />
+    } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} className={'ml-6'} />
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)} value={'TOP100 KOLs'} hoverContent={
+      <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'top100'} />
+    } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={'CN KOLs'} hoverContent={
+      <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} />
+    } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
   </>, shadowRoot)
 }
