@@ -24,9 +24,9 @@ export function extractUsernameFromUrl(url: string): string {
 
     // 去掉路径开头的斜杠并分割路径
     const segments = path.split('/').filter(segment => segment.length > 0);
-    if ((segments || [])?.length > 1) {
-      return '';
-    }
+    // if ((segments || [])?.length > 1) {
+    //   return '';
+    // }
 
     // 定义已知的导航页面路径（黑名单）
     const navigationPages = new Set([

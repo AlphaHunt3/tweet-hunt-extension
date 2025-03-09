@@ -5,6 +5,7 @@ import scaleCss from 'data-text:~/css/scale.css'
 import useMainData from '~contents/hooks/useMainData.ts';
 import { FixedTwitterPanel } from '~contents/area/FixedTwitterPanel.tsx';
 import { NameRightData } from '~contents/area/NameRightData.tsx';
+import { FollowedRightData } from '~contents/area/FollowedRightData.tsx';
 
 export const config = {
   matches: ['https://x.com/*']
@@ -22,7 +23,10 @@ const Main = () => {
       <FixedTwitterPanel {...mainData} />
 
       {/*推特个人详情页名字右边极简数据*/}
-      <NameRightData {...mainData}/>
+      <NameRightData {...mainData} />
+
+      {/*kol数据*/}
+      <FollowedRightData {...mainData} />
     </>
   )
 }

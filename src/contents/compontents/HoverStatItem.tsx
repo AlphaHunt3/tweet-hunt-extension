@@ -5,14 +5,16 @@ interface StatItemProps {
   value: string | number;
   hoverContent: React.ReactNode;
   valueClassName?: string;
+  labelClassName?: string;
+  className?: string;
 }
 
-export function HoverStatItem({ label, value, hoverContent, valueClassName = '' }: StatItemProps) {
+export function HoverStatItem({ label, value, hoverContent, valueClassName = '', labelClassName = '', className = '' }: StatItemProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div
-      className="relative inline-block mr-6"
+      className={`relative mr-6 ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={(e) => {
         // 检查鼠标是否移动到悬浮面板上
@@ -26,10 +28,8 @@ export function HoverStatItem({ label, value, hoverContent, valueClassName = '' 
       }}
     >
       <div className="flex items-center gap-1 cursor-pointer">
-        <span className="text-sm">{label}</span>
-        <span className={`text-sm font-medium ${valueClassName}`}>
-          ({value})
-        </span>
+        <span className={`text-sm ${labelClassName}`}>{label}</span>
+        <span className={`text-sm ${valueClassName}`}>{value}</span>
       </div>
 
       {/* Hover Panel Container */}
