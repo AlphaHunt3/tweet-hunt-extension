@@ -34,7 +34,7 @@ export function HoverStatItem({ label, value, hoverContent, valueClassName = '',
       </div>
 
       {/* Hover Panel Container */}
-      {isHovered && (
+      {isHovered && hoverContent && (
         <div
           className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[320px] z-50"
           onMouseEnter={() => setIsHovered(true)}

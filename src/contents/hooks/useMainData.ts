@@ -1,69 +1,62 @@
-import { useDebounceEffect, useDebounceFn, useLockFn } from 'ahooks';
-import { fetchDelTwitterInfo, fetchTwitterInfo } from '~contents/services/api.ts';
+import { useDebounceEffect, useDebounceFn, useLockFn, useRequest } from 'ahooks';
+import { fetchDelTwitterInfo, fetchRootDataInfo, fetchTwitterInfo } from '~contents/services/api.ts';
 import { useEffect, useState } from 'react';
 import { extractUsernameFromUrl } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
-import { DeletedTweet, KolData } from '~types';
+import { DeletedTweet, InvestmentData, KolData } from '~types';
+import { useTwitterUserInfo } from '~contents/hooks/useTwitterUserInfo.ts';
 
 export interface MainData {
   currentUrl: string;
   userId: string;
   deletedTweets: DeletedTweet[];
-  twInfo: KolData;
+  twInfo: KolData | null;
   loadingTwInfo: boolean;
   loadingDel: boolean;
-  error: string | null;
+  error: Error | undefined;
+  rootData: InvestmentData | null;
+  loadingRootData: boolean;
 }
 
 const useMainData = (): MainData => {
   const currentUrl = useCurrentUrl();
   const [userId, setUserId] = useState('');
-  const [deletedTweets, setDeletedTweets] = useState([]);
-  const [twInfo, setTwInfo] = useState<KolData>(null);
-  const [loadingTwInfo, setLoadingTwInfo] = useState(true);
-  const [loadingDel, setLoadingDel] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const userName = useTwitterUserInfo();
+  const { data: deletedTweets = [] as DeletedTweet[], run: fetchDelData, loading: loadingDel } = useRequest(() => fetchDelTwitterInfo(userId), {
+    refreshDeps: [userId],
+    debounceWait: 1000,
+    manual: true,
+    debounceLeading: true,
+    debounceTrailing: false,
+  });
+  const { data: twInfo = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfo(userId), {
+    refreshDeps: [userId],
+    debounceWait: 1000,
+    manual: true,
+    debounceLeading: true,
+    debounceTrailing: false,
+  });
 
-  const { run: fetchDelData } = useDebounceFn(async () => {
-    try {
-      if (!userId || String(userId) <= 4) return;
-      setLoadingDel(true);
-      setError(null);
-      const [{ value: deletedAry }] = await Promise.allSettled([
-        fetchDelTwitterInfo(userId),
-      ]);
-      setDeletedTweets(deletedAry);
-    } catch (err) {
-      // setError(err instanceof Error ? err.message : '获取数据失败')
-    } finally {
-      setLoadingDel(false)
-    }
-  }, {
-    leading: true,
-    trailing: false,
-    wait: 1000
-  })
+  const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userName?.displayName as string), {
+    refreshDeps: [userName],
+    debounceWait: 1000,
+    manual: true,
+    debounceLeading: true,
+    debounceTrailing: false,
+  });
 
   const loadData = useLockFn(async () => {
-    try {
-      if (!userId || String(userId) <= 4) return;
-      setLoadingTwInfo(true);
-      setError(null);
-      fetchDelData().then(r => r);
-      const [{ value: userStats }] = await Promise.allSettled([
-        fetchTwitterInfo(userId),
-      ]);
-      setTwInfo(userStats);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '获取数据失败')
-    } finally {
-      setLoadingTwInfo(false)
-    }
+    if (!userId || String(userId) <= 4) return;
+    fetchDelData();
+    fetchTwitterData();
   });
 
   useEffect(() => {
     loadData().then(r => r);
   }, [userId]);
+  useEffect(() => {
+    userName && userName.displayName && fetchRootData();
+  }, [userName]);
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
     setUserId(uid);
@@ -75,7 +68,9 @@ const useMainData = (): MainData => {
     twInfo,
     loadingTwInfo,
     loadingDel,
-    error
+    error,
+    rootData,
+    loadingRootData,
   }
 }
 

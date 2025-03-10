@@ -51,7 +51,7 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
 
         <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* KOL Followers Section */}
-          <KolFollowersSection kolData={twInfo} />
+          <KolFollowersSection kolData={twInfo!} />
 
           {/*Token Performance Section*/}
           {twInfo?.basicInfo?.classification === 'person' && twInfo.kolTokenMention &&

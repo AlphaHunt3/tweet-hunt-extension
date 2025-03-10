@@ -72,3 +72,23 @@ export interface KolData {
 
 export type KolTabType = 'global' | 'cn' | 'top100';
 export type TokenPeriodType = 'day7' | 'day30' | 'day90';
+
+// 定义单个投资人信息
+export interface Investor {
+  avatar: string;
+  lead_investor: boolean;
+  name: string;
+  twitter: string;
+}
+
+// 定义投资人组，包含一个投资人数组和总融资额
+export interface InvestorsGroup {
+  investors: Investor[];
+  total_funding: number;
+}
+
+// 定义整体数据结构，包含 "invested" 和 "investor" 两个字段
+export interface InvestmentData {
+  invested: InvestorsGroup;
+  investor: InvestorsGroup;
+}

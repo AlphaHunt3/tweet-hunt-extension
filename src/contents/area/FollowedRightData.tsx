@@ -22,7 +22,7 @@ export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: Main
   });
   if (!shadowRoot) return null;
 
-  if (error || !userId || loadingTwInfo) {
+  if (error || !userId || loadingTwInfo || !twInfo) {
     return <></>
   }
   return ReactDOM.createPortal(<>

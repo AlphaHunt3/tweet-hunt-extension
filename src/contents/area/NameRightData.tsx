@@ -8,14 +8,14 @@ import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
 import { formatPercentage } from '~contents/utils';
 
-export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId }: MainData) {
+export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
   })
   if (!shadowRoot) return null;
 
-  if (error || !userId) {
+  if (error || !userId || !twInfo) {
     return <></>
   }
   const isPerson = twInfo?.basicInfo?.classification === 'person';
@@ -27,8 +27,9 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
     <div className="flex flex-wrap items-center w-full mh-[40px] h-auto mt-4">
       {!loadingTwInfo ? <>
         {/*投资人*/}
-        <HoverStatItem label={'投资人'} value={'(8)'} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} />
-
+        {rootData && rootData?.invested?.investors?.length ?
+          <HoverStatItem label={'投资人'} value={`(${rootData?.invested?.investors?.length})`} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} /> : null
+        }
         {/*90d谈及代币*/}
         {isPerson && Number(day90TokenMentionsLength) ?
           <HoverStatItem label={'90d谈及代币'} value={`(${day90TokenMentionsLength})`} hoverContent={
@@ -39,7 +40,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
           <HoverStatItem label={'90d收益率'} value={`(${day90NowProfitAvgStr})`} hoverContent={
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
 
-      </> : <HoverStatItem label={'loading'} value={'loading'} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
+      </> : <HoverStatItem label={'loading...'} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
 
       {/*删帖*/}
       {isKol && !loadingDel && deletedTweets && deletedTweets?.length ?
