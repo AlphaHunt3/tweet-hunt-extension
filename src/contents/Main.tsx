@@ -6,6 +6,7 @@ import useMainData from '~contents/hooks/useMainData.ts';
 import { FixedTwitterPanel } from '~contents/area/FixedTwitterPanel.tsx';
 import { NameRightData } from '~contents/area/NameRightData.tsx';
 import { FollowedRightData } from '~contents/area/FollowedRightData.tsx';
+import { SideBarIcon } from '~contents/area/SideBarIcon.tsx';
 
 export const config = {
   matches: ['https://x.com/*']
@@ -27,6 +28,9 @@ const Main = () => {
 
       {/*kol数据*/}
       <FollowedRightData {...mainData} />
+
+      {/*侧边栏控制显隐*/}
+      <SideBarIcon />
     </>
   )
 }

@@ -7,8 +7,9 @@ import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceS
 import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.tsx';
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { MainData } from '~contents/hooks/useMainData.ts';
+import { InvestmentPanel } from '~contents/compontents/InvestmentPanel.tsx';
 
-export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId }: MainData) {
+export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData }: MainData) {
   const [showPanel] = useStorage('@settings/showPanel', true);
   const { t } = useI18n();
   if (!showPanel) {
@@ -52,6 +53,9 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
         <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* KOL Followers Section */}
           <KolFollowersSection kolData={twInfo!} />
+
+          {rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
+						<InvestmentPanel data={rootData} />}
 
           {/*Token Performance Section*/}
           {twInfo?.basicInfo?.classification === 'person' && twInfo.kolTokenMention &&

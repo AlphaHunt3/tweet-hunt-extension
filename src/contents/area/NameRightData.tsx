@@ -7,6 +7,7 @@ import React from 'react';
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
 import { formatPercentage } from '~contents/utils';
+import { renderInvestorList } from '~contents/compontents/InvestmentPanel.tsx';
 
 export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData }: MainData) {
   const shadowRoot = useShadowContainer({
@@ -28,7 +29,10 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
       {!loadingTwInfo ? <>
         {/*投资人*/}
         {rootData && rootData?.invested?.investors?.length ?
-          <HoverStatItem label={'投资人'} value={`(${rootData?.invested?.investors?.length})`} hoverContent={'33'} valueClassName={'text-[#1D9BF0]'} /> : null
+          <HoverStatItem label={'Investors'} value={`(${rootData?.invested?.investors?.length})`} hoverContent={renderInvestorList('Investors', rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
+        }
+        {rootData && rootData?.investor?.investors?.length ?
+          <HoverStatItem label={'Portfolio'} value={`(${rootData?.investor?.investors?.length})`} hoverContent={renderInvestorList('Portfolio', rootData.investor.investors, rootData.investor.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
         {/*90d谈及代币*/}
         {isPerson && Number(day90TokenMentionsLength) ?

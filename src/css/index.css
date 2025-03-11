@@ -1,0 +1,38 @@
+.sidebarItem {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 50px;
+    box-sizing: border-box;
+    font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border-radius: 50px;
+    transition: background 300ms;
+    cursor: pointer;
+    /*max-width: fit-content;*/
+    /*min-width: min-content;*/
+}
+
+.sidebarItem:hover {
+    background: rgba(231, 233, 234, 0.1);
+}
+
+.sidebarItemExpanded {
+    justify-content: left;
+    padding: 12px;
+}
+
+.sidebarIcon {
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 2px solid #ffffff;
+    border-radius: 100px;
+    transform: scale(0.95);
+    box-sizing: border-box;
+}
+
+.sidebarText {
+    display: inline-block;
+    font-size: 20px;
+    margin: 0 20px;
+}

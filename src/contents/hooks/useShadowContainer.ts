@@ -9,7 +9,7 @@ export interface UseShadowContainerOptions {
   useSiblings?: boolean;
   /**
    * 当 useSiblings 为 true 时，用于筛选基准元素的同级元素，
-   * 返回 true 表示符合要求；如果不传，则默认取第一个同级元素
+   * 返回 true 表示符合要求；如果不传，则默认在 baseEl 的下一个位置新建坑位
    */
   targetFilter?: (el: Element) => boolean;
   /** 要注入到 Shadow 内部的样式文本 */
@@ -25,7 +25,9 @@ export interface UseShadowContainerOptions {
 /**
  * 该 Hook 会：
  * 1. 根据 selector 查找基准元素（如：div[data-testid="UserName"]）
- * 2. 如果 useSiblings 为 true，则从该元素的同级元素中筛选出目标（可通过 targetFilter 控制）
+ * 2. 如果 useSiblings 为 true，则：
+ *    - 当 targetFilter 存在时，从基准元素的同级中筛选出目标；
+ *    - 当 targetFilter 不存在时，在 baseEl 后新建一个 div 作为目标坑位。
  *    否则直接使用 selector 匹配到的元素作为目标。
  * 3. 在目标内创建唯一的 Shadow 容器，并注入 styleText 指定的样式
  * 4. 针对 DOM 动态变化和样式更新做了健壮性处理：
@@ -66,17 +68,24 @@ export default function useShadowContainer({
 
       let target: Element | null = null;
       if (useSiblings) {
-        if (!baseEl.parentElement) {
-          // console.warn('useShadowContainer: Base element has no parent, cannot search siblings.');
-          return false;
+        // 如果没有提供 targetFilter，则在 baseEl 后面新建一个 div 作为坑位
+        if (!targetFilter) {
+          const placeholder = document.createElement('div');
+          placeholder.style.cssText = 'width:100%;height:auto;';
+          baseEl.insertAdjacentElement('afterend', placeholder);
+          target = placeholder;
+        } else {
+          // 如果提供了 targetFilter，则在 baseEl 的同级中查找符合条件的目标
+          if (!baseEl.parentElement) return false;
+          const siblings = Array.from(baseEl.parentElement.children).filter(el => el !== baseEl);
+          target = siblings.find(el => targetFilter(el)) || null;
         }
-        const siblings = Array.from(baseEl.parentElement.children).filter(el => el !== baseEl);
-        target = targetFilter ? siblings.find(el => targetFilter(el)) || null : siblings[0] || null;
       } else {
         target = baseEl;
       }
 
       if (!target) return false;
+
       // 2. 检查目标元素内是否已存在唯一的容器
       if (target.getAttribute('data-plasmo-shadow-container') === 'true') return true;
 
