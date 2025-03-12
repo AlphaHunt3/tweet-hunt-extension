@@ -54,7 +54,7 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
           {/* KOL Followers Section */}
           <KolFollowersSection kolData={twInfo!} />
 
-          {rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
+          {!loadingRootData && rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
 						<InvestmentPanel data={rootData} />}
 
           {/*Token Performance Section*/}

@@ -20,11 +20,15 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
         ) : (
           <Briefcase className="w-4 h-4 text-blue-400" />
         )}
-        <h3 className="text-sm font-medium">{title} ({investors.length})</h3>
+        <h3 className="text-sm font-medium">{title} {
+          Number(totalFunding) ?
+            <span className="text-xs font-medium text-green-400">{formatFunding(Number(totalFunding || 0))}</span> :
+            <>({investors.length})</>
+        }</h3>
       </div>
-      {Number(totalFunding) ? (
-        <span className="text-xs font-medium text-green-400">{formatFunding(Number(totalFunding || 0))}</span>
-      ) : null}
+      {/*{Number(totalFunding) ? (*/}
+      {/*  <span className="text-xs font-medium text-green-400">{formatFunding(Number(totalFunding || 0))}</span>*/}
+      {/*) : null}*/}
     </div>
     <div className="max-h-[94px] overflow-y-auto custom-scrollbar">
       <div className="grid grid-cols-2 gap-2 py-2">
@@ -67,11 +71,11 @@ export function InvestmentPanel({ data }: InvestmentPanelProps) {
   return (
     <div className="p-3 space-y-4">
       {data.invested.investors.length > 0 && (
-        renderInvestorList(t("investors"), data.invested.investors, data?.invested?.total_funding)
+        renderInvestorList(t('investors'), data.invested.investors, data?.invested?.total_funding)
       )}
       {data.investor.investors.length > 0 && (
         <>
-          {renderInvestorList(t("portfolio"), data.investor.investors, data?.investor?.total_funding)}
+          {renderInvestorList(t('portfolio'), data.investor.investors, data?.investor?.total_funding)}
         </>
       )}
     </div>
