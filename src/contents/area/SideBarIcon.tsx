@@ -10,6 +10,7 @@ export function SideBarIcon() {
     selector: 'a[data-testid="AppTabBar_Profile_Link"]',
     styleText: indexText,
     useSiblings: true,
+    siblingsStyle: 'width:auto;height:auto;max-width:100%;min-width:50.25px'
   });
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
   const sidebar = useWaitForElement('nav[role]');

@@ -20,6 +20,10 @@ export interface UseShadowContainerOptions {
   waitTime?: number;
   /** 最大等待时间（ms），超时后停止监听 */
   maxWaitTime?: number;
+  /**
+   * 当 useSiblings 为 true 时，同级元素的初始化样式
+   */
+  siblingsStyle?: string;
 }
 
 /**
@@ -43,6 +47,7 @@ export default function useShadowContainer({
   shadowMode = 'closed',
   waitTime = 500,
   maxWaitTime = 30000,
+  siblingsStyle = 'width:auto;height:auto;max-width:100%;',
 }: UseShadowContainerOptions): ShadowRoot | null {
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
   const currentUrl = useCurrentUrl();
@@ -71,7 +76,7 @@ export default function useShadowContainer({
         // 如果没有提供 targetFilter，则在 baseEl 后面新建一个 div 作为坑位
         if (!targetFilter) {
           const placeholder = document.createElement('div');
-          placeholder.style.cssText = 'width:auto;height:auto;max-width:100%;';
+          placeholder.style.cssText = siblingsStyle || '';
           baseEl.insertAdjacentElement('afterend', placeholder);
           target = placeholder;
         } else {
