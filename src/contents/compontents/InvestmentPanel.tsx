@@ -2,6 +2,7 @@ import React from 'react';
 import { Briefcase, Building2 } from 'lucide-react';
 import { InvestmentData, Investor, InvestorsGroup } from '~types';
 import numeral from 'numeral';
+import { useI18n } from '~contents/hooks/i18n.ts';
 
 interface InvestmentPanelProps {
   data: InvestmentData;
@@ -62,14 +63,15 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
 
 
 export function InvestmentPanel({ data }: InvestmentPanelProps) {
+  const { t } = useI18n();
   return (
     <div className="p-3 space-y-4">
       {data.invested.investors.length > 0 && (
-        renderInvestorList('Investors', data.invested.investors, data?.invested?.total_funding)
+        renderInvestorList(t("investors"), data.invested.investors, data?.invested?.total_funding)
       )}
       {data.investor.investors.length > 0 && (
         <>
-          {renderInvestorList('Portfolio', data.investor.investors, data?.investor?.total_funding)}
+          {renderInvestorList(t("portfolio"), data.investor.investors, data?.investor?.total_funding)}
         </>
       )}
     </div>

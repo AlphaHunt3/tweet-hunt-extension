@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom';
 import { HoverStatItem } from '~contents/compontents/HoverStatItem.tsx';
 import { formatNumber } from '~contents/utils';
 import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.tsx';
+import { useI18n } from '~contents/hooks/i18n.ts';
 
 const targetFilter = (el: any) => {
   return el.tagName.toLowerCase() === 'div' &&
@@ -20,19 +21,20 @@ export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: Main
     useSiblings: true,
     targetFilter: targetFilter
   });
+  const { t } = useI18n();
   if (!shadowRoot) return null;
 
   if (error || !userId || loadingTwInfo || !twInfo) {
     return <></>
   }
   return ReactDOM.createPortal(<>
-    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.globalKolFollowersCount || 0)} value={'KOL Followers'} hoverContent={
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.globalKolFollowersCount || 0)} value={t('KOL_Followers')} hoverContent={
       <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'global'} />
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} className={'ml-6'} />
-    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)} value={'TOP100 KOLs'} hoverContent={
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)} value={t('TOP100_KOLs')} hoverContent={
       <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'top100'} />
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
-    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={'CN KOLs'} hoverContent={
+    <HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={t('CN_KOLs')} hoverContent={
       <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} />
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
   </>, shadowRoot)

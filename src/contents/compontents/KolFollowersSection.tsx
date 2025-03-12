@@ -57,21 +57,21 @@ export function KolFollowersSection({ kolData, defaultTab = 'global', isHoverPan
 					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'global' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
 					onClick={() => setActiveKolTab('global')}
 				>
-					<p className="text-gray-400">Global KOLs</p>
+					<p className="text-gray-400">{t('KOL_Followers')}</p>
 					<p className="font-bold">{formatNumber(globalFollowers)}</p>
 				</button>
 				<button
 					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'cn' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
 					onClick={() => setActiveKolTab('cn')}
 				>
-					<p className="text-gray-400">CN KOLs</p>
+					<p className="text-gray-400">{t('CN_KOLs')}</p>
 					<p className="font-bold">{formatNumber(cnFollowers)}</p>
 				</button>
 				<button
 					className={`text-center py-1 px-2 rounded-md text-xs transition-colors ${activeKolTab === 'top100' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-gray-700/30'}`}
 					onClick={() => setActiveKolTab('top100')}
 				>
-					<p className="text-gray-400">Top 100</p>
+					<p className="text-gray-400">{t('TOP100_KOLs')}</p>
 					<p className="font-bold">{formatNumber(topFollowers)}</p>
 				</button>
 			</div>}

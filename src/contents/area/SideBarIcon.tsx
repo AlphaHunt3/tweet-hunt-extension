@@ -13,7 +13,6 @@ export function SideBarIcon() {
   });
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
   const sidebar = useWaitForElement('nav[role]');
-
   const size = useSize(sidebar?.parentElement);
   const width = size?.width || 0;
   const isExpanded = width > 72;

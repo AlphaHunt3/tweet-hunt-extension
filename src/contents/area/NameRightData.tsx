@@ -8,12 +8,14 @@ import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
 import { formatPercentage } from '~contents/utils';
 import { renderInvestorList } from '~contents/compontents/InvestmentPanel.tsx';
+import { useI18n } from '~contents/hooks/i18n.ts';
 
 export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
-  })
+  });
+  const { t } = useI18n();
   if (!shadowRoot) return null;
 
   if (error || !userId || !twInfo) {
@@ -29,26 +31,26 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
       {!loadingTwInfo ? <>
         {/*投资人*/}
         {rootData && rootData?.invested?.investors?.length ?
-          <HoverStatItem label={'Investors'} value={`(${rootData?.invested?.investors?.length})`} hoverContent={renderInvestorList('Investors', rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
+          <HoverStatItem label={t("investors")} value={`(${rootData?.invested?.investors?.length})`} hoverContent={renderInvestorList(t("investors"), rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
         {rootData && rootData?.investor?.investors?.length ?
-          <HoverStatItem label={'Portfolio'} value={`(${rootData?.investor?.investors?.length})`} hoverContent={renderInvestorList('Portfolio', rootData.investor.investors, rootData.investor.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
+          <HoverStatItem label={t("portfolio")} value={`(${rootData?.investor?.investors?.length})`} hoverContent={renderInvestorList(t("portfolio"), rootData.investor.investors, rootData.investor.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
         {/*90d谈及代币*/}
         {isPerson && Number(day90TokenMentionsLength) ?
-          <HoverStatItem label={'90d谈及代币'} value={`(${day90TokenMentionsLength})`} hoverContent={
+          <HoverStatItem label={t("90dMention")} value={`(${day90TokenMentionsLength})`} hoverContent={
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'WordCloud'} />} valueClassName={'text-[#1D9BF0]'} /> : null}
 
         {/*90d收益率*/}
         {isPerson && day90NowProfitAvg ?
-          <HoverStatItem label={'90d收益率'} value={`(${day90NowProfitAvgStr})`} hoverContent={
+          <HoverStatItem label={t("90dPerformance")} value={`(${day90NowProfitAvgStr})`} hoverContent={
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
 
-      </> : <HoverStatItem label={'loading...'} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
+      </> : <HoverStatItem label={t("loading")} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
 
       {/*删帖*/}
       {isKol && !loadingDel && deletedTweets && deletedTweets?.length ?
-        <HoverStatItem label={'删帖'} value={`(${String(deletedTweets?.length)})`} hoverContent={
+        <HoverStatItem label={t("delInfo")} value={`(${String(deletedTweets?.length)})`} hoverContent={
           <DeletedTweetsSection isHoverPanel={true} deletedTweets={deletedTweets} loadingDel={loadingDel} />
         } valueClassName="text-red-400" /> : null}
     </div>,

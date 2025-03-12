@@ -10,5 +10,13 @@
   "tokenPerformance": "提及代币表现",
   "deletedTweets": "已删除的推文",
   "topKFollowers": "Top KOL 关注着",
-  "mentionedTokens": "提及代币"
+  "mentionedTokens": "提及代币",
+  "investors": "获投资",
+  "portfolio": "已投资",
+  "90dMention": "90d谈及代币",
+  "90dPerformance": "90d收益率",
+  "delInfo": "删帖",
+  "KOL_Followers": "KOL粉丝",
+  "TOP100_KOLs": "TOP100 KOLs",
+  "CN_KOLs": "中国 KOLs"
 }

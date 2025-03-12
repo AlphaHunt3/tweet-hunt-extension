@@ -10,5 +10,13 @@
   "tokenPerformance": "Mentioned Token Performance",
   "deletedTweets": "Deleted Tweets",
   "topKFollowers": "Top KOL Followers",
-  "mentionedTokens": "Mentioned Tokens"
+  "mentionedTokens": "Mentioned Tokens",
+  "investors": "Invested By",
+  "portfolio": "Invested",
+  "90dMention": "90d Token Mentions",
+  "90dPerformance": "90d Return Rate",
+  "delInfo": "Delete Tweets",
+  "KOL_Followers": "KOL Followers",
+  "TOP100_KOLs": "TOP100 KOLs",
+  "CN_KOLs": "CN KOLs"
 }

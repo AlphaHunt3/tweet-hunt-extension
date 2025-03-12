@@ -17,6 +17,10 @@
     background: rgba(231, 233, 234, 0.1);
 }
 
+.sidebarItem:hover .sidebarIcon {
+    filter: sepia(100%) saturate(300%) hue-rotate(250deg);
+}
+
 .sidebarItemExpanded {
     justify-content: left;
     padding: 12px;
@@ -25,10 +29,12 @@
 .sidebarIcon {
     width: 1.7rem;
     height: 1.7rem;
-    border: 2px solid #ffffff;
+    border: 2px solid #47748c;
     border-radius: 100px;
     transform: scale(0.95);
     box-sizing: border-box;
+    filter: sepia(100%) saturate(300%) hue-rotate(200deg);
+    transition: 300ms;
 }
 
 .sidebarText {
