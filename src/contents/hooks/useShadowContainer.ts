@@ -66,12 +66,12 @@ export default function useShadowContainer({
       const baseEl = document.querySelector(selector);
       if (!baseEl) return false;
 
-      let target: Element | null = null;
+      let target: Element | null = null as Element;
       if (useSiblings) {
         // 如果没有提供 targetFilter，则在 baseEl 后面新建一个 div 作为坑位
         if (!targetFilter) {
           const placeholder = document.createElement('div');
-          placeholder.style.cssText = 'width:100%;height:auto;';
+          placeholder.style.cssText = 'width:auto;height:auto;max-width:100%;';
           baseEl.insertAdjacentElement('afterend', placeholder);
           target = placeholder;
         } else {
