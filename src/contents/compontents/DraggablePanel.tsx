@@ -48,13 +48,10 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(({
   useEffect(() => {
     const handleResize = () => {
       const maxX = window.innerWidth - width - 16;
-
-      if (position.x > maxX) {
-        setPosition(prev => ({
-          x: maxX,
-          y: prev.y
-        }));
-      }
+      setPosition(prev => ({
+        x: maxX,
+        y: prev.y
+      }));
     };
 
     window.addEventListener('resize', handleResize);

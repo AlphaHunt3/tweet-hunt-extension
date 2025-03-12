@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useDocumentVisibility } from 'ahooks';
 
 interface StatItemProps {
   label: string;
@@ -9,9 +10,39 @@ interface StatItemProps {
   className?: string;
 }
 
-export function HoverStatItem({ label, value, hoverContent, valueClassName = '', labelClassName = '', className = '' }: StatItemProps) {
+export function HoverStatItem({
+  label,
+  value,
+  hoverContent,
+  valueClassName = '',
+  labelClassName = '',
+  className = '',
+}: StatItemProps) {
   const [isHovered, setIsHovered] = useState(false);
 
+  // 处理 main[role] 的 z-index
+  useEffect(() => {
+    const mainElement = document.querySelector('main[role]') as HTMLElement;
+    if (!mainElement) return;
+
+    if (isHovered) {
+      mainElement.style.zIndex = '50';
+    } else {
+      mainElement.style.zIndex = '0';
+    }
+
+    // 监听窗口变化，恢复 z-index
+    const handleResize = () => {
+      mainElement.style.zIndex = '0';
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      mainElement.style.zIndex = '0'; // 清理时恢复 z-index
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isHovered]);
   return (
     <div
       className={`relative mr-6 ${className}`}
@@ -19,7 +50,8 @@ export function HoverStatItem({ label, value, hoverContent, valueClassName = '',
       onMouseLeave={(e) => {
         // 检查鼠标是否移动到悬浮面板上
         const rect = e.currentTarget.getBoundingClientRect();
-        const isInPanel = e.clientY < rect.top &&
+        const isInPanel =
+          e.clientY < rect.top &&
           e.clientX >= rect.left &&
           e.clientX <= rect.left + rect.width;
         if (!isInPanel) {
@@ -30,7 +62,6 @@ export function HoverStatItem({ label, value, hoverContent, valueClassName = '',
       <div className="flex items-center gap-1 cursor-pointer">
         <span className={`text-sm ${labelClassName}`}>{label}</span>
         <span className={`text-sm ${valueClassName}`}>{value}</span>
-        {/*<div className={"absolute z-50 bottom-[2px] w-full h-[1px] bg-[transparent] hover:bg-[#eeeeeee8]"}></div>*/}
       </div>
 
       {/* Hover Panel Container */}
