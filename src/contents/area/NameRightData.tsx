@@ -31,7 +31,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
       {!loadingRootData ? <>
         {/*投资人*/}
         {rootData && rootData?.invested?.investors?.length ?
-          <HoverStatItem label={t('investors')} value={Number(rootData?.invested?.investors?.length) ?
+          <HoverStatItem label={t('investors')} value={Number(rootData.invested.total_funding) ?
             <span className="text-green-400">({formatFunding(Number(rootData.invested.total_funding || 0))})</span> :
             <>({rootData?.invested?.investors?.length})</>} hoverContent={renderInvestorList(t('investors'), rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
