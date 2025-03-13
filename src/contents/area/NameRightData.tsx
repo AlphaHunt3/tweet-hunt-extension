@@ -6,7 +6,7 @@ import { MainData } from '~contents/hooks/useMainData.ts';
 import React from 'react';
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
-import { formatPercentage } from '~contents/utils';
+import { formatFunding, formatPercentage } from '~contents/utils';
 import { renderInvestorList } from '~contents/compontents/InvestmentPanel.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 
@@ -31,7 +31,9 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
       {!loadingRootData ? <>
         {/*投资人*/}
         {rootData && rootData?.invested?.investors?.length ?
-          <HoverStatItem label={t('investors')} value={`(${rootData?.invested?.investors?.length})`} hoverContent={renderInvestorList(t('investors'), rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
+          <HoverStatItem label={t('investors')} value={Number(rootData?.invested?.investors?.length) ?
+            <span className="text-green-400">({formatFunding(Number(rootData.invested.total_funding || 0))})</span> :
+            <>({rootData?.invested?.investors?.length})</>} hoverContent={renderInvestorList(t('investors'), rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
         {rootData && rootData?.investor?.investors?.length ?
           <HoverStatItem label={t('portfolio')} value={`(${rootData?.investor?.investors?.length})`} hoverContent={renderInvestorList(t('portfolio'), rootData.investor.investors, rootData.investor.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null

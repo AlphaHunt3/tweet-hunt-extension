@@ -3,7 +3,7 @@ import { useDocumentVisibility } from 'ahooks';
 
 interface StatItemProps {
   label: string;
-  value: string | number;
+  value: string | number | React.ReactNode;
   hoverContent: React.ReactNode;
   valueClassName?: string;
   labelClassName?: string;

@@ -1,16 +1,13 @@
 import React from 'react';
 import { Briefcase, Building2 } from 'lucide-react';
-import { InvestmentData, Investor, InvestorsGroup } from '~types';
-import numeral from 'numeral';
+import { InvestmentData, Investor } from '~types';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { formatFunding } from '~contents/utils';
 
 interface InvestmentPanelProps {
   data: InvestmentData;
 }
 
-const formatFunding = (amount: number) => {
-  return String(numeral(amount).format('$0.0a')).toLocaleUpperCase();
-};
 export const renderInvestorList = (title: string, investors: Investor[], totalFunding: string | number | undefined) => (
   <div className="space-y-2">
     <div className="flex items-center justify-between">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import useCurrentUrl from './useCurrentUrl';
+import { useDebounceEffect } from 'ahooks';
 
 export interface TwitterUserInfo {
   displayName: string;
@@ -9,7 +10,7 @@ export function useTwitterUserInfo(): TwitterUserInfo | null {
   const currentUrl = useCurrentUrl();
   const [userInfo, setUserInfo] = useState<TwitterUserInfo | null>(null);
 
-  useEffect(() => {
+  useDebounceEffect(() => {
     // 每次 URL 变化时重置信息
     setUserInfo(null);
 
@@ -80,7 +81,9 @@ export function useTwitterUserInfo(): TwitterUserInfo | null {
       handleObserver?.disconnect();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [currentUrl]);
+  }, [currentUrl], {
+    wait: 500,
+  });
 
   return userInfo;
 }

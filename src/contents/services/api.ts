@@ -31,3 +31,13 @@ export const fetchRootDataInfo = async (project: string): Promise<InvestmentData
     return null;
   }
 }
+
+export const fetchTwRenameInfo = async (project: string): Promise<InvestmentData | null> => {
+  try {
+    if (!project) return;
+    const retJSON = await fetch(`https://api.memory.lol/v1/tw/${project}`);
+    return await retJSON.json();
+  } catch (err) {
+    return null;
+  }
+}

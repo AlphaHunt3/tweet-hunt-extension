@@ -1,10 +1,10 @@
-import { useDebounceEffect, useDebounceFn, useLockFn, useRequest } from 'ahooks';
+import { useDebounceEffect, useLockFn, useRequest } from 'ahooks';
 import { fetchDelTwitterInfo, fetchRootDataInfo, fetchTwitterInfo } from '~contents/services/api.ts';
 import { useEffect, useState } from 'react';
 import { extractUsernameFromUrl } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { DeletedTweet, InvestmentData, KolData } from '~types';
-import { useTwitterUserInfo } from '~contents/hooks/useTwitterUserInfo.ts';
+// import { useTwitterUserInfo } from '~contents/hooks/useTwitterUserInfo.ts';
 
 export interface MainData {
   currentUrl: string;
@@ -21,25 +21,25 @@ export interface MainData {
 const useMainData = (): MainData => {
   const currentUrl = useCurrentUrl();
   const [userId, setUserId] = useState('');
-  const userName = useTwitterUserInfo();
+  // const userName = useTwitterUserInfo();
   const { data: deletedTweets = [] as DeletedTweet[], run: fetchDelData, loading: loadingDel } = useRequest(() => fetchDelTwitterInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 1000,
+    debounceWait: 300,
     manual: true,
     debounceLeading: true,
     debounceTrailing: false,
   });
   const { data: twInfo = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 1000,
+    debounceWait: 300,
     manual: true,
     debounceLeading: true,
     debounceTrailing: false,
   });
 
-  const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userName?.displayName as string), {
-    refreshDeps: [userName],
-    debounceWait: 1000,
+  const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userId), {
+    refreshDeps: [userId],
+    debounceWait: 300,
     manual: true,
     debounceLeading: true,
     debounceTrailing: false,
@@ -55,8 +55,8 @@ const useMainData = (): MainData => {
     loadData().then(r => r);
   }, [userId]);
   useEffect(() => {
-    userName && userName.displayName && fetchRootData();
-  }, [userName]);
+    userId && fetchRootData();
+  }, [userId]);
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
     setUserId(uid);

@@ -64,3 +64,7 @@ export const formatPercentage = (num: number | null | undefined) => {
 export const formatNumber = (num: number) => {
   return numeral(num).format('0.[0]a').toUpperCase();
 };
+
+export const formatFunding = (amount: number) => {
+  return String(numeral(amount).format('$0.0a')).toLocaleUpperCase();
+};
