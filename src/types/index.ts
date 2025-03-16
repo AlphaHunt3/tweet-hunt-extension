@@ -92,3 +92,15 @@ export interface InvestmentData {
   invested: InvestorsGroup;
   investor: InvestorsGroup;
 }
+
+export interface AccountsResponse {
+  accounts: NameHistory[];
+}
+
+export interface NameHistory {
+  id: number;
+  id_str: string;
+  screen_names: {
+    [key: string]: [string, string];
+  };
+}

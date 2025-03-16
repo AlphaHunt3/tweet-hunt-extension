@@ -1,10 +1,9 @@
 import { useDebounceEffect, useLockFn, useRequest } from 'ahooks';
-import { fetchDelTwitterInfo, fetchRootDataInfo, fetchTwitterInfo } from '~contents/services/api.ts';
+import { fetchDelTwitterInfo, fetchRootDataInfo, fetchTwitterInfo, fetchTwRenameInfo } from '~contents/services/api.ts';
 import { useEffect, useState } from 'react';
 import { extractUsernameFromUrl } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
-import { DeletedTweet, InvestmentData, KolData } from '~types';
-// import { useTwitterUserInfo } from '~contents/hooks/useTwitterUserInfo.ts';
+import { AccountsResponse, DeletedTweet, InvestmentData, KolData } from '~types';
 
 export interface MainData {
   currentUrl: string;
@@ -16,6 +15,8 @@ export interface MainData {
   error: Error | undefined;
   rootData: InvestmentData | null;
   loadingRootData: boolean;
+  renameInfo: AccountsResponse | null;
+  loadingRenameInfo: boolean;
 }
 
 const useMainData = (): MainData => {
@@ -45,17 +46,24 @@ const useMainData = (): MainData => {
     debounceTrailing: false,
   });
 
+  const { data: renameInfo = null, run: fetchRenameInfo, loading: loadingRenameInfo } = useRequest(() => fetchTwRenameInfo(userId), {
+    refreshDeps: [userId],
+    debounceWait: 300,
+    manual: true,
+    debounceLeading: true,
+    debounceTrailing: false,
+  });
+
   const loadData = useLockFn(async () => {
     if (!userId || String(userId) <= 4) return;
     fetchDelData();
     fetchTwitterData();
+    fetchRootData();
+    fetchRenameInfo();
   });
 
   useEffect(() => {
     loadData().then(r => r);
-  }, [userId]);
-  useEffect(() => {
-    userId && fetchRootData();
   }, [userId]);
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
@@ -71,6 +79,8 @@ const useMainData = (): MainData => {
     error,
     rootData,
     loadingRootData,
+    renameInfo,
+    loadingRenameInfo
   }
 }
 

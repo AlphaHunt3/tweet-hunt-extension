@@ -9,15 +9,15 @@ import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceS
 import { formatFunding, formatPercentage } from '~contents/utils';
 import { renderInvestorList } from '~contents/compontents/InvestmentPanel.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { NameHistorySection } from '~contents/compontents/NameHistorySection.tsx';
 
-export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData }: MainData) {
+export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData, renameInfo, loadingRenameInfo }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
   });
   const { t } = useI18n();
   if (!shadowRoot) return null;
-
   if (error || !userId || !twInfo) {
     return <></>
   }
@@ -51,7 +51,10 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
 
       </> : <HoverStatItem label={t('loading')} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
-
+      {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?
+        <HoverStatItem label={t('renameInfo')} value={`(${String(Object.keys(renameInfo.accounts[0]?.screen_names || {}).length)})`} hoverContent={
+          <NameHistorySection data={renameInfo.accounts[0]} />
+        } valueClassName="text-indigo-400" /> : null}
       {/*删帖*/}
       {isKol && !loadingDel && deletedTweets && deletedTweets?.length ?
         <HoverStatItem label={t('delInfo')} value={`(${String(deletedTweets?.length)})`} hoverContent={

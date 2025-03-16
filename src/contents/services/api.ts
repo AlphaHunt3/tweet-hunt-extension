@@ -1,4 +1,4 @@
-import { DeletedTweet, InvestmentData, KolData } from '~types';
+import { AccountsResponse, DeletedTweet, InvestmentData, KolData } from '~types';
 
 export const fetchTwitterInfo = async (userId: string): Promise<KolData | null> => {
   try {
@@ -32,10 +32,11 @@ export const fetchRootDataInfo = async (project: string): Promise<InvestmentData
   }
 }
 
-export const fetchTwRenameInfo = async (project: string): Promise<InvestmentData | null> => {
+export const fetchTwRenameInfo = async (project: string): Promise<AccountsResponse | null> => {
   try {
     if (!project) return;
-    const retJSON = await fetch(`https://api.memory.lol/v1/tw/${project}`);
+    const originUrl = `https://api.memory.lol/v1/tw/${project}`
+    const retJSON = await fetch(`https://kb.cryptohunt.ai/api/proxy?url=${encodeURIComponent(originUrl)}`);
     return await retJSON.json();
   } catch (err) {
     return null;

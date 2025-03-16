@@ -29,7 +29,7 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
     </div>
     <div className="max-h-[94px] overflow-y-auto custom-scrollbar">
       <div className="grid grid-cols-2 gap-2 py-2">
-        {investors.map((investor, index) => (
+        {investors.sort((a, b) => Number(b?.lead_investor) - Number(a?.lead_investor)).map((investor, index) => (
           <div key={index} className="flex items-center gap-2 group">
             <div className="relative mx-1">
               <img
@@ -41,7 +41,7 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-[#1a2634]" />
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               {investor.twitter ? (
                 <a
                   href={investor.twitter}
