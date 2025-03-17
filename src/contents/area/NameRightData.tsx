@@ -51,7 +51,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
 
       </> : <HoverStatItem label={t('loading')} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
-      {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?
+      {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length ?
         <HoverStatItem label={t('renameInfo')} value={`(${String(Object.keys(renameInfo.accounts[0]?.screen_names || {}).length)})`} hoverContent={
           <NameHistorySection data={renameInfo.accounts[0]} />
         } valueClassName="text-indigo-400" /> : null}
