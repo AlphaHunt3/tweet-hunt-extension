@@ -7,6 +7,7 @@ import { HoverStatItem } from '~contents/compontents/HoverStatItem.tsx';
 import { formatNumber } from '~contents/utils';
 import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import numeral from 'numeral';
 
 const targetFilter = (el: any) => {
   return el.tagName.toLowerCase() === 'div' &&
@@ -39,6 +40,9 @@ export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: Main
     <HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={t('CN_KOLs')} hoverContent={
       twInfo?.kolFollow?.cnKolFollowersCount ?
         <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} /> : null
+    } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
+    <HoverStatItem label={twInfo?.kolFollow?.kolRank < 0 ? "0" : numeral(twInfo?.kolFollow?.kolRank || 0).format('0,0')} value={t('FQRank')} hoverContent={
+      twInfo?.kolFollow?.kolRank < 0 ? t('notInTop10w') : `${t('inTop10w')} ${twInfo?.kolFollow?.kolRank}.`
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
   </>, shadowRoot)
 }

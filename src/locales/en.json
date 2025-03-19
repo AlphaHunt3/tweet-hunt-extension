@@ -19,5 +19,8 @@
   "KOL_Followers": "KOL Followers",
   "TOP100_KOLs": "TOP100 KOLs",
   "CN_KOLs": "CN KOLs",
-  "renameInfo": "Renamed"
+  "renameInfo": "Renamed",
+  "FQRank": "Follower Quality",
+  "inTop10w": "The quality of the followers ranks among the top 1,000,000, placing",
+  "notInTop10w": "The quality of the followers did not make it into the top 100,000."
 }

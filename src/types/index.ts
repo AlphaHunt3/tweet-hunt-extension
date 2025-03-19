@@ -62,6 +62,7 @@ export interface KolData {
     globalKolFollowers?: KolFollower[];
     cnKolFollowers?: KolFollower[];
     topKolFollowers?: KolFollower[];
+    kolRank?: number;
   };
   kolTokenMention: {
     day7: TokenPeriodData;
