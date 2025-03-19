@@ -18,7 +18,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
   });
   const { t } = useI18n();
   if (!shadowRoot) return null;
-  if (error || !userId || !twInfo) {
+  if (error || !userId) {
     return <></>
   }
   const isPerson = twInfo?.basicInfo?.classification === 'person';
@@ -39,7 +39,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
           <HoverStatItem label={t('portfolio')} value={`(${rootData?.investor?.investors?.length})`} hoverContent={renderInvestorList(t('portfolio'), rootData.investor.investors, rootData.investor.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
       </> : null}
-      {!loadingTwInfo ? <>
+      {!loadingTwInfo && twInfo ? <>
         {/*90d谈及代币*/}
         {isPerson && Number(day90TokenMentionsLength) ?
           <HoverStatItem label={t('90dMention')} value={`(${day90TokenMentionsLength})`} hoverContent={
