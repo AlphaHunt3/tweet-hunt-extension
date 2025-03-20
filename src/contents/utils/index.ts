@@ -68,3 +68,18 @@ export const formatNumber = (num: number) => {
 export const formatFunding = (amount: number) => {
   return String(numeral(amount).format('$0.0a')).toLocaleUpperCase();
 };
+
+/**
+ * 判断用户是否使用中文
+ * @returns {boolean} 如果用户的语言设置为中文，返回 true；否则返回 false。
+ */
+export function isUserUsingChinese() {
+  // 获取首选语言 (兼容旧版浏览器)
+  const preferredLanguage = navigator.language || 'en';
+
+  // 获取所有语言偏好 (兼容旧版浏览器)
+  const languagePreferences = Array.isArray(navigator.languages) ? navigator.languages : [preferredLanguage];
+
+  // 检测是否包含中文语言代码
+  return languagePreferences.some(lang => /^zh/i.test(lang));
+}

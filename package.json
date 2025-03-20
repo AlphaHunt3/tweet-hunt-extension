@@ -2,7 +2,7 @@
   "name": "tweet-hunt",
   "displayName": "TweetHunt",
   "version": "0.0.2",
-  "description": "Twitter KOL Analytics Panel",
+  "description": "Twitter Crypto Analytics Agent",
   "author": "StackBlitz",
   "scripts": {
     "dev": "plasmo dev",

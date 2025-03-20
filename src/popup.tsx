@@ -5,9 +5,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 
 function IndexPopup() {
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
-  // const [showDeletedTweets, setShowDeletedTweets] = useStorage('@settings/showDeletedTweets', true);
-  const [lang, setLang] = useStorage('@settings/lan', 'en');
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
   return <div className="bg-[#000000]/90 backdrop-blur-sm px-4 py-2 text-white w-[280px] shadow-lg">
     <div className="flex items-center gap-2 mb-4">
       <Settings className="w-4 h-4 text-blue-400" />

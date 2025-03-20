@@ -1,10 +1,18 @@
 import zh from '../../locales/zh.json';
 import en from '../../locales/en.json'
 import { useStorage } from '@plasmohq/storage/dist/hook';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { isUserUsingChinese } from '~contents/utils';
 
 export const useI18n = () => {
-  const [lang] = useStorage('@settings/lan', 'en');
+  const [lang, setLang, {
+    isLoading: isLoadingLang
+  }] = useStorage('@settings/language1', '');
+  useEffect(() => {
+    if(!isLoadingLang && !lang) {
+      setLang(isUserUsingChinese() ? 'zh' : 'en');
+    }
+  }, [isLoadingLang, lang]);
   const _t = useMemo(() => {
     if (lang === 'zh') {
       return zh;
@@ -20,6 +28,7 @@ export const useI18n = () => {
   }, [_t])
   return {
     lang,
+    setLang,
     t
   }
 }
