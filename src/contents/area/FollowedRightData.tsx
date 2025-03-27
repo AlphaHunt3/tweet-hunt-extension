@@ -42,8 +42,8 @@ export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: Main
       twInfo?.kolFollow?.cnKolFollowersCount ?
         <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} /> : null
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
-    <HoverStatItem label={`${twInfo?.kolFollow?.kolRank < 0 ? '0' : numeral(twInfo?.kolFollow?.kolRank || 0).format('0,0')}/100K`} value={t('FQRank')} hoverContent={
-      twInfo?.kolFollow?.kolRank < 0 ? t('notInTop10w') : `${t('inTop10w1')} ${twInfo?.kolFollow?.kolRank} ${t('inTop10w2')}`
+    <HoverStatItem label={`${twInfo?.kolFollow?.kolRank <= 0 || !twInfo?.kolFollow?.kolRank ? '>100K' : numeral(twInfo?.kolFollow?.kolRank || 0).format('0,0') + '/100K'}`} value={t('FQRank')} hoverContent={
+      twInfo?.kolFollow?.kolRank <= 0 || !twInfo?.kolFollow?.kolRank ? t('notInTop10w') : `${t('inTop10w1')} ${twInfo?.kolFollow?.kolRank} ${t('inTop10w2')}`
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
   </>, shadowRoot)
 }
