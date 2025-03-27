@@ -72,7 +72,7 @@ export function HoverStatItem({
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Panel Content */}
-          <div className="bg-[#1a2634] rounded-lg shadow-lg border border-gray-700/50 p-1">
+          <div className="bg-[#1a2634] text-white rounded-lg shadow-lg border border-gray-700/50 p-1">
             {hoverContent}
           </div>
           {/* Arrow - Centered */}

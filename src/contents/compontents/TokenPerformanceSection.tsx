@@ -32,7 +32,7 @@ export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Defaul
   return (
     <div className="p-3 border-b border-gray-700">
       {mode === 'Default' && <div className="flex items-center gap-2 mb-3">
-				<TrendingUp className="w-4 h-4 text-green-400" />
+				<TrendingUp className="w-4 h-4 text-green-600" />
 				<h2 className="font-bold text-sm">{t('tokenPerformance')}</h2>
 			</div>}
 
@@ -88,7 +88,7 @@ export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Defaul
 					</div>
 					<div className="flex items-center justify-between">
 						<span className="text-xs text-gray-400">Avg Max Profit</span>
-						<span className={`text-xs font-medium ${!periodData?.maxProfitAvg ? '' : (periodData?.maxProfitAvg >= 0 ? 'text-green-400' : 'text-red-400')}`}>
+						<span className={`text-xs font-medium ${!periodData?.maxProfitAvg ? '' : (periodData?.maxProfitAvg >= 0 ? 'text-green-600' : 'text-red-400')}`}>
               {!periodData?.maxProfitAvg ? 'N/A' :
                 (periodData?.maxProfitAvg >= 0 ? '+' : '') + formatPercentage(periodData?.maxProfitAvg)}
 							<span className={'text-blue-400 ml-1'}>(TOP {formatPercentage(periodData?.maxProfitAvgPct)})</span>
@@ -96,7 +96,7 @@ export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Defaul
 					</div>
 					<div className="flex items-center justify-between">
 						<span className="text-xs text-gray-400">Avg Now Profit</span>
-						<span className={`text-xs font-medium ${!periodData?.nowProfitAvg ? '' : (periodData?.nowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400')}`}>
+						<span className={`text-xs font-medium ${!periodData?.nowProfitAvg ? '' : (periodData?.nowProfitAvg >= 0 ? 'text-green-600' : 'text-red-400')}`}>
               {!periodData?.nowProfitAvg ? 'N/A' :
                 (periodData?.nowProfitAvg >= 0 ? '+' : '') + formatPercentage(periodData?.nowProfitAvg)}
 							<span className={'text-blue-400 ml-1'}>(TOP {formatPercentage(periodData?.nowProfitAvgPct)})</span>

@@ -16,11 +16,12 @@
   "90dMention": "90d Token Mentions",
   "90dPerformance": "90d Return Rate",
   "delInfo": "Delete Tweets",
-  "KOL_Followers": "KOL Followers",
+  "KOL_Followers": "Global KOL Followers",
   "TOP100_KOLs": "TOP100 KOLs",
   "CN_KOLs": "CN KOLs",
   "renameInfo": "Renamed",
   "FQRank": "Follower Quality Rank",
-  "inTop10w": "The quality of the followers ranks among the top 10w, placing",
+  "inTop10w1": "Ranked",
+  "inTop10w2": "rd in the entire library of follower quality (total samples of 10w)",
   "notInTop10w": "The quality of the followers did not make it into the top 10w."
 }

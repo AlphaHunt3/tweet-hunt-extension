@@ -11,8 +11,9 @@ import numeral from 'numeral';
 
 const targetFilter = (el: any) => {
   return el.tagName.toLowerCase() === 'div' &&
-    el.textContent.includes('Following') &&
-    el.textContent.includes('Followers');
+    (el.textContent.includes('Following') &&
+      el.textContent.includes('Followers')) || (el.textContent.includes('正在关注') &&
+      el.textContent.includes('关注者'));
 };
 
 export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: MainData) {
@@ -41,8 +42,8 @@ export function FollowedRightData({ twInfo, error, userId, loadingTwInfo }: Main
       twInfo?.kolFollow?.cnKolFollowersCount ?
         <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} /> : null
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
-    <HoverStatItem label={`${twInfo?.kolFollow?.kolRank < 0 ? "0" : numeral(twInfo?.kolFollow?.kolRank || 0).format('0,0')}/100K`} value={t('FQRank')} hoverContent={
-      twInfo?.kolFollow?.kolRank < 0 ? t('notInTop10w') : `${t('inTop10w')} ${twInfo?.kolFollow?.kolRank}.`
+    <HoverStatItem label={`${twInfo?.kolFollow?.kolRank < 0 ? '0' : numeral(twInfo?.kolFollow?.kolRank || 0).format('0,0')}/100K`} value={t('FQRank')} hoverContent={
+      twInfo?.kolFollow?.kolRank < 0 ? t('notInTop10w') : `${t('inTop10w1')} ${twInfo?.kolFollow?.kolRank} ${t('inTop10w2')}`
     } labelClassName={'font-bold'} valueClassName={'text-[#71767A]'} />
   </>, shadowRoot)
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { GripVertical, Loader2, Tags } from 'lucide-react';
+import { Loader2, Tags, CircleX } from 'lucide-react';
 import { DraggablePanel } from '~contents/compontents/DraggablePanel.tsx';
 import { useStorage } from '@plasmohq/storage/hook'
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -10,7 +10,7 @@ import { MainData } from '~contents/hooks/useMainData.ts';
 import { InvestmentPanel } from '~contents/compontents/InvestmentPanel.tsx';
 
 export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData }: MainData) {
-  const [showPanel] = useStorage('@settings/showPanel', true);
+  const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
   const { t } = useI18n();
   if (!showPanel) {
     return null
@@ -36,8 +36,14 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
         {/* Sticky Header */}
         <div className="sticky top-0 z-50 bg-[#15202b]/95 backdrop-blur-sm border-b border-gray-700/50">
           <div className="absolute right-2 top-2 flex items-center gap-1">
-            <div className="tw-hunt-drag-handle p-1.5 rounded-full hover:bg-gray-700/50 transition-colors cursor-grab active:cursor-grabbing">
-              <GripVertical className="w-4 h-4 text-gray-400" />
+            {/*<div className="tw-hunt-drag-handle p-1.5 rounded-full hover:bg-gray-700/50 transition-colors cursor-grab active:cursor-grabbing">*/}
+            {/*  <GripVertical className="w-4 h-4 text-gray-400" />*/}
+            {/*</div>*/}
+            {/*cursor-grab active:cursor-grabbing*/}
+            <div className="p-1.5 rounded-full hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={() => {
+              setShowPanel(false)
+            }}>
+              <CircleX className="w-4 h-4 text-gray-400" />
             </div>
           </div>
           <div className="p-3 pt-2">

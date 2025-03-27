@@ -19,12 +19,12 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
         )}
         <h3 className="text-sm font-medium">{title} {
           Number(totalFunding) ?
-            <span className="text-xs font-medium text-green-400">{formatFunding(Number(totalFunding || 0))}</span> :
+            <span className="text-xs font-medium text-green-600">{formatFunding(Number(totalFunding || 0))}</span> :
             <>({investors.length})</>
         }</h3>
       </div>
       {/*{Number(totalFunding) ? (*/}
-      {/*  <span className="text-xs font-medium text-green-400">{formatFunding(Number(totalFunding || 0))}</span>*/}
+      {/*  <span className="text-xs font-medium text-green-600">{formatFunding(Number(totalFunding || 0))}</span>*/}
       {/*) : null}*/}
     </div>
     <div className="max-h-[94px] overflow-y-auto custom-scrollbar">

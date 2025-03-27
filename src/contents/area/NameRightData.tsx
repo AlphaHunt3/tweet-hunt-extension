@@ -24,7 +24,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
   const isPerson = twInfo?.basicInfo?.classification === 'person';
   const isKol = twInfo?.basicInfo?.isKol;
   const day90TokenMentionsLength = String(twInfo?.kolTokenMention?.day90?.tokenMentions?.length);
-  const day90NowProfitAvg = twInfo?.kolTokenMention?.day90?.nowProfitAvg;
+  const day90NowProfitAvg = twInfo?.kolTokenMention?.day90?.maxProfitAvg;
   const day90NowProfitAvgStr = (day90NowProfitAvg >= 0 ? '+' : '') + formatPercentage(day90NowProfitAvg)
   return ReactDOM.createPortal(
     <div className="flex flex-wrap items-center w-full mh-[40px] h-auto mt-4">
@@ -32,7 +32,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
         {/*投资人*/}
         {rootData && rootData?.invested?.investors?.length ?
           <HoverStatItem label={t('investors')} value={Number(rootData.invested.total_funding) ?
-            <span className="text-green-400">({formatFunding(Number(rootData.invested.total_funding || 0))})</span> :
+            <span className="text-green-600">({formatFunding(Number(rootData.invested.total_funding || 0))})</span> :
             <>({rootData?.invested?.investors?.length})</>} hoverContent={renderInvestorList(t('investors'), rootData.invested.investors, rootData.invested.total_funding)} valueClassName={'text-[#1D9BF0]'} /> : null
         }
         {rootData && rootData?.investor?.investors?.length ?
@@ -48,7 +48,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
         {/*90d收益率*/}
         {isPerson && day90NowProfitAvg ?
           <HoverStatItem label={t('90dPerformance')} value={`(${day90NowProfitAvgStr})`} hoverContent={
-            <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-400' : 'text-red-400'} /> : null}
+            <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-600' : 'text-red-400'} /> : null}
 
       </> : <HoverStatItem label={t('loading')} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
       {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?

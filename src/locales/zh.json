@@ -16,11 +16,12 @@
   "90dMention": "90d谈及代币",
   "90dPerformance": "90d收益率",
   "delInfo": "删帖",
-  "KOL_Followers": "KOL粉丝",
+  "KOL_Followers": "全球KOL粉丝",
   "TOP100_KOLs": "TOP100 KOLs",
   "CN_KOLs": "中文 KOLs",
   "renameInfo": "改名",
   "FQRank": "关注者质量排名",
-  "inTop10w": "关注者的质量在前10万名中排名前",
+  "inTop10w1": "关注者质量全库第",
+  "inTop10w2": "名（总样本10万）",
   "notInTop10w": "关注者的质量未能进入前10万名"
 }

@@ -9,8 +9,13 @@
     border-radius: 50px;
     transition: background 300ms;
     cursor: pointer;
-    /*max-width: fit-content;*/
-    /*min-width: min-content;*/
+    color: inherit;
+}
+@keyframes shiny {
+
+}
+.sidebarIconActive {
+
 }
 
 .sidebarItem:hover {
