@@ -52,7 +52,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
 
       </> : <HoverStatItem label={t('loading')} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
       {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?
-        <HoverStatItem label={t('renameInfo')} value={`(${String(Object.keys(renameInfo.accounts[0]?.screen_names || {}).length)})`} hoverContent={
+        <HoverStatItem label={t('renameInfo')} value={`(${String(Object.keys(renameInfo.accounts[0]?.screen_names || {}).length - 1)})`} hoverContent={
           <NameHistorySection data={renameInfo.accounts[0]} />
         } valueClassName="text-indigo-400" /> : null}
       {/*删帖*/}
