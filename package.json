@@ -1,7 +1,7 @@
 {
   "name": "tweet-hunt",
   "displayName": "TweetHunt",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Twitter Crypto Analytics Agent",
   "author": "StackBlitz",
   "scripts": {
