@@ -29,7 +29,7 @@ export function SideBarIcon() {
         alt=""
       />
       {isExpanded && (
-        <span className="sidebarText">TweetHunt</span>
+        <span className="sidebarText">XHunt</span>
       )}
     </div>,
     shadowRoot
