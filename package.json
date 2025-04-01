@@ -1,7 +1,7 @@
 {
   "name": "tweet-hunt",
   "displayName": "Xhunt - 探索加密币的推特智能助手",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Twitter Crypto Analytics Agent",
   "author": "StackBlitz",
   "scripts": {
