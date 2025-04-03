@@ -3,13 +3,14 @@ import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import { HoverStatItem } from '~contents/compontents/HoverStatItem.tsx';
 import { MainData } from '~contents/hooks/useMainData.ts';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { TokenPerformanceSection } from '~contents/compontents/TokenPerformanceSection.tsx';
-import { formatFunding, formatPercentage } from '~contents/utils';
+import { formatFunding, formatPercentage, getMBTIColor } from '~contents/utils';
 import { renderInvestorList } from '~contents/compontents/InvestmentPanel.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { NameHistorySection } from '~contents/compontents/NameHistorySection.tsx';
+import { MBTISection } from '~contents/compontents/MBTISection.tsx';
 
 export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData, renameInfo, loadingRenameInfo }: MainData) {
   const shadowRoot = useShadowContainer({
@@ -17,6 +18,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
     styleText: cssText,
   });
   const { t } = useI18n();
+  const mbtiColor = useMemo(() => getMBTIColor(twInfo?.mbti?.mbti!), [twInfo?.mbti?.mbti]);
   if (!shadowRoot) return null;
   if (error || !userId) {
     return <></>
@@ -25,7 +27,7 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
   const isKol = twInfo?.basicInfo?.isKol;
   const day90TokenMentionsLength = String(twInfo?.kolTokenMention?.day90?.tokenMentions?.length);
   const day90NowProfitAvg = twInfo?.kolTokenMention?.day90?.maxProfitAvg;
-  const day90NowProfitAvgStr = (day90NowProfitAvg >= 0 ? '+' : '') + formatPercentage(day90NowProfitAvg)
+  const day90NowProfitAvgStr = (day90NowProfitAvg >= 0 ? '+' : '') + formatPercentage(day90NowProfitAvg);
   return ReactDOM.createPortal(
     <div className="flex flex-wrap items-center w-full mh-[40px] h-auto mt-4">
       {!loadingRootData ? <>
@@ -51,6 +53,13 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
             <TokenPerformanceSection kolData={twInfo} defaultPeriod={'day90'} mode={'Metrics'} />} valueClassName={day90NowProfitAvg >= 0 ? 'text-green-600' : 'text-red-400'} /> : null}
 
       </> : <HoverStatItem label={t('loading')} value={''} hoverContent={null} valueClassName={'text-[#1D9BF0]'} />}
+
+      {/*MBTI*/}
+      {!loadingTwInfo && twInfo && twInfo?.mbti &&
+				<HoverStatItem label={t('personalityType')} value={`(${twInfo?.mbti?.mbti})`} hoverContent={
+          <MBTISection data={twInfo?.mbti!} />
+        } valueClassName={mbtiColor} />}
+
       {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?
         <HoverStatItem label={t('renameInfo')} value={`(${String(Object.keys(renameInfo.accounts[0]?.screen_names || {}).length - 1)})`} hoverContent={
           <NameHistorySection data={renameInfo.accounts[0]} />

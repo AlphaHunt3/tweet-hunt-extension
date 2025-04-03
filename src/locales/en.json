@@ -23,5 +23,6 @@
   "FQRank": "Follower Quality Rank",
   "inTop10w1": "Ranked",
   "inTop10w2": "rd in the entire library of follower quality (total samples of 10w)",
-  "notInTop10w": "The quality of the followers did not make it into the top 10w."
+  "notInTop10w": "The quality of the followers did not make it into the top 10w.",
+  "personalityType": "Personality Type"
 }

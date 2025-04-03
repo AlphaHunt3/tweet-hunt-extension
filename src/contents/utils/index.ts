@@ -83,3 +83,17 @@ export function isUserUsingChinese() {
   // 检测是否包含中文语言代码
   return languagePreferences.some(lang => /^zh/i.test(lang));
 }
+
+export function getMBTIColor(mbti: string) {
+  const colors: { [key: string]: string } = {
+    'ENTJ': 'text-purple-400',
+    'INTJ': 'text-blue-400',
+    'ENTP': 'text-green-400',
+    'INTP': 'text-yellow-400',
+    'ENFJ': 'text-pink-400',
+    'INFJ': 'text-red-400',
+    'ENFP': 'text-orange-400',
+    'INFP': 'text-teal-400'
+  };
+  return colors[mbti] || 'text-blue-400';
+};

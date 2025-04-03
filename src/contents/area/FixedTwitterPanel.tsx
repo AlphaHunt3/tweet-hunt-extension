@@ -8,6 +8,7 @@ import { KolFollowersSection } from '~contents/compontents/KolFollowersSection.t
 import { DeletedTweetsSection } from '~contents/compontents/DeletedTweetsSection.tsx';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import { InvestmentPanel } from '~contents/compontents/InvestmentPanel.tsx';
+import { MBTISection } from '~contents/compontents/MBTISection.tsx';
 
 export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData }: MainData) {
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
@@ -18,6 +19,7 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
   if (error || !userId) {
     return <></>
   }
+  console.log(twInfo, 'twInfo')
   return <DraggablePanel
     width={320}
     dragHandleClassName="tw-hunt-drag-handle"
@@ -58,6 +60,8 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
         <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* KOL Followers Section */}
           <KolFollowersSection kolData={twInfo!} />
+
+          {twInfo?.mbti && <MBTISection data={twInfo?.mbti!} />}
 
           {!loadingRootData && rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
 						<InvestmentPanel data={rootData} />}
