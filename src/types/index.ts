@@ -69,7 +69,10 @@ export interface KolData {
     day30: TokenPeriodData;
     day90: TokenPeriodData;
   };
-  mbti?: MBTIData;
+  mbti?: {
+    en: MBTIData,
+    cn: MBTIData,
+  };
 }
 
 export type KolTabType = 'global' | 'cn' | 'top100';

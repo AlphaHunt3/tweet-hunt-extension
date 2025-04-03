@@ -4,6 +4,7 @@ import indexText from 'data-text:~/css/index.css';
 import { useSize } from 'ahooks';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
 import { useStorage } from '@plasmohq/storage/dist/hook';
+import { useEffect } from 'react';
 
 export function SideBarIcon() {
   const shadowRoot = useShadowContainer({
@@ -17,7 +18,40 @@ export function SideBarIcon() {
   const size = useSize(sidebar?.parentElement);
   const width = size?.width || 0;
   const isExpanded = width > 72;
+  useEffect(() => {
+    if (!shadowRoot) return;
 
+    // 获取 header 和 nav 元素
+    const header = document.querySelector('header[role]') as HTMLElement | null;
+    const nav = document.querySelector('nav[role]') as HTMLElement | null;
+    const navP1 = nav?.parentElement as HTMLElement | null;
+    const navP2 = navP1?.parentElement as HTMLElement | null;
+    const navP3 = navP2?.parentElement as HTMLElement | null;
+
+    if (!header || !navP2 || !navP3) return;
+    const addStylesIfNeeded = () => {
+      if (!navP3.classList.contains('hideScrollbar')) {
+        const styleEl = document.createElement('style');
+        styleEl.textContent = indexText; // 假设 indexText 是你的 CSS 样式
+        header.appendChild(styleEl);
+        navP3.classList.add('hideScrollbar');
+      }
+    };
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(addStylesIfNeeded);
+    });
+    if (header) {
+      observer.observe(header, {
+        childList: true, // 监听直接子节点的变化
+        subtree: true, // 监听整个子树的变化
+        attributes: false, // 不监听属性变化
+      });
+    }
+    addStylesIfNeeded();
+    return () => {
+      observer.disconnect();
+    };
+  }, [shadowRoot]);
   if (!shadowRoot) return null;
   return ReactDOM.createPortal(
     <div className={`sidebarItem ${isExpanded ? 'sidebarItemExpanded' : ''}`} onClick={() => {

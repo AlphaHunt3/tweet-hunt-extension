@@ -12,14 +12,13 @@ import { MBTISection } from '~contents/compontents/MBTISection.tsx';
 
 export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData }: MainData) {
   const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   if (!showPanel) {
     return null
   }
   if (error || !userId) {
     return <></>
   }
-  console.log(twInfo, 'twInfo')
   return <DraggablePanel
     width={320}
     dragHandleClassName="tw-hunt-drag-handle"
@@ -61,7 +60,7 @@ export function FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadin
           {/* KOL Followers Section */}
           <KolFollowersSection kolData={twInfo!} />
 
-          {twInfo?.mbti && <MBTISection data={twInfo?.mbti!} />}
+          {twInfo?.mbti?.en && <MBTISection data={lang === 'zh' ? twInfo?.mbti?.cn! : twInfo?.mbti?.en!} />}
 
           {!loadingRootData && rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
 						<InvestmentPanel data={rootData} />}

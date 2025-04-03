@@ -11,9 +11,11 @@
     cursor: pointer;
     color: inherit;
 }
+
 @keyframes shiny {
 
 }
+
 .sidebarIconActive {
 
 }
@@ -46,4 +48,20 @@
     display: inline-block;
     font-size: 20px;
     margin: 0 20px;
+}
+
+/* 针对 WebKit 浏览器（如 Chrome、Edge） */
+.hideScrollbar::-webkit-scrollbar {
+    display: none; /* 隐藏滚动条 */
+    overflow: hidden;
+}
+
+/* 针对 Firefox */
+.hideScrollbar {
+    scrollbar-width: none; /* 隐藏滚动条 */
+}
+
+/* 针对旧版 IE 和 Edge */
+.hideScrollbar {
+    -ms-overflow-style: none; /* 隐藏滚动条 */
 }

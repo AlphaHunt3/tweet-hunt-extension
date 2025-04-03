@@ -17,8 +17,16 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
   });
-  const { t } = useI18n();
-  const mbtiColor = useMemo(() => getMBTIColor(twInfo?.mbti?.mbti!), [twInfo?.mbti?.mbti]);
+  const { t, lang } = useI18n();
+  const mbti = useMemo(() => {
+    return lang === 'zh' ? twInfo?.mbti?.cn : twInfo?.mbti?.en
+  }, [lang, twInfo]);
+  const mbtiColor = useMemo(() => {
+    if (mbti && mbti?.mbti) {
+      return getMBTIColor(mbti.mbti);
+    }
+    return '';
+  }, [mbti]);
   if (!shadowRoot) return null;
   if (error || !userId) {
     return <></>
@@ -56,8 +64,8 @@ export function NameRightData({ twInfo, deletedTweets, loadingTwInfo, loadingDel
 
       {/*MBTI*/}
       {!loadingTwInfo && twInfo && twInfo?.mbti &&
-				<HoverStatItem label={t('personalityType')} value={`(${twInfo?.mbti?.mbti})`} hoverContent={
-          <MBTISection data={twInfo?.mbti!} />
+				<HoverStatItem label={t('personalityType')} value={`(${mbti?.mbti})`} hoverContent={
+          <MBTISection data={mbti!} />
         } valueClassName={mbtiColor} />}
 
       {!loadingRenameInfo && renameInfo && renameInfo?.accounts?.length && Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ?
