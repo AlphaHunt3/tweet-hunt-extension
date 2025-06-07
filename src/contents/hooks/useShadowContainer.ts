@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDebounceEffect } from 'ahooks';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 export interface UseShadowContainerOptions {
   /** 初步查找的选择器 */
@@ -50,7 +50,7 @@ export default function useShadowContainer({
   maxWaitTime = 30000,
   siblingsStyle = 'width:auto;height:auto;max-width:100%;',
 }: UseShadowContainerOptions): ShadowRoot | null {
-  const [theme] = useStorage('@xhunt/theme', 'dark');
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
   const currentUrl = useCurrentUrl();
   // 用于标记是否已经创建过容器，避免重复创建

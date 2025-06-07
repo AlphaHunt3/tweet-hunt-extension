@@ -1,22 +1,23 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
-import { useFloatingContainer } from '~/contents/hooks/useFloatingContainer.tsx';
+import { ReviewStats, UserInfo } from '~types/review.ts';
 import { Avatar } from '~/compontents/UserAuthPanel.tsx';
 import { ReviewSection } from '~/compontents/ReviewSection.tsx';
-import { ReviewStats, UserInfo } from '~types/review.ts';
-import { useStorage } from '@plasmohq/storage/hook';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
 import { useLockFn } from 'ahooks';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { FloatingContainer, FloatingContainerRef } from './FloatingContainer';
 
 interface ReviewHeaderProps {
-  stats: ReviewStats | null | undefined;
+  stats: ReviewStats | undefined | null;
   handler: string;
   refreshAsyncReviewInfo: () => Promise<ReviewStats | undefined>;
   refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
+  loadingReviewInfo: boolean;
 }
 
 export const getRatingColor = (rating: number) => {
@@ -31,32 +32,35 @@ function _ReviewHeader({
   stats,
   handler,
   refreshAsyncReviewInfo,
-  refreshAsyncUserInfo
+  refreshAsyncUserInfo,
+  loadingReviewInfo
 }: ReviewHeaderProps) {
-  const [reviewOnlyKol] = useStorage('@xhunt/reviewOnlyKol', true);
-  const [token] = useStorage('@xhunt/token', '');
-  const [user] = useStorage('@xhunt/user', null);
-  const [theme] = useStorage('@xhunt/theme', 'dark');
+  const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
+  const [token] = useLocalStorage('@xhunt/token', '');
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
-  const isLoggedIn = !!token && !!user;
+  const isLoggedIn = !!token;
   const targetRef = useRef<HTMLButtonElement>(null);
-
-  const { Container, toggle } = useFloatingContainer(
-    targetRef,
-    {
-      offsetX: -220,
-      offsetY: isLoggedIn ? -300 : -200,
-      maxWidth: '300px',
-      maxHeight: '500px',
-    }
-  );
+  const containerRef = useRef<FloatingContainerRef>(null);
+  const preHandler = useRef('');
   const maxTgaShow = 5;
-  const moreTagCount = (stats?.allTagCount || 0) - maxTgaShow;
+  const moreTagCount = (stats?.tagCloud?.length || 0) - maxTgaShow;
   const isShowMoreTag = moreTagCount > 0;
+
+  useEffect(() => {
+    if (!loadingReviewInfo) {
+      preHandler.current = handler;
+    }
+  }, [loadingReviewInfo]);
+
+  if (preHandler.current !== handler) {
+    return <></>;
+  }
+
   return (
     <>
-      <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
-        {!stats || !('averageRating' in stats) || !stats?.topReviewers?.length ? (
+      {!stats || !('averageRating' in stats) || !stats?.topReviewers?.length ?
+        <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -64,20 +68,23 @@ function _ReviewHeader({
                 <span className="text-lg font-semibold theme-text-secondary flex-shrink-0">{reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}</span>
               </div>
               <span className={`theme-text-secondary pr-2 ${stats?.currentUserReview?.note ? 'text-xs' : 'text-sm'}`}>
-                {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}</span>
+                {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}
+              </span>
             </div>
             <div className="ml-auto flex-shrink-0">
               <button
                 ref={targetRef}
-                onClick={toggle}
+                onClick={() => {
+                  containerRef.current?.toggle()
+                }}
                 className="text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors"
               >
                 {stats?.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
               </button>
             </div>
           </div>
-        ) : (
-          <>
+        </div> : <>
+          <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <Star className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`} />
@@ -113,7 +120,9 @@ function _ReviewHeader({
               <div className="ml-auto">
                 <button
                   ref={targetRef}
-                  onClick={toggle}
+                  onClick={() => {
+                    containerRef.current?.toggle()
+                  }}
                   className={`text-sm transition-colors font-medium ${
                     stats.currentUserReview ? 'text-[#7dc9d9c7] hover:text-[#369cb2]' :
                       'text-[#1d9bf0] hover:text-[#1a8cd8]'
@@ -152,24 +161,41 @@ function _ReviewHeader({
                 </span>
               )}
             </div>
-          </>
-        )}
-      </div>
-      <Container>
-        <ReviewTooltip
-          stats={stats}
-          isLoggedIn={isLoggedIn}
-          toggle={toggle}
-          handler={handler}
-          refreshAsyncReviewInfo={refreshAsyncReviewInfo}
-          refreshAsyncUserInfo={refreshAsyncUserInfo}
-        />
-      </Container>
+          </div>
+        </>}
+      <ErrorBoundary>
+        <FloatingContainer
+          ref={containerRef}
+          targetRef={targetRef}
+          offsetX={-220}
+          offsetY={isLoggedIn ? -300 : -200}
+          maxWidth="300px"
+          maxHeight="500px"
+        >
+          <ReviewTooltip
+            stats={stats}
+            isLoggedIn={isLoggedIn}
+            toggle={() => containerRef.current?.hide()}
+            handler={handler}
+            refreshAsyncReviewInfo={refreshAsyncReviewInfo}
+            refreshAsyncUserInfo={refreshAsyncUserInfo}
+          />
+        </FloatingContainer>
+      </ErrorBoundary>
     </>
   );
 }
 
 export const ReviewHeader = React.memo(_ReviewHeader);
+
+interface ReviewTooltipProps {
+  stats: ReviewStats | undefined | null;
+  isLoggedIn: boolean;
+  toggle: () => void;
+  handler: string;
+  refreshAsyncReviewInfo: () => Promise<ReviewStats | undefined>;
+  refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
+}
 
 function _ReviewTooltip({
   stats,
@@ -179,7 +205,7 @@ function _ReviewTooltip({
   refreshAsyncReviewInfo,
   refreshAsyncUserInfo
 }: ReviewTooltipProps) {
-  const [theme] = useStorage('@xhunt/theme', 'dark');
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
   const onBtnClick = useLockFn(async () => {
     const ret = await getTwitterAuthUrl();
@@ -222,12 +248,3 @@ function _ReviewTooltip({
 }
 
 const ReviewTooltip = React.memo(_ReviewTooltip);
-
-interface ReviewTooltipProps {
-  stats: ReviewStats | undefined | null;
-  isLoggedIn: boolean;
-  toggle: () => void;
-  handler: string;
-  refreshAsyncReviewInfo: () => Promise<ReviewStats | undefined>;
-  refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
-}

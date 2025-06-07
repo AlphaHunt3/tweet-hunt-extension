@@ -1,69 +1,120 @@
 import { useEffect, useState, useRef } from 'react';
+import { useDebounceFn } from 'ahooks';
 
-// 模块级变量，跨 Hook 实例共享
+// 模块级共享状态
 let currentUrlRef = { current: window.location.href };
-let intervalRef = { current: null as number | null };
-let visibilityListenerAdded = false;
 let observers = new Set<(url: string) => void>();
+let mutationObserverRef = { current: null as MutationObserver | null };
 let refCount = 0;
 
-const notifyObservers = (newUrl: string) => {
-  currentUrlRef.current = newUrl;
-  observers.forEach((cb) => cb(newUrl));
-};
+// 原始 history 方法备份
+let originalPushState: History['pushState'];
+let originalReplaceState: History['replaceState'];
 
-const checkUrl = () => {
+// 存储当前有效的 debouncedNotify 函数
+let debouncedNotifyRef = { current: null as (() => void) | null };
+
+// 通知所有观察者
+const notifyObservers = () => {
   const newUrl = window.location.href;
   if (newUrl !== currentUrlRef.current) {
-    notifyObservers(newUrl);
+    currentUrlRef.current = newUrl;
+    observers.forEach((cb) => cb(newUrl));
   }
 };
 
-const handleVisibilityChange = () => {
-  if (document.visibilityState === 'visible') {
-    checkUrl();
+// 初始化全局监听器
+const setupGlobalObserver = () => {
+  if (!mutationObserverRef.current && debouncedNotifyRef.current) {
+    // 1. MutationObserver：用于监听 DOM 变化（如某些动态加载内容）
+    mutationObserverRef.current = new MutationObserver(() => {
+      debouncedNotifyRef.current!();
+    });
+
+    mutationObserverRef.current.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: false,
+      characterData: false
+    });
+
+    // 2. popstate / hashchange：用于 SPA 路由变化
+    window.addEventListener('popstate', debouncedNotifyRef.current);
+    window.addEventListener('hashchange', debouncedNotifyRef.current);
+
+    // 3. 劫持 history.pushState / replaceState
+    originalPushState = history.pushState;
+    originalReplaceState = history.replaceState;
+
+    history.pushState = function (...args) {
+      const result = originalPushState.apply(this, args);
+      debouncedNotifyRef.current?.(); // 触发防抖更新
+      return result;
+    };
+
+    history.replaceState = function (...args) {
+      const result = originalReplaceState.apply(this, args);
+      debouncedNotifyRef.current?.(); // 触发防抖更新
+      return result;
+    };
+  }
+};
+
+// 清理全局监听器
+const teardownGlobalObserver = () => {
+  if (mutationObserverRef.current) {
+    mutationObserverRef.current.disconnect();
+    mutationObserverRef.current = null;
+  }
+
+  if (debouncedNotifyRef.current) {
+    window.removeEventListener('popstate', debouncedNotifyRef.current);
+    window.removeEventListener('hashchange', debouncedNotifyRef.current);
+  }
+
+  // 恢复原始 history 方法
+  if (originalPushState) {
+    history.pushState = originalPushState;
+  }
+  if (originalReplaceState) {
+    history.replaceState = originalReplaceState;
   }
 };
 
 const useCurrentUrl = () => {
   const [url, setUrl] = useState(currentUrlRef.current);
-
-  // 每个 Hook 实例注册自己的更新函数
   const observerRef = useRef<(url: string) => void>(() => {});
 
-  // 注册观察者
+  // 创建防抖函数
+  const { run: debouncedNotify } = useDebounceFn(notifyObservers, {
+    wait: 100,
+    maxWait: 100,
+    leading: true,
+    trailing: true
+  });
+
+  // 更新模块级 ref，确保 setupGlobalObserver 能访问到当前有效的 debouncedNotify
+  debouncedNotifyRef.current = debouncedNotify;
+
   useEffect(() => {
     observerRef.current = (newUrl) => setUrl(newUrl);
     observers.add(observerRef.current);
 
-    // 首次挂载时增加引用计数
     refCount++;
+
     if (refCount === 1) {
-      // 启动定时器
-      intervalRef.current = window.setInterval(checkUrl, 500);
-      // 添加 visibilitychange 监听
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      visibilityListenerAdded = true;
+      setupGlobalObserver();
     }
 
     return () => {
-      // 卸载时移除观察者
       observers.delete(observerRef.current);
       refCount--;
 
-      // 最后一个组件卸载时清理资源
       if (refCount === 0) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        if (visibilityListenerAdded) {
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
-          visibilityListenerAdded = false;
-        }
+        teardownGlobalObserver();
       }
     };
-  }, []);
+  }, [debouncedNotify]); // 添加依赖项
 
   return url;
 };

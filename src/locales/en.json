@@ -3,6 +3,8 @@
   "language": "Language",
   "showAnalytics": "Show Analytics",
   "showDeletedTweets": "Show Deleted Tweets",
+  "showAvatarRank": "Show Avatar Rank",
+  "showTokenAnalysis": "Show Token Analysis",
   "contactUs": "Contact us on Telegram",
   "sourceGithub": "View source on GitHub",
   "version": "Version",
@@ -76,5 +78,14 @@
   "xPointsRank4": "· Rank 10K-100K: 4 points",
   "xPointsRank5": "· Rank 100K-200K: 2 points",
   "xPointsRank6": "· Rank >200K: 1 point",
-  "note": "Note"
+  "note": "Note",
+  "discussion1d": "1d Discussion",
+  "discussion7d": "7d Discussion",
+  "positive": "Positive",
+  "negative": "Negative",
+  "positivePoints": "Positive Points",
+  "negativePoints": "Negative Points",
+  "aiThinking": "Thinking hard, this may take a few seconds...",
+  "kolCnRankTotal": "10000",
+  "kolProjectRankTotal": "10000"
 }

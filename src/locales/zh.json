@@ -3,6 +3,8 @@
   "language": "语言",
   "showAnalytics": "显示分析数据",
   "showDeletedTweets": "显示已删除的推文",
+  "showAvatarRank": "显示头像排名",
+  "showTokenAnalysis": "显示代币分析",
   "contactUs": "通过 Telegram 联系我们",
   "sourceGithub": "在GitHub查看源码",
   "version": "版本",
@@ -45,7 +47,7 @@
   "maxTagsError": "最多只能选择 5 个标签",
   "noteOptional": "添加备注（仅自己可见）",
   "loginRequired": "请使用推特登录后点评",
-  "noReviews": "暂无评论",
+  "noReviews":  "暂无评论",
   "noSelectedReviews": "暂无精选评论",
   "onlyShowSelectedReviews": "仅查看精选评论",
   "selectedReviewersTooltip": "影响力排名前20万名用户的评论",
@@ -76,5 +78,14 @@
   "xPointsRank4": "· 排名 10K-100K: 4分",
   "xPointsRank5": "· 排名 100K-200K: 2分",
   "xPointsRank6": "· 排名 >200K: 1分",
-  "note": "备注"
+  "note": "备注",
+  "discussion1d": "1d讨论",
+  "discussion7d": "7d讨论",
+  "positive": "正面",
+  "negative": "负面",
+  "positivePoints": "正面观点",
+  "negativePoints": "负面观点",
+  "aiThinking": "玩命思考中，可能需要几秒钟...",
+  "kolCnRankTotal": "10000",
+  "kolProjectRankTotal": "10000"
 }

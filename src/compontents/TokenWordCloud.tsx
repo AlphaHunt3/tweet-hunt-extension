@@ -175,6 +175,7 @@ function TokenWordCloud({ tokens, height = 160, emptyTips }: TokenWordCloudProps
         .style('opacity', 0.9);
 
         tooltip
+        // @ts-ignore
         .html(`${d.text}: ${d.value} mentions`)
         .style('left', `${event.pageX + 10}px`)
         .style('top', `${event.pageY - 28}px`);

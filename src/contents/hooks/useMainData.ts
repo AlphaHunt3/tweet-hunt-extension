@@ -1,12 +1,19 @@
 import { useDebounceEffect, useLockFn, useRequest } from 'ahooks';
-import { fetchDelTwitterInfo, fetchRootDataInfo, fetchTwitterInfo, fetchTwRenameInfo } from '~contents/services/api.ts';
+import {
+  fetchDelTwitterInfo,
+  fetchRootDataInfo,
+  fetchSupportedTokens,
+  fetchTwitterDiscussionPopularity,
+  fetchTwitterInfo,
+  fetchTwRenameInfo
+} from '~contents/services/api.ts';
 import { useEffect, useState } from 'react';
 import { extractUsernameFromUrl } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
-import { AccountsResponse, DeletedTweet, InvestmentData, KolData } from '~types';
+import { AccountsResponse, DeletedTweet, InvestmentData, KolData, PopularityInfoType, SupportedToken } from '~types';
 import { getHandeReviewInfo, updateUserInfo } from '~contents/services/review.ts';
 import { ReviewStats, UserInfo } from '~types/review.ts';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 export interface MainData {
   currentUrl: string;
@@ -26,56 +33,70 @@ export interface MainData {
   userInfo: UserInfo | null;
   loadingUserInfo: boolean;
   refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
+  discussionInfo: PopularityInfoType | null;
+  loadingDiscussionInfo: boolean;
+  supportedTokens: SupportedToken[] | null;
+  loadingSupportedTokens: boolean;
+}
+
+const defaultRequestConfig = {
+  debounceWait: 300,
+  manual: true,
+  debounceLeading: true,
+  debounceTrailing: false,
 }
 
 const useMainData = (): MainData => {
   const currentUrl = useCurrentUrl();
   const [userId, setUserId] = useState('');
-  const [reviewOnlyKol] = useStorage('@xhunt/reviewOnlyKol', true);
-  const [token] = useStorage('@xhunt/token', '');
+  const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
+  const [token] = useLocalStorage('@xhunt/token', '');
+
   const { data: deletedTweets = [] as DeletedTweet[], run: fetchDelData, loading: loadingDel } = useRequest(() => fetchDelTwitterInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 300,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: false,
+    ...defaultRequestConfig
   });
+
   const { data: twInfo = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 300,
+    debounceWait: 50,
+    debounceMaxWait: 50,
     manual: true,
     debounceLeading: true,
-    debounceTrailing: false,
+    debounceTrailing: true,
   });
 
   const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 300,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: false,
+    ...defaultRequestConfig
   });
 
   const { data: renameInfo = null, run: fetchRenameInfo, loading: loadingRenameInfo } = useRequest(() => fetchTwRenameInfo(userId), {
     refreshDeps: [userId],
-    debounceWait: 300,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: false,
+    ...defaultRequestConfig
   });
+
   const { data: reviewInfo = null, run: fetchReviewInfo, loading: loadingReviewInfo, refreshAsync: refreshAsyncReviewInfo } = useRequest(() => getHandeReviewInfo(userId, reviewOnlyKol), {
     refreshDeps: [userId, reviewOnlyKol],
-    debounceWait: 300,
+    debounceWait: 50,
+    debounceMaxWait: 50,
     manual: true,
     debounceLeading: true,
-    debounceTrailing: false,
+    debounceTrailing: true,
   });
+
   const { data: userInfo = null, run: fetchUserInfo, loading: loadingUserInfo, refreshAsync: refreshAsyncUserInfo } = useRequest(() => updateUserInfo(), {
     refreshDeps: [token],
-    debounceWait: 300,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: false,
+    ...defaultRequestConfig
+  });
+
+  const { data: discussionInfo = null, run: fetchDiscussionInfo, loading: loadingDiscussionInfo } = useRequest(() => fetchTwitterDiscussionPopularity(userId), {
+    refreshDeps: [userId],
+    ...defaultRequestConfig
+  });
+
+  const { data: supportedTokens = null, run: fetchSupportedTokensData, loading: loadingSupportedTokens } = useRequest(fetchSupportedTokens, {
+    ...defaultRequestConfig
   });
 
   const loadData = useLockFn(async () => {
@@ -85,21 +106,29 @@ const useMainData = (): MainData => {
     fetchRootData();
     fetchRenameInfo();
     fetchReviewInfo();
+    fetchDiscussionInfo();
   });
+
   useEffect(() => {
     if (!userId || String(userId).length <= 4) return;
     fetchReviewInfo();
+    refreshAsyncUserInfo().then(r => r);
   }, [reviewOnlyKol, token]);
+
   useEffect(() => {
     loadData().then(r => r);
   }, [userId]);
+
   useEffect(() => {
     fetchUserInfo();
+    fetchSupportedTokensData();
   }, [])
+
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
     setUserId(uid);
-  }, [currentUrl], { wait: 300 });
+  }, [currentUrl], { wait: 300, leading: true });
+
   return {
     currentUrl,
     userId,
@@ -118,6 +147,10 @@ const useMainData = (): MainData => {
     userInfo,
     loadingUserInfo,
     refreshAsyncUserInfo,
+    discussionInfo,
+    loadingDiscussionInfo,
+    supportedTokens,
+    loadingSupportedTokens
   }
 }
 

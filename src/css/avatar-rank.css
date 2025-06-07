@@ -1,0 +1,133 @@
+/* Avatar container borders */
+.xhunt-avatar-inner-border {
+    border: 3px solid transparent !important;
+    border-radius: 50%;
+    position: relative;
+}
+
+.xhunt-avatar-outer-border {
+    border: 3px solid #60a5fa !important;
+    border-radius: 50%;
+    position: relative;
+}
+
+[data-theme="light"] .xhunt-avatar-outer-border {
+    border-color: #3b82f6;
+}
+
+/* Avatar rank badge */
+.xhunt-avatar-rank-badge {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, 60%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 14px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.9), rgba(139, 92, 246, 0.9));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    padding: 0 4px;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.xhunt-badge-top {
+    bottom: unset !important;
+    top: 0 !important;
+    transform: translate(-50%, -40%) !important;
+}
+
+/* Subtle golden accents for high-ranked badges */
+.xhunt-avatar-rank-badge.high-ranked {
+    /*border: 1px solid rgba(234, 179, 8, 0.4);*/
+    /*box-shadow: 0 1px 3px rgba(234, 179, 8, 0.1);*/
+}
+
+.xhunt-avatar-rank-badge.high-ranked .xhunt-avatar-rank-text {
+    /*color: rgba(253, 224, 71, 0.95);*/
+    /*text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);*/
+}
+
+/* Large avatar badge styles */
+.xhunt-avatar-rank-badge.large {
+    min-width: 28px;
+    height: 22px;
+    padding: 0 8px;
+    bottom: 0;
+    transform: translate(-50%, 50%);
+}
+
+.xhunt-avatar-rank-badge.large.xhunt-badge-top {
+    bottom: unset !important;
+    top: 0 !important;
+    transform: translate(-50%, -40%) !important;
+}
+
+[data-theme="light"] .xhunt-avatar-rank-badge {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.9));
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .xhunt-avatar-rank-badge.high-ranked {
+    /*border: 2px solid rgba(217, 119, 6, 0.7);*/
+    /*box-shadow: 0 1px 3px rgba(217, 119, 6, 0.1);*/
+}
+
+[data-theme="light"] .xhunt-avatar-rank-badge.high-ranked .xhunt-avatar-rank-text {
+    color: #ffffff;
+}
+
+.xhunt-avatar-rank-text {
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: -0.2px;
+}
+
+/* Large avatar rank text */
+.xhunt-avatar-rank-badge.large .xhunt-avatar-rank-text {
+    font-size: 13px;
+}
+
+/* Square avatar styles */
+.xhunt-avatar-inner-border.square,
+.xhunt-avatar-outer-border.square {
+    border-radius: 10px !important;
+}
+
+/* Large avatar margin adjustment */
+.xhunt-avatar-rank-badge.large.square {
+    margin-top: 10px;
+}
+
+.gold-trophy {
+    filter: brightness(1.3) saturate(1.5);
+    color: gold;
+}
+
+.silver-trophy {
+    filter: brightness(1.2) saturate(0.5) hue-rotate(180deg);
+    color: silver;
+}
+
+.bronze-trophy {
+    filter: brightness(0.8) sepia(1) saturate(4) hue-rotate(10deg);
+    color: sienna;
+}
+
+.gold-trophy, .silver-trophy, .bronze-trophy {
+    display: inline-block;
+    font-size: 8px !important;
+    margin-right: 2px;
+    vertical-align: middle;
+    transform: translate3d(0, -1px, 0);
+}

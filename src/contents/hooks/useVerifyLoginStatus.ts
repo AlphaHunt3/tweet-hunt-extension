@@ -1,11 +1,10 @@
-import { useStorage } from '@plasmohq/storage/hook';
-// import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import useFetchTwId from '~contents/hooks/useFetchTwId.ts';
 import { useEffect } from 'react';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 export const useVerifyLoginStatus = () => {
-  const [token, setToken] = useStorage('@xhunt/token', '');
-  const [user, setUser] = useStorage<{
+  const [token, setToken] = useLocalStorage('@xhunt/token', '');
+  const [user, setUser] = useLocalStorage<{
     avatar: string;
     displayName: string;
     username: string;

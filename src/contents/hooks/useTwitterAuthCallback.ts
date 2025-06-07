@@ -1,20 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { parseURLParams } from '~contents/utils';
 import { postTwitterCallback } from '~contents/services/api.ts';
-import { useStorage } from '@plasmohq/storage/hook';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
 import { useLockFn } from 'ahooks';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 /**
  * Twitter OAuth 回调处理 Hook
  */
 const useTwitterAuthCallback = () => {
   const currentUrl = useCurrentUrl();
-  const [, setToken] = useStorage('@xhunt/token', '');
-  const [, setUser] = useStorage('@xhunt/user', null);
+  const [, setToken] = useLocalStorage('@xhunt/token', '');
+  const [, setUser] = useLocalStorage('@xhunt/user', null);
   const [, setTips] = useGlobalTips();
   const { t } = useI18n();
   const isCallbackUrl = currentUrl.includes('account/xhunt');

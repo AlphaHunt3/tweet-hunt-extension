@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useDebounceFn } from 'ahooks';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 interface StatItemProps {
   label: string;
@@ -8,10 +9,37 @@ interface StatItemProps {
   valueClassName?: string;
   labelClassName?: string;
   className?: string;
+  onHover?: () => Promise<void> | void;
 }
 
-// 唯一 ID 计数器
-let instanceCount = 0;
+// Module-level counter for unique IDs
+let instanceCounter = 0;
+
+// Shared state for z-index management
+const activeInstances = new Set<string>();
+
+// Debounced z-index update function
+const updateZIndexes = () => {
+  const mainElement = document.querySelector('main[role]') as HTMLElement;
+  const bannerElement = document.querySelector('header[role="banner"]') as HTMLElement;
+  const primaryColumn = mainElement?.querySelector('[data-testid="primaryColumn"]') as HTMLElement;
+  const firstChild = primaryColumn?.firstElementChild as HTMLElement;
+  const TopElement = firstChild?.firstElementChild as HTMLElement;
+
+  if (!mainElement || !bannerElement || !primaryColumn || !firstChild || !TopElement) return;
+
+  if (activeInstances.size > 0) {
+    mainElement.style.zIndex = '50';
+    TopElement.style.transition = '0.3s ease-in-out';
+    TopElement.style.opacity = '0.1';
+    bannerElement.style.zIndex = '1';
+  } else {
+    mainElement.style.zIndex = '0';
+    TopElement.style.transition = '0.3s ease-in-out';
+    TopElement.style.opacity = '1';
+    bannerElement.style.zIndex = '3';
+  }
+};
 
 export function HoverStatItem({
   label,
@@ -20,28 +48,48 @@ export function HoverStatItem({
   valueClassName = '',
   labelClassName = '',
   className = '',
+  onHover
 }: StatItemProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [theme] = useStorage('@xhunt/theme', 'dark');
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const idRef = useRef<string>(`hover-stat-item-${instanceCounter++}`);
+  const hasCalledHover = useRef(false);
+  const isLoadingRef = useRef(false);
 
-  // 每个实例拥有一个唯一 ID
-  const idRef = useRef<string>(`hover-stat-item-${instanceCount++}`);
+  const { run: debouncedHover } = useDebounceFn(
+    async () => {
+      if (!hasCalledHover.current && onHover) {
+        hasCalledHover.current = true;
+        isLoadingRef.current = true;
+        await onHover();
+        isLoadingRef.current = false;
+      }
+    },
+    {
+      wait: 300,
+      leading: true,
+      trailing: false,
+    }
+  );
 
-  // 广播当前打开的组件 ID
   useEffect(() => {
     if (isHovered) {
       window.dispatchEvent(new CustomEvent('hover-stat-item-opened', { detail: idRef.current }));
+    } else if (!isLoadingRef.current) {
+      hasCalledHover.current = false;
     }
   }, [isHovered]);
 
-  // 监听其他组件打开事件
   useEffect(() => {
     const handleOtherHover = (e: any) => {
       const openedId = e.detail;
       if (openedId !== idRef.current) {
         setIsHovered(false);
+        if (!isLoadingRef.current) {
+          hasCalledHover.current = false;
+        }
       }
     };
 
@@ -52,42 +100,43 @@ export function HoverStatItem({
     };
   }, []);
 
-  // 处理 main[role] 的 z-index
   useEffect(() => {
-    const mainElement = document.querySelector('main[role]') as HTMLElement;
-    if (!mainElement) return;
-
     if (isHovered) {
-      mainElement.style.zIndex = '50';
+      activeInstances.add(idRef.current);
     } else {
-      mainElement.style.zIndex = '0';
+      activeInstances.delete(idRef.current);
     }
-
-    const handleResize = () => {
-      mainElement.style.zIndex = '0';
-    };
-
-    window.addEventListener('resize', handleResize);
+    updateZIndexes();
 
     return () => {
-      mainElement.style.zIndex = '0';
-      window.removeEventListener('resize', handleResize);
+      if (isHovered) {
+        activeInstances.delete(idRef.current);
+        updateZIndexes();
+      }
     };
   }, [isHovered]);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (onHover) {
+      debouncedHover();
+    }
+  };
 
   return (
     <div
       ref={containerRef}
       data-theme={theme}
-      className={`relative mr-6 ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
+      className={`relative mr-4 ${className}`}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={() => {
         requestIdleCallback(() => {
           if (isHovered) return;
-          setIsHovered(true);
+          handleMouseEnter();
         })
       }}
       onMouseLeave={() => {
+        if (isLoadingRef.current) return;
         hoverTimer.current = setTimeout(() => {
           setIsHovered(false);
         }, 100);
@@ -106,8 +155,7 @@ export function HoverStatItem({
         </span>}
       </div>
 
-      {/* Hover Panel Container */}
-      {isHovered && hoverContent && (
+      {isHovered && (
         <div
           data-theme={theme}
           className="absolute bottom-full left-1/2 -translate-x-1/2 w-max max-w-[320px] z-50"
@@ -116,17 +164,16 @@ export function HoverStatItem({
             setIsHovered(true);
           }}
           onMouseLeave={() => {
+            if (isLoadingRef.current) return;
             hoverTimer.current = setTimeout(() => {
               setIsHovered(false);
             }, 100);
           }}
         >
-          {/* Panel Content */}
-          <div className="theme-bg-secondary theme-text-primary rounded-lg shadow-lg theme-border border p-1 -translate-y-2">
+          <div className="z-10 theme-bg-secondary theme-text-primary rounded-lg shadow-lg theme-border border p-1 -translate-y-2">
             {hoverContent}
           </div>
-          {/* Arrow */}
-          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-2 -bottom-[6px] w-3 h-3 rotate-45 theme-bg-secondary theme-border border-t-0 border-l-0"></div>
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-3 -bottom-[6px] w-3 h-3 rotate-45 theme-bg-secondary theme-border border-t-0 border-l-0"></div>
         </div>
       )}
     </div>

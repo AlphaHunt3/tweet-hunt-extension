@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 
 // 定义要拦截的快捷键列表（支持单键和组合键）
 const BLOCKED_SHORTCUTS = new Set([
-  '?', 'j', 'k', '.', 'm', '/', 'l', 'r', 't', 's', 'b', 'u', 'x', 'o', 'i', 'n',
+  '?', 'j', 'k', '.', 'm', '/', 'l', 'r', 't', 's', 'b', 'u', 'x', 'o', 'i', 'n', 'h', 'f', 'e',
   'Meta+Enter', 'Enter', 'a+d', 'a+ ', 'a+m'
 ]);
 

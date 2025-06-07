@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Loader, Plus, Star, X } from 'lucide-react';
+import { Loader2, Plus, Star, X } from 'lucide-react';
 import { ReviewStats, UserInfo } from '~types/review.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
 import { delHandeReviewInfo, postHandeReviewInfo } from '~contents/services/review.ts';
@@ -38,7 +38,8 @@ function _ReviewSection({
   refreshAsyncUserInfo
 }: ReviewSectionProps) {
   const { t } = useI18n();
-  const [rating, setRating] = useState(stats?.currentUserReview?.rating || 0);
+  const [rating, setRating] = useState(Number(stats?.currentUserReview?.rating || 0));
+  const [hoverRating, setHoverRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>(stats?.currentUserReview?.tags || []);
   const [customTag, setCustomTag] = useState('');
   const [note, setNote] = useState(stats?.currentUserReview?.note || '');
@@ -54,10 +55,10 @@ function _ReviewSection({
   });
 
   const getRatingColor = (starRating: number, currentRating: number) => {
-    if (starRating <= currentRating) {
-      if (currentRating <= 2) return 'text-red-400 fill-red-400';
-      if (currentRating <= 3) return 'text-orange-400 fill-orange-400';
-      if (currentRating <= 4) return 'text-yellow-400 fill-yellow-400';
+    if (starRating <= (Number(currentRating) + 0.5)) {
+      if (currentRating <= 2.5) return 'text-red-400 fill-red-400';
+      if (currentRating <= 3.5) return 'text-orange-400 fill-orange-400';
+      if (currentRating <= 4.5) return 'text-yellow-400 fill-yellow-400';
       return 'text-green-400 fill-green-400';
     }
     return 'theme-text-secondary';
@@ -134,7 +135,7 @@ function _ReviewSection({
   }
 
   const addCustomTag = () => {
-    if(selectedTags && selectedTags?.length >= 5) return;
+    if (selectedTags && selectedTags?.length >= 5) return;
     const trimmedTag = customTag.trim();
     if (trimmedTag && !selectedTags.includes(trimmedTag)) {
       setSelectedTags(prev => [...prev, trimmedTag]);
@@ -173,27 +174,69 @@ function _ReviewSection({
     setCustomTag(result);
   };
 
+  const handleStarHover = (starValue: number, isHalf: boolean) => {
+    setHoverRating(isHalf ? starValue - 0.5 : starValue);
+  };
+
+  const handleStarClick = (starValue: number, isHalf: boolean) => {
+    const newRating = isHalf ? starValue - 0.5 : starValue;
+    setRating(rating === newRating ? 0 : newRating);
+  };
+
+  const handleMouseLeave = () => {
+    setHoverRating(0);
+  };
+
+  const renderStar = (starValue: number) => {
+    const displayRating = Number(hoverRating || rating);
+    const isFullStar = starValue <= displayRating;
+    const isHalfStar = !isFullStar && starValue - 0.5 <= displayRating;
+    const colorClass = getRatingColor(starValue, displayRating);
+    return (
+      <div key={starValue} className="relative">
+        {/* Left half (for half-star) */}
+        <div
+          className="absolute left-0 w-1/2 h-full cursor-pointer z-10"
+          onMouseEnter={() => handleStarHover(starValue, true)}
+          onClick={() => handleStarClick(starValue, true)}
+        />
+        {/* Right half (for full star) */}
+        <div
+          className="absolute right-0 w-1/2 h-full cursor-pointer z-10"
+          onMouseEnter={() => handleStarHover(starValue, false)}
+          onClick={() => handleStarClick(starValue, false)}
+        />
+        {/* Star icon */}
+        {isHalfStar ? (
+          <div className="relative">
+            <Star className={`w-5 h-5 ${colorClass.replace('fill-', 'none-')} transition-all duration-200`} strokeWidth={1.5} />
+            <div className="absolute inset-0 overflow-hidden w-1/2">
+              <Star className={`w-5 h-5 ${colorClass} transition-all duration-200`} fill="currentColor" strokeWidth={1.5} />
+            </div>
+          </div>
+        ) : (
+          <Star
+            className={`w-5 h-5 ${colorClass} transition-all duration-200`}
+            strokeWidth={1.5}
+            fill={isFullStar ? 'currentColor' : 'none'}
+          />
+        )}
+      </div>
+    );
+  };
+
   if (!stats) return null;
 
   return <div className="p-3 space-y-4">
     {/* Star Rating */}
-    <div className="flex items-center gap-1.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          onClick={() => setRating(star)}
-          className="focus:outline-none group relative"
-          onMouseEnter={() => setRating(star)}
-        >
-          <Star
-            className={`w-5 h-5 ${getRatingColor(star, rating)} transition-all duration-200 transform group-hover:scale-110`}
-            strokeWidth={1.5}
-          />
-        </button>
-      ))}
-      {rating > 0 && (
-        <span className={`ml-2 text-sm font-medium ${getRatingColor(1, rating)}`}>
-          {rating}
+    <div
+      className="flex items-center gap-1.5"
+      onMouseLeave={handleMouseLeave}
+    >
+      {[1, 2, 3, 4, 5].map((star) => renderStar(star))}
+      {(rating > 0 || hoverRating > 0) && (
+        <span className={`ml-2 text-sm font-medium ${getRatingColor(1, Number(hoverRating || rating))}`}>
+          {Number(hoverRating || rating).toFixed(1)}
         </span>
       )}
     </div>
@@ -326,7 +369,7 @@ function _ReviewSection({
       disabled={!rating || selectedTags.length === 0 || postReviewInfoLoading}
       className="w-full py-2 rounded text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-[#1d9bf0] hover:bg-[#1a8cd8]"
     >
-      {postReviewInfoLoading && <Loader className="inline-block animate-spin h-4 w-4 mr-2" />}
+      {postReviewInfoLoading && <Loader2 className="inline-block animate-spin h-4 w-4 mr-2" />}
       {stats?.currentUserReview ? t('modifyReview') : t('submitReview')}
     </button>
 
@@ -340,7 +383,7 @@ function _ReviewSection({
       </button>
     )}
     {errorInfo &&
-      <div className={'text-red-500 text-sm font-medium text-left w-full whitespace-normal transform -translate-y-2 mx-auto'}>{errorInfo}</div>}
+			<div className={'text-red-500 text-sm font-medium text-left w-full whitespace-normal transform -translate-y-2 mx-auto'}>{errorInfo}</div>}
   </div>;
 }
 

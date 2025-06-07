@@ -3,9 +3,8 @@ import ReactDOM from 'react-dom';
 import indexText from 'data-text:~/css/index.css';
 import { useSize } from 'ahooks';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
-// @ts-ignore
-import { useStorage } from '@plasmohq/storage/dist/hook';
 import React, { useEffect } from 'react';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
@@ -14,7 +13,7 @@ function _SideBarIcon() {
     useSiblings: true,
     siblingsStyle: 'width:auto;height:auto;max-width:100%;min-width:50.25px'
   });
-  const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
+  const [showPanel, setShowPanel] = useLocalStorage('@settings/showPanel', true);
   const sidebar = useWaitForElement('nav[role]');
   const size = useSize(sidebar?.parentElement);
   const width = size?.width || 0;

@@ -1,64 +1,122 @@
-import { useEffect, useState } from 'react';
-import { useWeb3TickerFromHover } from '~contents/hooks/useWeb3TickerFromHover.ts';
+import { useEffect, useRef, useState } from 'react';
 import TokenAnalysisPanel from '~/compontents/TokenAnalysisPanel.tsx';
-import { useRequest } from 'ahooks';
+import { useDebounceFn, useLatest, useRequest } from 'ahooks';
 import { fetchTokenAnalysisInfo } from '~contents/services/api.ts';
+import { TOKEN_HOVER_EVENT, TokenHoverDetail } from '~contents/hooks/useHighlightTokens';
+import { FloatingContainer, FloatingContainerRef } from '~/compontents/FloatingContainer';
 
 export function TickerTips() {
-  const { isVisible, lastValidRect, setMouseOverPanel, hoveringTicker, setIsVisible } = useWeb3TickerFromHover(1000);
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
-  const { data, run: fetchData, } = useRequest(() => fetchTokenAnalysisInfo(hoveringTicker), {
-    refreshDeps: [hoveringTicker],
-    debounceWait: 300,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: false,
+  const [hoveringTicker, setHoveringTicker] = useState<string | null>(null);
+  const hoveringTickerRef = useLatest(hoveringTicker);
+  const targetRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<FloatingContainerRef>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const latestShowTimeRef = useRef(0);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const startCloseTimer = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      containerRef.current?.hide();
+    }, 3000);
+  };
+
+  const { data, run: fetchData, loading: loadingData } = useRequest(
+    (ticker: string) => {
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      controllerRef.current = controller;
+
+      return fetchTokenAnalysisInfo(ticker, controller.signal);
+    },
+    {
+      manual: true,
+      debounceWait: 50,
+      debounceMaxWait: 50,
+      debounceLeading: true,
+      debounceTrailing: false,
+    }
+  );
+
+  const { run: handleHoverEvent } = useDebounceFn((event: CustomEvent<TokenHoverDetail>) => {
+    const detail = event.detail;
+    if (detail && detail.ticker && detail.element) {
+      clearCloseTimer();
+      targetRef.current = detail.element;
+      setHoveringTicker(detail.ticker);
+      containerRef.current?.show();
+      latestShowTimeRef.current = Date.now();
+      if (detail.ticker !== hoveringTickerRef.current) {
+        fetchData(detail.ticker);
+      }
+    } else {
+      if (Date.now() - latestShowTimeRef.current > 1000) {
+        startCloseTimer();
+      }
+    }
+  }, {
+    wait: 500,
+    maxWait: 500,
+    leading: false,
+    trailing: true,
   });
+
   useEffect(() => {
-    if (!lastValidRect) {
-      setPosition(null);
-      return;
-    }
+    window.addEventListener(TOKEN_HOVER_EVENT, handleHoverEvent as EventListener);
+    return () => {
+      window.removeEventListener(TOKEN_HOVER_EVENT, handleHoverEvent as EventListener);
+      clearCloseTimer();
+    };
+  }, [handleHoverEvent]);
 
-    const panelWidth = 480;
-    const panelHeight = 460;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+  const handlePanelMouseEnter = () => {
+    requestIdleCallback(() => {
+      clearCloseTimer();
+      containerRef.current?.show();
+    });
+  };
 
-    let left = lastValidRect.left;
-    let top = lastValidRect.bottom;
+  const handlePanelMouseLeave = () => {
+    startCloseTimer();
+  };
 
-    if (left + panelWidth > viewportWidth) {
-      left = Math.max(10, viewportWidth - panelWidth);
-    }
-
-    if (top + panelHeight > viewportHeight) {
-      top = Math.max(10, lastValidRect.top - panelHeight);
-    }
-
-    setPosition({ left, top });
-    fetchData();
-  }, [lastValidRect]);
-
-  if (!isVisible || !position || !hoveringTicker) return null;
+  // if (!hoveringTicker) return null;
 
   return (
-    <div
-      className="ticker-tips"
-      style={{
-        position: 'fixed',
-        left: `${position.left}px`,
-        top: `${position.top}px`,
-        zIndex: 9999,
-        width: '480px',
-        opacity: isVisible ? 1 : 0,
-        pointerEvents: isVisible ? 'auto' : 'none',
-        transition: 'opacity 0.3s ease-in-out',
-      }}
-      onMouseEnter={() => setMouseOverPanel(true)}
-      onMouseLeave={() => setMouseOverPanel(false)}
+    <FloatingContainer
+      ref={containerRef}
+      targetRef={targetRef}
+      offsetX={-100}
+      offsetY={10}
+      maxWidth="480px"
+      maxHeight="460px"
+      mask={false}
     >
-      <TokenAnalysisPanel token={hoveringTicker} data={data} isLoading={!data} setIsVisible={setIsVisible} />
-    </div>
+      {hoveringTicker && <TokenAnalysisPanel
+				token={hoveringTicker}
+				data={data}
+				isLoading={loadingData}
+				setIsVisible={(visible) => {
+          if (visible) {
+            containerRef.current?.show();
+          } else {
+            containerRef.current?.hide();
+          }
+        }}
+				onMouseEnter={handlePanelMouseEnter}
+				onMouseLeave={handlePanelMouseLeave}
+				onMouseOver={handlePanelMouseEnter}
+			/>}
+    </FloatingContainer>
   );
 }

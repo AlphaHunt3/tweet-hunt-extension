@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { Info, LogOut, MoreVertical } from 'lucide-react';
-import { useStorage } from '@plasmohq/storage/hook';
 import { userLogout } from '~contents/services/review.ts';
 import { useLockFn } from 'ahooks';
 import { UserInfo } from '~types/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 function _UserAuthPanel({ userInfo }: {
   userInfo: UserInfo | undefined | null
 }) {
   const [showLogout, setShowLogout] = useState(false);
-  const [, setToken] = useStorage('@xhunt/token', '');
+  const [, setToken] = useLocalStorage('@xhunt/token', '');
   const [showPointsInfo, setShowPointsInfo] = useState(false);
-  const [user, setUser] = useStorage<{
+  const [user, setUser] = useLocalStorage<{
     avatar: string;
     displayName: string;
     username: string;
@@ -85,6 +85,7 @@ function _UserAuthPanel({ userInfo }: {
             <div className="absolute bottom-full right-0 mb-1 w-32 theme-bg-secondary rounded-lg shadow-lg theme-border overflow-hidden">
               <button
                 onClick={() => {
+                  setShowLogout(false);
                   logout().then(r => r);
                 }}
                 className="w-full px-3 py-2 flex items-center gap-2 text-xs text-red-400 theme-hover transition-colors"
@@ -93,10 +94,10 @@ function _UserAuthPanel({ userInfo }: {
                 {t('logout')}
               </button>
             </div>
-            <button
-              className="fixed inset-0 z-10"
-              onClick={() => setShowLogout(false)}
-            />
+            {/*<button*/}
+            {/*  className="fixed inset-0 z-10"*/}
+            {/*  onClick={() => setShowLogout(false)}*/}
+            {/*/>*/}
           </>
         )}
       </div>

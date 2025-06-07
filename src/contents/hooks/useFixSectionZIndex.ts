@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import useCurrentUrl from './useCurrentUrl';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 // 模块级变量，跨 Hook 实例共享
 let observer: MutationObserver | null = null;
@@ -9,7 +9,7 @@ let refCount = 0;
 
 const useFixUIZIndex = () => {
   const currentUrl = useCurrentUrl(); // 自动响应 URL 变化
-  const [theme, setTheme] = useStorage('@xhunt/theme', 'dark');
+  const [theme, setTheme] = useLocalStorage('@xhunt/theme', 'dark');
 
   useEffect(() => {
     if (!currentUrl) return;
@@ -41,6 +41,13 @@ const useFixUIZIndex = () => {
       if (theme !== _theme) {
         setTheme(_theme === 'light' ? 'light' : 'dark').then(r => r);
       }
+
+      // Set data-theme on body if not present
+      const body = document.body;
+      if (!body.hasAttribute('data-theme')) {
+        body.setAttribute('data-theme', _theme === 'light' ? 'light' : 'dark');
+      }
+
       return !!prevSibling;
     };
 

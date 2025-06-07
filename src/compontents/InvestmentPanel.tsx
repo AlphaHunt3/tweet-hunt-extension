@@ -1,4 +1,3 @@
-import React from 'react';
 import { Briefcase, Building2 } from 'lucide-react';
 import { InvestmentData, Investor } from '~types';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -8,7 +7,7 @@ interface InvestmentPanelProps {
   data: InvestmentData;
 }
 
-export const renderInvestorList = (title: string, investors: Investor[], totalFunding: string | number | undefined) => (
+export const renderInvestorList = (title: string, investors: Investor[], totalFunding: string | number | undefined, showLogo: boolean = false) => (
   <div className="space-y-2">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -23,9 +22,14 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
             <>({investors.length})</>
         }</h3>
       </div>
-      {/*{Number(totalFunding) ? (*/}
-      {/*  <span className="text-xs font-medium text-green-600">{formatFunding(Number(totalFunding || 0))}</span>*/}
-      {/*) : null}*/}
+      {showLogo && <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50/10">
+        <span className="text-[10px] text-orange-400/80">来源</span>
+        <img
+          src="https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/rootdata-orange.png"
+          alt="root-data"
+          className="h-[24px] w-auto object-contain"
+        />
+      </div>}
     </div>
     <div className="max-h-[94px] overflow-y-auto custom-scrollbar">
       <div className="grid grid-cols-2 gap-2 py-2">

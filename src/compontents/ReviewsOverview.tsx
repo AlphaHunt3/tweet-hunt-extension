@@ -2,8 +2,8 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import { ReviewStats } from '~types/review.ts';
 import TokenWordCloud from '~compontents/TokenWordCloud.tsx';
-import { useStorage } from '@plasmohq/storage/hook';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 interface ReviewsOverviewProps {
   stats: ReviewStats | undefined | null;
@@ -13,7 +13,7 @@ function _ReviewsOverview({
   stats,
 }: ReviewsOverviewProps) {
   const { t } = useI18n();
-  const [reviewOnlyKol, setShowAllReviews] = useStorage('@xhunt/reviewOnlyKol', true);
+  const [reviewOnlyKol, setShowAllReviews] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const getRatingColor = (rating: number) => {
     if (rating <= 2) return 'text-red-400 fill-red-400';
     if (rating <= 3) return 'text-orange-400 fill-orange-400';

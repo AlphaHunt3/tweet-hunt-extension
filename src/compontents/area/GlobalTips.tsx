@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 // 定义提示类型
 type TipType = 'suc' | 'fail' | 'warning' | 'default';
@@ -10,7 +10,7 @@ interface TipData {
 }
 
 export const useGlobalTips = () => {
-  return useStorage<TipData | string>('@xhunt/tips', {
+  return useLocalStorage<TipData | string>('@xhunt/tips', {
     text: '',
     type: 'suc'
   });

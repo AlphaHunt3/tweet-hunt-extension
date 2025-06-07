@@ -13,7 +13,7 @@ import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import ReactDOMServer from 'react-dom/server';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { KolData } from '~types';
-import { useStorage } from '@plasmohq/storage/hook';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 const renderRankChange = (change: number | undefined | null) => {
   try {
@@ -33,10 +33,13 @@ const renderRankChange = (change: number | undefined | null) => {
   }
 };
 
-const RankTooltip = React.memo(({ twInfo, rankType }: { twInfo: KolData | null, rankType: 'followers' | 'project' | 'chinese' }) => {
+const RankTooltip = React.memo(({ twInfo, rankType }: {
+  twInfo: KolData | null,
+  rankType: 'followers' | 'project' | 'chinese'
+}) => {
   const [activePeriod, setActivePeriod] = useState<'day1' | 'day7' | 'day30'>('day1');
   const { t } = useI18n();
-  const [theme] = useStorage('@xhunt/theme', 'dark');
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   if (!twInfo) return null;
 
@@ -94,7 +97,7 @@ const RankTooltip = React.memo(({ twInfo, rankType }: { twInfo: KolData | null, 
         <div className="p-2 theme-bg-tertiary rounded-lg">
           <div className="flex justify-between items-center">
             <span className="theme-text-secondary">{title}</span>
-            {change === 0 ? 0 : (change ? renderRankChange(change) : "-")}
+            {change === 0 ? 0 : (change ? renderRankChange(change) : '-')}
           </div>
           <div className="mt-1 text-[11px] theme-text-secondary opacity-80">
             {description}
@@ -105,7 +108,7 @@ const RankTooltip = React.memo(({ twInfo, rankType }: { twInfo: KolData | null, 
   );
 });
 
-function _FollowedRightData({ twInfo, error, userId, loadingTwInfo, reviewInfo, refreshAsyncReviewInfo, refreshAsyncUserInfo }: MainData) {
+function _FollowedRightData({ twInfo, error, userId, loadingTwInfo, reviewInfo, refreshAsyncReviewInfo, refreshAsyncUserInfo, loadingReviewInfo }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
@@ -125,48 +128,51 @@ function _FollowedRightData({ twInfo, error, userId, loadingTwInfo, reviewInfo, 
 
   return ReactDOM.createPortal(<>
     {!loadingTwInfo && twInfo && <>
-      <div className={'mr-6'} />
+			<div className={'mr-6'} />
       {/*全球KOL粉丝*/}
-      <HoverStatItem label={formatNumber(twInfo?.kolFollow?.globalKolFollowersCount || 0)} value={t('KOL_Followers')} hoverContent={
+			<HoverStatItem label={formatNumber(twInfo?.kolFollow?.globalKolFollowersCount || 0)} value={t('KOL_Followers')} hoverContent={
         twInfo?.kolFollow?.globalKolFollowersCount ?
           <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'global'} /> : null
       } labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />
 
       {/*TOP100_KOLs*/}
-      <HoverStatItem label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)} value={t('TOP100_KOLs')} hoverContent={
+			<HoverStatItem label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)} value={t('TOP100_KOLs')} hoverContent={
         twInfo?.kolFollow?.topKolFollowersCount ?
           <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'top100'} /> : null
       } labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />
 
       {/*中文KOLs*/}
-      <HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={t('CN_KOLs')} hoverContent={
+			<HoverStatItem label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)} value={t('CN_KOLs')} hoverContent={
         twInfo?.kolFollow?.cnKolFollowersCount ?
           <KolFollowersSection kolData={twInfo} isHoverPanel={true} defaultTab={'cn'} /> : null
       } labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />
 
       {/*关注着质量排名变化 */}
-      <HoverStatItem label={`${!twInfo?.kolFollow?.kolRank20W || twInfo?.kolFollow?.kolRank20W <= 0 ? '>200K' :
+			<HoverStatItem label={`${!twInfo?.kolFollow?.kolRank20W || twInfo?.kolFollow?.kolRank20W <= 0 ? '>200K' :
         numeral(twInfo?.kolFollow?.kolRank20W || 0).format('0,0') + '/200K' + kolRankChangeDom
-      }`} value={t('FQRank')} hoverContent={<RankTooltip twInfo={twInfo} rankType="followers" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />
+      }`} value={t('FQRank')} hoverContent={
+        <RankTooltip twInfo={twInfo} rankType="followers" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />
 
       {/*华语排名变化*/}
       {twInfo?.kolFollow?.isCn &&
-        <HoverStatItem label={`${!twInfo?.kolFollow?.kolCnRank || twInfo?.kolFollow?.kolCnRank <= 0 ? '>10K' :
-          numeral(twInfo?.kolFollow?.kolCnRank || 0).format('0,0') + '/10K' + kolCnRankChangeDom
-        }`} value={t('cnRank')} hoverContent={<RankTooltip twInfo={twInfo} rankType="chinese" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />}
+				<HoverStatItem label={`${!twInfo?.kolFollow?.kolCnRank || twInfo?.kolFollow?.kolCnRank <= 0 || Number(twInfo?.kolFollow?.kolCnRank) > Number(t('kolCnRankTotal') || 10000) ? `>${formatUpperCase(Number(t('kolCnRankTotal')))}` :
+          numeral(twInfo?.kolFollow?.kolCnRank || 0).format('0,0') + `/${formatUpperCase(Number(t('kolCnRankTotal')))}` + kolCnRankChangeDom
+        }`} value={t('cnRank')} hoverContent={
+          <RankTooltip twInfo={twInfo} rankType="chinese" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />}
 
       {/*项目排名变化 */}
       {twInfo?.kolFollow?.isProject &&
-        <HoverStatItem label={`${!twInfo?.kolFollow?.kolProjectRank || twInfo?.kolFollow?.kolProjectRank <= 0 ? '>10K' : 
-          numeral(twInfo?.kolFollow?.kolProjectRank || 0).format('0,0') + '/10K' + kolProjectRankChangeDom
-        }`} value={t('projectRank')} hoverContent={<RankTooltip twInfo={twInfo} rankType="project" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />}
-    </>}
+				<HoverStatItem label={`${!twInfo?.kolFollow?.kolProjectRank || twInfo?.kolFollow?.kolProjectRank <= 0 || Number(twInfo?.kolFollow?.kolProjectRank) > Number(t('kolProjectRankTotal') || 10000) ? `>${formatUpperCase(Number(t('kolProjectRankTotal')))}` :
+          numeral(twInfo?.kolFollow?.kolProjectRank || 0).format('0,0') + `/${formatUpperCase(Number(t('kolProjectRankTotal')))}` + kolProjectRankChangeDom
+        }`} value={t('projectRank')} hoverContent={
+          <RankTooltip twInfo={twInfo} rankType="project" />} labelClassName={'font-bold'} valueClassName={'theme-text-secondary'} />}
+		</>}
     <ErrorBoundary>
       {/*// @ts-ignore*/}
       <ReviewHeader stats={{
         ...reviewInfo,
         isKol: twInfo?.basicInfo?.classification !== 'project',
-      }} handler={userId} refreshAsyncReviewInfo={refreshAsyncReviewInfo} refreshAsyncUserInfo={refreshAsyncUserInfo} />
+      }} handler={userId} refreshAsyncReviewInfo={refreshAsyncReviewInfo} refreshAsyncUserInfo={refreshAsyncUserInfo} loadingReviewInfo={loadingReviewInfo} />
     </ErrorBoundary>
   </>, shadowRoot)
 }
@@ -177,5 +183,10 @@ const targetFilter = (el: any) => {
       el.textContent.includes('Followers')) || (el.textContent.includes('正在关注') &&
       el.textContent.includes('关注者'));
 };
+
+function formatUpperCase(num: number) {
+  return numeral(Number(num)).format('0,0a')
+  .replace(/([kmt])/i, (_, c) => c.toUpperCase());
+}
 
 export const FollowedRightData = React.memo(_FollowedRightData);

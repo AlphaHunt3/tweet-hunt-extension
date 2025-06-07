@@ -1,0 +1,35 @@
+/* FloatingContainer styles */
+.floating-container {
+  position: fixed;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 100ms;
+  pointer-events: none;
+}
+
+.floating-container.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.floating-container-mask {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  z-index: 9998;
+  background-color: transparent;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  cursor: default;
+}
+
+.floating-container-mask.visible {
+  display: block;
+}
+
+.floating-container-mask.hidden {
+  display: none;
+}

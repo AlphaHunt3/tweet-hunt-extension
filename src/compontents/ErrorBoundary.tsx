@@ -20,7 +20,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.warn('🙅错误边界：React ErrorBoundary caught an error', error, errorInfo);
+    console.log('🙅错误边界：React ErrorBoundary caught an error', error, errorInfo);
   }
 
   render() {

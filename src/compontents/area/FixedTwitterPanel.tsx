@@ -1,6 +1,5 @@
 import { Loader2, Tags, CircleX, GripVertical } from 'lucide-react';
 import { DraggablePanel } from '~/compontents/DraggablePanel.tsx';
-import { useStorage } from '@plasmohq/storage/hook'
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { TokenPerformanceSection } from '~/compontents/TokenPerformanceSection.tsx';
 import { KolFollowersSection } from '~/compontents/KolFollowersSection.tsx';
@@ -9,12 +8,14 @@ import { MainData } from '~contents/hooks/useMainData.ts';
 import { InvestmentPanel } from '~/compontents/InvestmentPanel.tsx';
 import { MBTISection } from '~/compontents/MBTISection.tsx';
 import { UserAuthPanel } from '~/compontents/UserAuthPanel.tsx';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReviewsOverview } from '~compontents/ReviewsOverview.tsx';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { MBTIData } from '~types';
 
 function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData, reviewInfo, userInfo }: MainData) {
-  const [showPanel, setShowPanel] = useStorage('@settings/showPanel', true);
+  const [showPanel, setShowPanel] = useLocalStorage('@settings/showPanel', true);
   const { t, lang } = useI18n();
   const searchInput = useWaitForElement('input[data-testid="SearchBox_Search_Input"]', [showPanel]);
   const [isFocused, setIsFocused] = useState(false);
@@ -43,6 +44,14 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
     };
   }, [searchInput]);
 
+  const mbti = useMemo(() => {
+    if (Array.isArray(twInfo?.mbti?.cn) && Array.isArray(twInfo?.mbti?.en)) {
+      return lang === 'zh' ? twInfo?.mbti?.cn?.[0] : twInfo?.mbti?.en?.[0]
+    } else {
+      return lang === 'zh' ? twInfo?.mbti?.cn : twInfo?.mbti?.en
+    }
+  }, [lang, twInfo]) as MBTIData;
+
   if (!showPanel) {
     return null
   }
@@ -58,7 +67,7 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
       opacity: isFocused ? 0 : 1,
       pointerEvents: isFocused ? 'none' : 'auto',
       transition: 'opacity 0.3s ease-in-out'
-    }} className="relative w-[320px] max-h-[600px]" data-key={showPanel}>
+    }} className="relative w-[320px] max-h-[600px]" data-key={showPanel} data-xhunt-exclude={'true'}>
       {/* Panel Content */}
       {<div
         className={`absolute top-0 right-0 w-full theme-bg-secondary rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] theme-text-primary overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]`}
@@ -84,21 +93,21 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
               <CircleX className="w-4 h-4 theme-text-secondary" />
             </div>
           </div>
-          <div className="p-3 pt-2">
-            <h1 className="text-sm font-semibold pl-1">
+          {!loadingTwInfo && <div className="p-3 pt-2">
+	          <h1 className="text-sm font-semibold pl-1">
               {`@${userId}`}
               {twInfo?.basicInfo?.isKol && <Tags className="w-4 h-4 ml-4 mb-0.5 theme-text-secondary inline-flex" />}
               {twInfo?.basicInfo?.classification && (twInfo?.basicInfo?.classification !== 'unknown') &&
-								<span className="text-xs theme-text-secondary ml-1">{twInfo?.basicInfo?.classification}</span>}
-            </h1>
-          </div>
+			          <span className="text-xs theme-text-secondary ml-1">{twInfo?.basicInfo?.classification}</span>}
+	          </h1>
+          </div>}
         </div>
 
         <div className="max-h-[80vh] overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* KOL Followers Section */}
           <KolFollowersSection kolData={twInfo!} />
 
-          {twInfo?.mbti?.en && <MBTISection data={lang === 'zh' ? twInfo?.mbti?.cn! : twInfo?.mbti?.en!} />}
+          {mbti && <MBTISection data={mbti} />}
 
           {!loadingRootData && rootData && (rootData?.invested || rootData?.investor) && twInfo?.basicInfo?.classification !== 'person' &&
 						<InvestmentPanel data={rootData} />}
