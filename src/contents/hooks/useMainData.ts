@@ -1,4 +1,4 @@
-import { useDebounceEffect, useLockFn, useRequest } from 'ahooks';
+import { useDebounceEffect, useDebounceFn, useRequest } from 'ahooks';
 import {
   fetchDelTwitterInfo,
   fetchRootDataInfo,
@@ -99,24 +99,29 @@ const useMainData = (): MainData => {
     ...defaultRequestConfig
   });
 
-  const loadData = useLockFn(async () => {
-    if (!userId || String(userId).length <= 4) return;
+  const { run: loadData } = useDebounceFn(async () => {
     fetchDelData();
     fetchTwitterData();
     fetchRootData();
     fetchRenameInfo();
     fetchReviewInfo();
     fetchDiscussionInfo();
+  }, {
+    wait: 1000,
+    leading: true,
+    trailing: false
   });
 
   useEffect(() => {
-    if (!userId || String(userId).length <= 4) return;
+    /** 至少1个字符的id **/
+    if (!userId || String(userId).length < 1) return;
     fetchReviewInfo();
     refreshAsyncUserInfo().then(r => r);
   }, [reviewOnlyKol, token]);
 
   useEffect(() => {
-    loadData().then(r => r);
+    if (!userId || String(userId).length < 1) return;
+    loadData()
   }, [userId]);
 
   useEffect(() => {

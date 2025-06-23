@@ -39,7 +39,7 @@ export function useAvatarElements() {
           }
 
           const rect = element.getBoundingClientRect();
-          if (rect.width < 30 || rect.height < 30) {
+          if (rect.width < 33 || rect.height < 33) {
             shouldExclude = true;
           }
 
@@ -79,7 +79,7 @@ export function useAvatarElements() {
     if (parent) {
       parent.classList.remove('xhunt-avatar-inner-border');
       parent.style.borderRadius = '';
-      
+
       const grandParent = parent.parentElement;
       if (grandParent) {
         grandParent.classList.remove('xhunt-avatar-outer-border');

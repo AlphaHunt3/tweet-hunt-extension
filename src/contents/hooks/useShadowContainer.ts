@@ -27,6 +27,68 @@ export interface UseShadowContainerOptions {
   siblingsStyle?: string;
 }
 
+// 全局 z-index 管理
+interface ZIndexInstance {
+  element: HTMLElement;
+  originalZIndex: string;
+  clickHandler: (e: Event) => void;
+  mouseenterHandler: (e: Event) => void;
+  instanceId: string;
+}
+
+// 模块级变量，管理所有实例
+const zIndexInstances = new Map<string, ZIndexInstance>();
+let activeInstanceId: string | null = null;
+
+// 全局事件处理函数
+const handleGlobalZIndexActivation = (instanceId: string) => {
+  checkMainSectionAndFixZIndex();
+  // 如果点击的是当前激活的实例，不做处理
+  if (activeInstanceId === instanceId) return;
+
+  // 恢复之前激活实例的 z-index
+  if (activeInstanceId) {
+    const prevInstance = zIndexInstances.get(activeInstanceId);
+    if (prevInstance) {
+      if (prevInstance.originalZIndex === 'auto') {
+        prevInstance.element.style.removeProperty('z-index');
+      } else {
+        prevInstance.element.style.zIndex = prevInstance.originalZIndex;
+      }
+    }
+  }
+
+  // 设置新的激活实例
+  const currentInstance = zIndexInstances.get(instanceId);
+  if (currentInstance) {
+    currentInstance.element.style.zIndex = '999';
+    activeInstanceId = instanceId;
+  }
+};
+
+// 清理指定实例
+const cleanupZIndexInstance = (instanceId: string) => {
+  const instance = zIndexInstances.get(instanceId);
+  if (instance) {
+    // 移除事件监听器
+    instance.element.removeEventListener('click', instance.clickHandler);
+    instance.element.removeEventListener('mouseenter', instance.mouseenterHandler);
+
+    // 如果是当前激活的实例，恢复 z-index
+    if (activeInstanceId === instanceId) {
+      if (instance.originalZIndex === 'auto') {
+        instance.element.style.removeProperty('z-index');
+      } else {
+        instance.element.style.zIndex = instance.originalZIndex;
+      }
+      activeInstanceId = null;
+    }
+
+    // 从管理器中移除
+    zIndexInstances.delete(instanceId);
+  }
+};
+
 /**
  * 该 Hook 会：
  * 1. 根据 selector 查找基准元素（如：div[data-testid="UserName"]）
@@ -39,6 +101,7 @@ export interface UseShadowContainerOptions {
  *    - 当目标已创建后，不再重复调用 attachShadow。
  *    - 当 styleText 发生变化时，自动更新 shadow 内的 style 标签内容。
  *    - 设置最大等待时间，防止无限监听。
+ * 5. 自动为 target 元素添加 z-index 调整功能（全局管理）
  */
 export default function useShadowContainer({
   selector,
@@ -55,10 +118,98 @@ export default function useShadowContainer({
   const currentUrl = useCurrentUrl();
   // 用于标记是否已经创建过容器，避免重复创建
   const createdRef = useRef(false);
+  // 当前实例的唯一 ID
+  const instanceIdRef = useRef<string>(`shadow-${Date.now()}-${Math.random()}`);
+  // 保存当前 target 元素的引用
+  const currentTargetRef = useRef<HTMLElement | null>(null);
+
+  const setupAutoZIndex = (targetElement: HTMLElement) => {
+    const instanceId = instanceIdRef.current;
+
+    // 清理之前的实例（如果存在）
+    cleanupZIndexInstance(instanceId);
+
+    // 保存原始 z-index
+    const computedStyle = window.getComputedStyle(targetElement);
+    const originalZIndex = targetElement.style.zIndex || computedStyle.zIndex || 'auto';
+
+    // 创建点击事件处理器
+    const clickHandler = (e: Event) => {
+      // 检查点击是否发生在元素内部
+      if (targetElement.contains(e.target as Node)) {
+        handleGlobalZIndexActivation(instanceId);
+      }
+    };
+
+    // 创建鼠标移入事件处理器
+    const mouseenterHandler = (e: Event) => {
+      // 检查鼠标移入是否发生在元素内部
+      if (targetElement.contains(e.target as Node)) {
+        handleGlobalZIndexActivation(instanceId);
+      }
+    };
+
+    // 添加事件监听器
+    targetElement.addEventListener('click', clickHandler);
+    targetElement.addEventListener('mouseenter', mouseenterHandler);
+
+    // 注册到全局管理器
+    zIndexInstances.set(instanceId, {
+      element: targetElement,
+      originalZIndex,
+      clickHandler,
+      mouseenterHandler,
+      instanceId
+    });
+
+    // 更新当前 target 引用
+    currentTargetRef.current = targetElement;
+  };
 
   useEffect(() => {
     createdRef.current = false;
-  }, [currentUrl]);
+    // 清理当前实例的 z-index 管理
+    cleanupZIndexInstance(instanceIdRef.current);
+    // 生成新的实例 ID
+    instanceIdRef.current = `shadow-${Date.now()}-${Math.random()}`;
+    // 清空当前 target 引用
+    currentTargetRef.current = null;
+
+    // 重新为当前 target 设置 z-index 管理（如果存在的话）
+    const findAndSetupTarget = () => {
+      // 1. 根据 selector 查找基准元素
+      const baseEl = document.querySelector(selector);
+      if (!baseEl) return;
+
+      let target: Element | null = null;
+      if (useSiblings) {
+        // 如果没有提供 targetFilter，则在 baseEl 后面新建一个 div 作为坑位
+        if (!targetFilter) {
+          const placeholder = baseEl.nextElementSibling;
+          if (placeholder && placeholder.getAttribute('data-plasmo-shadow-container') === 'true') {
+            target = placeholder;
+          }
+        } else {
+          // 如果提供了 targetFilter，则在 baseEl 的同级中查找符合条件的目标
+          if (baseEl.parentElement) {
+            const siblings = Array.from(baseEl.parentElement.children).filter(el => el !== baseEl);
+            target = siblings.find(el => targetFilter(el) && el.getAttribute('data-plasmo-shadow-container') === 'true') || null;
+          }
+        }
+      } else {
+        if (baseEl.getAttribute('data-plasmo-shadow-container') === 'true') {
+          target = baseEl;
+        }
+      }
+
+      if (target) {
+        setupAutoZIndex(target as HTMLElement);
+      }
+    };
+
+    // 延迟执行，确保 DOM 已经更新
+    setTimeout(findAndSetupTarget, 100);
+  }, [currentUrl, selector, useSiblings, targetFilter]);
 
   useDebounceEffect(() => {
 
@@ -67,7 +218,13 @@ export default function useShadowContainer({
 
     function createShadowContainer(): boolean {
       // 如果已经创建过，则直接返回 true
-      if (createdRef.current) return true;
+      if (createdRef.current) {
+        // 但是需要检查是否需要重新设置 z-index 管理
+        if (currentTargetRef.current) {
+          setupAutoZIndex(currentTargetRef.current);
+        }
+        return true;
+      }
 
       // 1. 根据 selector 查找基准元素
       const baseEl = document.querySelector(selector);
@@ -94,7 +251,11 @@ export default function useShadowContainer({
       if (!target) return false;
 
       // 2. 检查目标元素内是否已存在唯一的容器
-      if (target.getAttribute('data-plasmo-shadow-container') === 'true') return true;
+      if (target.getAttribute('data-plasmo-shadow-container') === 'true') {
+        // 重新设置 z-index 管理
+        setupAutoZIndex(target as HTMLElement);
+        return true;
+      }
 
       // 3. 获取或创建 shadowRoot，并更新 style
       let shadow = target.shadowRoot;
@@ -119,6 +280,10 @@ export default function useShadowContainer({
           if (typeof styleText === 'string') {styleEl.textContent = styleText;}
         }
       }
+
+      // 4. 设置自动 z-index 调整（直接在 target 上）
+      setupAutoZIndex(target as HTMLElement);
+
       setShadowRoot(shadow);
       createdRef.current = true;
       return true;
@@ -146,6 +311,8 @@ export default function useShadowContainer({
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      // 清理 z-index 管理
+      cleanupZIndexInstance(instanceIdRef.current);
     };
   }, [selector, useSiblings, targetFilter, styleText, shadowMode, currentUrl, waitTime], {
     wait: waitTime,
@@ -155,3 +322,29 @@ export default function useShadowContainer({
 
   return shadowRoot;
 }
+
+/** 必须修复，不然悬浮框有问题 **/
+export const checkMainSectionAndFixZIndex = () => {
+  try {
+    const section = document.querySelector('main [aria-label] section');
+    if (!section || section.hasAttribute('data-xhunt-fixed')) return false;
+
+    const prevSibling = section.previousElementSibling?.previousElementSibling as HTMLElement;
+    if (prevSibling) {
+      prevSibling.style.zIndex = '99';
+
+      // 查找第二个子元素
+      let mainSection = prevSibling.children[1]  as HTMLElement;
+
+      if (mainSection) {
+        mainSection.style.zIndex = '99';
+        section.setAttribute('data-xhunt-fixed', 'true');
+        mainSection.setAttribute('data-xhunt-fixed', 'true');
+      }
+    }
+    return !!prevSibling;
+  } catch (err) {
+    // console.log(err);
+    return false
+  }
+};
