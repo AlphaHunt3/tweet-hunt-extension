@@ -1,7 +1,7 @@
 {
   "name": "xhunt",
   "displayName": "XHunt - 探索加密币的推特智能助手",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Twitter Crypto Analytics Agent",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
@@ -11,7 +11,8 @@
     "build": "NODE_ENV=production plasmo build --env=.env.pro",
     "build:analyze": "NODE_ENV=production ANALYZE=true plasmo build --env=.env.pro",
     "build:dev": "NODE_ENV=development plasmo build --env=.env.dev",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "translate-ranks": "node script/translate_ranks.js"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
@@ -19,6 +20,7 @@
     "@plasmohq/storage": "^1.9.0",
     "@types/d3-cloud": "^1.2.9",
     "ahooks": "^3.7.8",
+    "axios": "^1.10.0",
     "d3": "^7.8.5",
     "d3-cloud": "^1.2.5",
     "dayjs": "^1.11.13",
@@ -47,6 +49,7 @@
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
     "autoprefixer": "^10.4.15",
+    "axios": "^1.10.0",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-plugin-transform-remove-debugger": "^6.9.4",
     "copy-webpack-plugin": "^12.0.2",

@@ -1,17 +1,118 @@
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import 'https://www.googletagmanager.com/gtag/js?id=G-6D48K9XLFM'
 
 require('events').defaultMaxListeners = 20;
 import './css/style.css';
 import { MessageCircle, Settings, Github } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import pageJSON from '../package.json';
+import packageJson from '../package.json';
+import { useDebounceEffect } from 'ahooks';
+import { checkExtensionContext } from '~contents/utils';
+
+const MESSAGE_TYPES = {
+  GTAG: 'GTAG',
+} as const;
+
+interface GTAGRequest {
+  type: typeof MESSAGE_TYPES.GTAG;
+  data: {
+    type: string,
+    eventName: string,
+    params: Record<string, string>
+  }
+}
+
+type PopupMessage = GTAGRequest;
+
+interface ResponseData {
+  data?: any;
+  error?: string;
+}
 
 function IndexPopup() {
   const [showPanel, setShowPanel] = useLocalStorage('@settings/showPanel', true);
   const [showAvatarRank, setShowAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
   const [showTokenAnalysis, setShowTokenAnalysis] = useLocalStorage('@settings/showTokenAnalysis', true);
+  const [showSearchPanel, setShowSearchPanel] = useLocalStorage('@settings/showSearchPanel', true);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t, lang, setLang } = useI18n();
+
+  useDebounceEffect(() => {
+    // Initialize Google Analytics
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() {
+        window.dataLayer.push(arguments);
+      };
+      window.gtag('js', new Date());
+      window.gtag('config', 'G-6D48K9XLFM', {
+        page_path: '/popup',
+        debug_mode: false
+      });
+    } catch (error) {
+      console.log('Failed to initialize Google Analytics:', error);
+    }
+
+    // Define message listener function
+    // @ts-ignore
+    const handleMessage = (message: PopupMessage, _sender: chrome.runtime.MessageSender, sendResponse: (response: ResponseData) => void) => {
+      if (message.type === 'GTAG') {
+        try {
+          // Check if extension context is valid before using gtag
+          if (checkExtensionContext() && window.gtag) {
+            try {
+              window.gtag(message.data.type, message.data.eventName, message.data.params);
+            } catch (gtagError) {
+              console.log('GTAG execution error:', gtagError);
+            }
+          }
+          // Always send a response to prevent "message port closed" errors
+          sendResponse({ data: { success: true } });
+        } catch (err) {
+          console.log('GTAG error:', err);
+          // Always send a response even on error
+          sendResponse({ error: String(err) });
+        }
+        // Return true to indicate async response
+        return true;
+      }
+      // Return false for unhandled message types
+      return false;
+    };
+
+    // Add listener with proper error handling
+    if (checkExtensionContext()) {
+      try {
+        // Remove any existing listeners to prevent duplicates
+        try {
+          chrome.runtime.onMessage.removeListener(handleMessage);
+        } catch (removeError) {
+          // Ignore errors when removing non-existent listeners
+        }
+
+        // Add the listener
+        chrome.runtime.onMessage.addListener(handleMessage);
+      } catch (error) {
+        console.log('Failed to add message listener:', error);
+      }
+    }
+
+    // Return cleanup function
+    return () => {
+      if (checkExtensionContext()) {
+        try {
+          chrome.runtime.onMessage.removeListener(handleMessage);
+        } catch (error) {
+          console.log('Failed to remove message listener:', error);
+        }
+      }
+    };
+  }, [], {
+    wait: 500,
+    maxWait: 1000,
+    leading: false,
+    trailing: true
+  });
 
   return <div data-theme={theme} className="theme-bg-secondary backdrop-blur-sm px-4 py-2 theme-text-primary w-[280px] shadow-lg">
     <div className="flex items-center gap-2 mb-4">
@@ -73,6 +174,18 @@ function IndexPopup() {
           <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
         </label>
       </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm">{t('showProfileChanges')}</span>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={showSearchPanel}
+            onChange={(e) => setShowSearchPanel(e.target.checked)}
+          />
+          <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
+        </label>
+      </div>
     </div>
 
     <div className="mt-6 pt-4 theme-border border-t">
@@ -97,7 +210,7 @@ function IndexPopup() {
         </a>
       </div>
       <div className="flex items-center justify-between text-xs theme-text-secondary">
-        <span>{t('version')} {pageJSON.version} {process.env.PLASMO_PUBLIC_ENV === 'dev' ? '[dev]' : '[beta]'}</span>
+        <span>{t('version')} {packageJson.version} {process.env.PLASMO_PUBLIC_ENV === 'dev' ? '[dev]' : '[beta]'}</span>
       </div>
     </div>
   </div>

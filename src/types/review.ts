@@ -1,6 +1,7 @@
 export interface ReviewStats {
   averageRating: number;
   totalReviews: number;
+  realTotalReviews: number;
   tagCloud: Array<{
     text: string;
     value: number;
@@ -14,6 +15,7 @@ export interface ReviewStats {
     rating: number;
     tags: string[];
     note: string;
+    comment: string;
   };
   defaultTags: {
     kol: string[],
@@ -29,4 +31,42 @@ export interface UserInfo {
   avatar: string;
   twitterId: string,
   xPoints: number;
+}
+
+// 新增：评论类型定义
+export interface Comment {
+  id: string;
+  rating: number;
+  tags: string[];
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewer: {
+    username: string;
+    displayName: string;
+    avatar: string;
+    kolRank20W: number | null;
+    classification: string | null;
+    isKOL: boolean;
+  };
+}
+
+export interface CommentsResponse {
+  account: {
+    handle: string;
+    displayName: string;
+    avatar: string;
+  };
+  comments: Comment[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalComments: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  filters: {
+    onlyKOL: boolean;
+  };
 }

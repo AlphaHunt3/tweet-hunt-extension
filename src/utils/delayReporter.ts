@@ -5,9 +5,7 @@ import { visibilityManager } from './visibilityManager';
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
-  if (process.env.PLASMO_PUBLIC_ENV === 'dev') {
-    console[level](...args);
-  }
+  console[level](...args);
 };
 
 // 网络信息接口
@@ -17,6 +15,18 @@ export interface NetworkInfo {
   rtt?: number;           // 往返时间 ms
   saveData?: boolean;     // 是否开启数据节省模式
   timestamp: number;      // 检测时间戳
+}
+
+// 🆕 IP 地址信息接口
+export interface IPInfo {
+  ip?: string;            // IP 地址
+  country?: string;       // 国家
+  region?: string;        // 地区
+  city?: string;          // 城市
+  isp?: string;           // ISP 提供商
+  timezone?: string;      // 时区
+  timestamp: number;      // 获取时间戳
+  source: 'cache' | 'api' | 'failed'; // 数据来源
 }
 
 // 设备信息接口
@@ -29,6 +39,7 @@ export interface DeviceInfo {
   hardwareConcurrency?: number; // CPU 核心数
   deviceMemory?: number;        // 设备内存 GB
   connection?: NetworkInfo;     // 网络连接信息
+  ipInfo?: IPInfo;             // 🆕 IP 地址信息
 }
 
 // 高延迟请求记录
@@ -64,6 +75,7 @@ export interface HighDelayReporterConfig {
   apiEndpoint: string;        // 上报接口
   enableLocalStorage: boolean; // 是否启用本地存储
   maxRetries: number;         // 最大重试次数
+  ipCacheExpiry: number;      // 🆕 IP 缓存过期时间（毫秒）
 }
 
 // 延迟记录器实例接口
@@ -81,6 +93,224 @@ export interface DelayRecord {
   timestamp: number;
   success: boolean;
   statusCode?: number;
+}
+
+// 🆕 IP 地址缓存管理
+class IPAddressManager {
+  private static readonly CACHE_KEY = 'xhunt-ip-cache';
+  private static readonly CACHE_EXPIRY = 30 * 60 * 1000; // 30分钟缓存
+  private static cachedIPInfo: IPInfo | null = null;
+  private static lastFetchTime = 0;
+  private static isCurrentlyFetching = false;
+
+  // 获取 IP 地址信息（带缓存）
+  public static async getIPInfo(): Promise<IPInfo> {
+    const now = Date.now();
+
+    // 检查内存缓存
+    if (this.cachedIPInfo && (now - this.lastFetchTime) < this.CACHE_EXPIRY) {
+      return {
+        ...this.cachedIPInfo,
+        source: 'cache'
+      };
+    }
+
+    // 检查本地存储缓存
+    const cachedData = this.loadFromLocalStorage();
+    if (cachedData && (now - cachedData.timestamp) < this.CACHE_EXPIRY) {
+      this.cachedIPInfo = cachedData;
+      this.lastFetchTime = cachedData.timestamp;
+      return {
+        ...cachedData,
+        source: 'cache'
+      };
+    }
+
+    // 如果正在获取中，返回缓存数据或默认数据
+    if (this.isCurrentlyFetching) {
+      return this.cachedIPInfo || this.getDefaultIPInfo();
+    }
+
+    // 异步获取新的 IP 信息
+    this.fetchIPInfoAsync();
+
+    // 返回缓存数据或默认数据
+    return this.cachedIPInfo || this.getDefaultIPInfo();
+  }
+
+  // 异步获取 IP 信息
+  private static async fetchIPInfoAsync(): Promise<void> {
+    if (this.isCurrentlyFetching) return;
+
+    this.isCurrentlyFetching = true;
+
+    try {
+      devLog('log', `🌐 [v${packageJson.version}] Fetching IP information...`);
+
+      // 使用多个 IP 服务，提高成功率
+      const ipServices = [
+        'https://ipapi.co/json/',
+        'https://ip-api.com/json/',
+        'https://ipinfo.io/json',
+        'https://api.ipify.org?format=json'
+      ];
+
+      let ipInfo: IPInfo | null = null;
+
+      for (const service of ipServices) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+
+          const response = await fetch(service, {
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) continue;
+
+          const data = await response.json();
+          ipInfo = this.parseIPResponse(data, service);
+
+          if (ipInfo && ipInfo.ip) {
+            devLog('log', `🌐 [v${packageJson.version}] IP info fetched from ${service}:`, ipInfo);
+            break;
+          }
+        } catch (error) {
+          devLog('warn', `🌐 [v${packageJson.version}] Failed to fetch from ${service}:`, error);
+          continue;
+        }
+      }
+
+      if (ipInfo && ipInfo.ip) {
+        // 更新缓存
+        this.cachedIPInfo = ipInfo;
+        this.lastFetchTime = Date.now();
+        this.saveToLocalStorage(ipInfo);
+      } else {
+        devLog('warn', `🌐 [v${packageJson.version}] Failed to fetch IP info from all services`);
+      }
+
+    } catch (error) {
+      devLog('error', `[v${packageJson.version}] Error in fetchIPInfoAsync:`, error);
+    } finally {
+      this.isCurrentlyFetching = false;
+    }
+  }
+
+  // 解析不同 IP 服务的响应
+  private static parseIPResponse(data: any, service: string): IPInfo {
+    const now = Date.now();
+
+    try {
+      if (service.includes('ipapi.co')) {
+        return {
+          ip: data.ip,
+          country: data.country_name,
+          region: data.region,
+          city: data.city,
+          isp: data.org,
+          timezone: data.timezone,
+          timestamp: now,
+          source: 'api'
+        };
+      } else if (service.includes('ip-api.com')) {
+        return {
+          ip: data.query,
+          country: data.country,
+          region: data.regionName,
+          city: data.city,
+          isp: data.isp,
+          timezone: data.timezone,
+          timestamp: now,
+          source: 'api'
+        };
+      } else if (service.includes('ipinfo.io')) {
+        return {
+          ip: data.ip,
+          country: data.country,
+          region: data.region,
+          city: data.city,
+          isp: data.org,
+          timezone: data.timezone,
+          timestamp: now,
+          source: 'api'
+        };
+      } else if (service.includes('ipify.org')) {
+        return {
+          ip: data.ip,
+          timestamp: now,
+          source: 'api'
+        };
+      }
+    } catch (error) {
+      devLog('error', `[v${packageJson.version}] Error parsing IP response from ${service}:`, error);
+    }
+
+    return this.getDefaultIPInfo();
+  }
+
+  // 获取默认 IP 信息
+  private static getDefaultIPInfo(): IPInfo {
+    return {
+      timestamp: Date.now(),
+      source: 'failed'
+    };
+  }
+
+  // 保存到本地存储
+  private static saveToLocalStorage(ipInfo: IPInfo): void {
+    try {
+      localStorage.setItem(this.CACHE_KEY, JSON.stringify(ipInfo));
+    } catch (error) {
+      devLog('error', `[v${packageJson.version}] Failed to save IP info to localStorage:`, error);
+    }
+  }
+
+  // 从本地存储加载
+  private static loadFromLocalStorage(): IPInfo | null {
+    try {
+      const stored = localStorage.getItem(this.CACHE_KEY);
+      if (!stored) return null;
+
+      const data = JSON.parse(stored);
+
+      // 验证数据格式
+      if (data && typeof data.timestamp === 'number') {
+        return data;
+      }
+    } catch (error) {
+      devLog('error', `[v${packageJson.version}] Failed to load IP info from localStorage:`, error);
+    }
+
+    return null;
+  }
+
+  // 清理缓存
+  public static clearCache(): void {
+    this.cachedIPInfo = null;
+    this.lastFetchTime = 0;
+    try {
+      localStorage.removeItem(this.CACHE_KEY);
+    } catch (error) {
+      devLog('error', `[v${packageJson.version}] Failed to clear IP cache:`, error);
+    }
+  }
+
+  // 获取缓存统计
+  public static getCacheStats() {
+    return {
+      hasCachedData: !!this.cachedIPInfo,
+      lastFetchTime: this.lastFetchTime,
+      cacheAge: this.lastFetchTime ? Date.now() - this.lastFetchTime : 0,
+      isCurrentlyFetching: this.isCurrentlyFetching,
+      cachedIP: this.cachedIPInfo?.ip || 'unknown'
+    };
+  }
 }
 
 class HighDelayReporter {
@@ -101,6 +331,7 @@ class HighDelayReporter {
       apiEndpoint: '/api/xhunt/report/high-delay',
       enableLocalStorage: true,
       maxRetries: 3,
+      ipCacheExpiry: 30 * 60 * 1000, // 🆕 30分钟 IP 缓存
       ...config
     };
 
@@ -119,6 +350,10 @@ class HighDelayReporter {
       this.initializeVisibilityListener();
       this.loadStoredRecords();
       this.startReportTimer();
+
+      // 🆕 预热 IP 地址获取
+      this.preloadIPInfo();
+
       this.isInitialized = true;
 
       devLog('log', `🐌 [v${packageJson.version}] HighDelayReporter initialized (threshold: ${this.config.delayThreshold}ms)`);
@@ -126,6 +361,16 @@ class HighDelayReporter {
     } catch (error) {
       devLog('error', `[v${packageJson.version}] Failed to initialize HighDelayReporter:`, error);
       return this.createEmptyInstance();
+    }
+  }
+
+  // 🆕 预加载 IP 信息
+  private async preloadIPInfo(): Promise<void> {
+    try {
+      await IPAddressManager.getIPInfo();
+      devLog('log', `🌐 [v${packageJson.version}] IP info preloaded successfully`);
+    } catch (error) {
+      devLog('warn', `[v${packageJson.version}] Failed to preload IP info:`, error);
     }
   }
 
@@ -239,6 +484,9 @@ class HighDelayReporter {
       // 获取当前用户名
       const currentUsername = await this.getCurrentUsername();
 
+      // 🆕 获取 IP 地址信息
+      const ipInfo = await IPAddressManager.getIPInfo();
+
       // 创建高延迟记录
       const highDelayRecord: HighDelayRecord = {
         id: this.generateRecordId(),
@@ -254,8 +502,8 @@ class HighDelayReporter {
         networkBefore: this.getNetworkInfo(), // 简化处理，实际应该在请求前获取
         networkAfter: networkAfter,
 
-        // 设备信息
-        deviceInfo: this.getDeviceInfo(),
+        // 设备信息（包含 IP 信息）
+        deviceInfo: this.getDeviceInfo(ipInfo),
 
         // 🆕 用户和会话信息
         userId: String(currentUsername),
@@ -296,8 +544,8 @@ class HighDelayReporter {
     };
   }
 
-  // 获取设备信息
-  private getDeviceInfo(): DeviceInfo {
+  // 🆕 获取设备信息（包含 IP 信息）
+  private getDeviceInfo(ipInfo?: IPInfo): DeviceInfo {
     return {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -306,7 +554,8 @@ class HighDelayReporter {
       onLine: navigator.onLine,
       hardwareConcurrency: (navigator as any).hardwareConcurrency,
       deviceMemory: (navigator as any).deviceMemory,
-      connection: this.getNetworkInfo()
+      connection: this.getNetworkInfo(),
+      ipInfo: ipInfo || { timestamp: Date.now(), source: 'failed' } // 🆕 包含 IP 信息
     };
   }
 
@@ -330,20 +579,29 @@ class HighDelayReporter {
       this.saveRecordsToStorage();
 
       configManager.incrementDelayCount();
-      devLog('log', `🐌 [v${packageJson.version}] High delay record reported immediately: ${record.url} (user: ${record.userId || 'unknown'}, url: ${record.currentUrl})`);
+      devLog('log', `🐌 [v${packageJson.version}] High delay record reported immediately: ${record.url} (user: ${record.userId || 'unknown'}, ip: ${record.deviceInfo.ipInfo?.ip || 'unknown'}, url: ${record.currentUrl})`);
     } catch (error) {
       devLog('error', `[v${packageJson.version}] Failed to report high delay immediately:`, error);
     }
   }
 
-  // 批量上报
+  // 🔧 修复批量上报逻辑
   private async batchReport(): Promise<void> {
+    devLog('log', `🐌 [v${packageJson.version}] batchReport called, queue size: ${this.highDelayQueue.length}`);
+
     if (this.highDelayQueue.length === 0) {
+      devLog('log', `🐌 [v${packageJson.version}] No high delay records to report`);
       return;
     }
 
     if (!this.isPageVisible) {
       devLog('log', `🚫 [v${packageJson.version}] Skipping batch high delay report (page not visible)`);
+      return;
+    }
+
+    // 🔧 修复：检查 secureFetch 是否可用
+    if (!this.secureFetchRef) {
+      devLog('warn', `🐌 [v${packageJson.version}] secureFetch not available, skipping batch report`);
       return;
     }
 
@@ -354,6 +612,8 @@ class HighDelayReporter {
 
     try {
       const recordsToReport = [...this.highDelayQueue];
+      devLog('log', `🐌 [v${packageJson.version}] Attempting to report ${recordsToReport.length} high delay records`);
+
       await this.sendReport(recordsToReport);
 
       // 清空队列
@@ -361,17 +621,17 @@ class HighDelayReporter {
       this.saveRecordsToStorage();
 
       configManager.incrementDelayCount();
-      devLog('log', `🐌 [v${packageJson.version}] Batch reported ${recordsToReport.length} high delay records`);
+      devLog('log', `🐌 [v${packageJson.version}] Batch reported ${recordsToReport.length} high delay records successfully`);
     } catch (error) {
       devLog('error', `[v${packageJson.version}] Failed to batch report high delays:`, error);
     }
   }
 
-  // 🔧 修复发送报告方法 - 增强错误处理
+  // 🔧 修复发送报告方法 - 增强错误处理和调试信息
   private async sendReport(records: HighDelayRecord[]): Promise<void> {
     if (!this.secureFetchRef) {
       devLog('warn', `[v${packageJson.version}] secureFetch not available for high delay reporting`);
-      return;
+      throw new Error('secureFetch not available');
     }
 
     try {
@@ -381,17 +641,30 @@ class HighDelayReporter {
         timestamp: Date.now(),
         sessionId: this.sessionId,
         version: packageJson.version,
-        reportType: 'high-delay'
+        reportType: 'high-delay',
+        // 🆕 添加 IP 缓存统计信息
+        ipCacheStats: IPAddressManager.getCacheStats()
       };
+
+      devLog('log', `🐌 [v${packageJson.version}] Sending high delay report:`, {
+        reportId: report.id,
+        recordCount: records.length,
+        endpoint: this.config.apiEndpoint,
+        reportSize: JSON.stringify(report).length
+      });
 
       // 🔧 增强错误处理 - 检查接口是否存在
       try {
-        await this.secureFetchRef(this.config.apiEndpoint, {
+        const response = await this.secureFetchRef(this.config.apiEndpoint, {
           method: 'POST',
           body: JSON.stringify(report),
           tokenRequired: false
         });
+
+        devLog('log', `🐌 [v${packageJson.version}] High delay report sent successfully:`, response);
       } catch (fetchError: any) {
+        devLog('error', `🐌 [v${packageJson.version}] High delay report fetch error:`, fetchError);
+
         // 🔧 检查是否是接口不存在的错误
         if (fetchError.message && (
           fetchError.message.includes('JSON解析失败') ||
@@ -403,7 +676,7 @@ class HighDelayReporter {
           // 接口不存在时，不抛出错误，静默跳过
           return;
         }
-        
+
         // 其他错误继续抛出
         throw fetchError;
       }
@@ -416,7 +689,10 @@ class HighDelayReporter {
 
   // 启动定时上报
   private startReportTimer(): void {
+    devLog('log', `🐌 [v${packageJson.version}] Starting high delay report timer (interval: ${this.config.reportInterval}ms)`);
+
     this.reportTimer = window.setInterval(() => {
+      devLog('log', `🐌 [v${packageJson.version}] High delay report timer triggered`);
       this.batchReport();
     }, this.config.reportInterval);
   }
@@ -426,6 +702,7 @@ class HighDelayReporter {
     if (this.reportTimer) {
       clearInterval(this.reportTimer);
       this.reportTimer = null;
+      devLog('log', `🐌 [v${packageJson.version}] High delay report timer stopped`);
     }
   }
 
@@ -482,6 +759,8 @@ class HighDelayReporter {
 
   // 立即上报所有记录
   public async flushAll(): Promise<void> {
+    devLog('log', `🐌 [v${packageJson.version}] Flushing all high delay records`);
+
     this.stopReporting();
 
     if (this.highDelayQueue.length > 0) {
@@ -502,24 +781,37 @@ class HighDelayReporter {
     }
   }
 
-  // 获取统计信息
+  // 🆕 获取统计信息（包含 IP 信息）
   public getStats() {
     return {
       queueSize: this.highDelayQueue.length,
       delayThreshold: this.config.delayThreshold,
       sessionId: this.sessionId,
       isPageVisible: this.isPageVisible,
-      version: packageJson.version,
       isInitialized: this.isInitialized,
+      secureFetchAvailable: !!this.secureFetchRef, // 🔧 添加 secureFetch 可用性检查
+      reportTimerActive: !!this.reportTimer, // 🔧 添加定时器状态检查
+      version: packageJson.version,
+      // 🆕 IP 缓存统计
+      ipCacheStats: IPAddressManager.getCacheStats(),
       recentHighDelays: this.highDelayQueue.slice(-5).map(record => ({
         url: record.url,
         duration: record.duration,
         timestamp: record.timestamp,
         networkType: record.networkAfter.effectiveType,
         userId: record.userId, // 🆕 包含用户信息
-        currentUrl: record.currentUrl // 🆕 包含当前网址
+        currentUrl: record.currentUrl, // 🆕 包含当前网址
+        ip: record.deviceInfo.ipInfo?.ip || 'unknown', // 🆕 包含 IP 地址
+        country: record.deviceInfo.ipInfo?.country || 'unknown', // 🆕 包含国家信息
+        isp: record.deviceInfo.ipInfo?.isp || 'unknown' // 🆕 包含 ISP 信息
       }))
     };
+  }
+
+  // 🆕 手动刷新 IP 信息
+  public async refreshIPInfo(): Promise<IPInfo> {
+    IPAddressManager.clearCache();
+    return await IPAddressManager.getIPInfo();
   }
 
   // 工具方法
@@ -547,12 +839,13 @@ class HighDelayReporter {
 
 // 创建全局实例
 export const delayReporter = new HighDelayReporter({
-  delayThreshold: 6000,        // 6秒阈值
-  maxRecordsQueue: 50,         // 最多50条记录
+  delayThreshold: 5000,        // 5秒阈值
+  maxRecordsQueue: 30,         // 最多50条记录
   reportInterval: 30000,       // 30秒批量上报
   apiEndpoint: '/api/xhunt/report/high-delay',
   enableLocalStorage: true,
-  maxRetries: 3
+  maxRetries: 3,
+  ipCacheExpiry: 30 * 60 * 1000 // 🆕 30分钟 IP 缓存
 });
 
 // 页面卸载时上报所有数据

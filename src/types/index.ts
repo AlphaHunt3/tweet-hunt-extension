@@ -40,6 +40,14 @@ export interface TokenMention {
   belowLimit?: boolean;
 }
 
+export interface SupportedToken {
+  symbol: string;
+  name: string;
+  ca?: string;
+  chain?: string;
+  twitterHandle?: string;
+}
+
 export interface TokenPeriodData {
   winRate: number | null;
   maxProfitAvg: number | null;
@@ -48,6 +56,28 @@ export interface TokenPeriodData {
   maxProfitAvgPct: number;
   nowProfitAvgPct: number;
   tokenMentions: TokenMention[];
+}
+
+export interface MultiFieldItem {
+  [key: string]: number;
+}
+
+// 新增：多语言能力字段结构
+export interface MultiFieldData {
+  cn: {
+    fields: MultiFieldItem[];
+    summary: string;
+  };
+  en: {
+    fields: MultiFieldItem[];
+    summary: string;
+  };
+}
+
+// 🆕 新增：叙事数据结构
+export interface NarrativeData {
+  cn: string;
+  en: string;
 }
 
 export interface KolData {
@@ -90,15 +120,18 @@ export interface KolData {
     day90: TokenPeriodData;
   };
   mbti?: {
-    en: MBTIData,
-    cn: MBTIData,
+    en: MBTIData | MBTIData[],
+    cn: MBTIData | MBTIData[],
   };
+  // 更新：multiField 现在是多语言结构
+  multiField?: MultiFieldData | null;
+  // 🆕 新增：叙事字段
+  narrative?: NarrativeData | null;
 }
 
 export type KolTabType = 'global' | 'cn' | 'top100';
 export type TokenPeriodType = 'day7' | 'day30' | 'day90';
 
-// 定义单个投资人信息
 export interface Investor {
   avatar: string;
   lead_investor: boolean;
@@ -106,16 +139,15 @@ export interface Investor {
   twitter: string;
 }
 
-// 定义投资人组，包含一个投资人数组和总融资额
 export interface InvestorsGroup {
   investors: Investor[];
   total_funding: number;
 }
 
-// 定义整体数据结构，包含 "invested" 和 "investor" 两个字段
 export interface InvestmentData {
   invested: InvestorsGroup;
   investor: InvestorsGroup;
+  projectLink: string | undefined;
 }
 
 export interface AccountsResponse {
@@ -136,7 +168,6 @@ export interface MBTIData {
   explanation: string;
 }
 
-
 interface HoverTweet {
   text: string;
   createTime: string;
@@ -153,9 +184,126 @@ interface HoverTweet {
 
 export interface TokenAnalysisData {
   tweets: HoverTweet[];
-  answer: string;
-  answerDS: string;
-  isJson: boolean;
-  fromAllKol: boolean;
+  answerEn: string;
+  answerCn: string;
 }
 
+export interface PopularityInfoType {
+  ca: string;
+  symbol: string;
+  name: string;
+  twitter: string;
+  popularity1d: number;
+  popularity7d: number;
+  discussion1dCn: DiscussionBulletPoints | null;
+  discussion1dEn: DiscussionBulletPoints | null;
+  discussion7dCn: DiscussionBulletPoints | null;
+  discussion7dEn: DiscussionBulletPoints | null;
+}
+
+export interface DiscussionBulletPoints {
+  positiveBulletPoints: string[];
+  negativeBulletPoints: string[];
+  positivePercentage: number;
+  negativePercentage: number;
+}
+
+export interface DiscussionData {
+  ca: string;
+  symbol: string;
+  name: string;
+  twitter: string;
+  discussion1dCn: DiscussionBulletPoints | null;
+  discussion1dEn: DiscussionBulletPoints | null;
+  discussion7dCn: DiscussionBulletPoints | null;
+  discussion7dEn: DiscussionBulletPoints | null;
+}
+
+export interface RankResponse {
+  isProject: boolean;
+  isCn: boolean;
+  kolRank: number;
+  kolCnRank: number;
+  kolProjectRank: number;
+}
+
+// 新增：关注关系数据类型
+export interface FollowAction {
+  created_at: string;
+  follower_id: string;
+  following_id: string;
+  is_latest: boolean;
+}
+
+export interface TwitterUserProfile {
+  changed_field: string[];
+  description: string;
+  first_record: string;
+  followers_count: number;
+  following_count: number;
+  is_blue_verified: boolean;
+  listed_count: number;
+  location: string;
+  name: string;
+  pinned_tweet_id: string[];
+  profile_banner_url: string;
+  profile_image_url: string;
+  protected: boolean;
+  tweets_count: number;
+  url: string | null;
+  username: string;
+  username_raw: string;
+  verified: boolean;
+  kolRank20W?: number;
+}
+
+export interface TwitterUser {
+  create_time: string;
+  id: string;
+  name: string;
+  profile: TwitterUserProfile;
+  username: string;
+  username_raw: string;
+}
+
+export interface FollowRelationData {
+  followed_action: FollowAction[];
+  following_action: FollowAction[];
+  twitter_users: {
+    [key: string]: TwitterUser;
+  };
+}
+
+// 新增：用户资料历史记录类型
+export interface ProfileHistory {
+  changed_field: string[];
+  description: string;
+  first_record: string;
+  followers_count: number;
+  following_count: number;
+  is_blue_verified: boolean;
+  listed_count: number;
+  location: string;
+  name: string;
+  pinned_tweet_id: string[];
+  profile_banner_url: string;
+  profile_image_url: string;
+  protected: boolean;
+  tweets_count: number;
+  url: string | null;
+  username: string;
+  username_raw: string;
+  verified: boolean;
+}
+
+export interface ProfileHistoryData {
+  create_time: string;
+  id: string;
+  name: string;
+  profile: TwitterUserProfile;
+  profile_his?: {
+    history: ProfileHistory[];
+  };
+  username: string;
+  username_raw: string;
+}

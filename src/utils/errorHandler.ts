@@ -261,7 +261,7 @@ class GlobalErrorHandler {
     try {
       // 🔧 过滤已知的无害错误
       const message = event.message || 'Unknown JavaScript error';
-      
+
       // 过滤 ResizeObserver 错误（这是浏览器的已知问题，不是我们的代码错误）
       if (message.includes('ResizeObserver loop completed with undelivered notifications')) {
         devLog('log', `🚫 [v${packageJson.version}] Filtered ResizeObserver error (browser issue)`);
@@ -511,10 +511,10 @@ class GlobalErrorHandler {
       // 控制台输出（开发环境）
       if (process.env.PLASMO_PUBLIC_ENV === 'dev') {
         console.group(`🚨 [v${packageJson.version}] XHunt Error Captured`);
-        console.error('Message:', errorInfo.message);
-        console.error('Stack:', errorInfo.stack);
-        console.error('Type:', errorInfo.errorType);
-        console.error('Full Info:', errorInfo);
+        console.log('Message:', errorInfo.message);
+        console.log('Stack:', errorInfo.stack);
+        console.log('Type:', errorInfo.errorType);
+        console.log('Full Info:', errorInfo);
         console.groupEnd();
       }
 

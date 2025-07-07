@@ -1,6 +1,7 @@
 // 配置管理器 - 获取和管理远程配置
 import packageJson from '../../package.json';
 import { kbPrefix } from '~contents/services/api.ts';
+import { nacosCacheManager } from './nacosCacheManager';
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
@@ -31,6 +32,7 @@ class ConfigManager {
   private configFetched: boolean = false;
   private isInitialized: boolean = false;
   private localStorageKey = 'xhunt-config';
+  private readonly CONFIG_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours cache for config
 
   // 初始化配置管理器
   public async init(): Promise<void> {
@@ -82,13 +84,8 @@ class ConfigManager {
     try {
       devLog('log', `📋 [v${packageJson.version}] Fetching remote config...`);
 
-      const response = await fetch(`${kbPrefix}/nacos-configs?dataId=xhunt_config&group=DEFAULT_GROUP`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const remoteConfig = await response.json();
+      // Use NacosCacheManager to fetch with caching
+      const remoteConfig = await nacosCacheManager.fetchWithCache<XHuntConfig>('xhunt_config', this.CONFIG_CACHE_TTL);
 
       // 验证配置格式
       if (this.isValidConfig(remoteConfig)) {
@@ -248,6 +245,7 @@ class ConfigManager {
       limits,
       errorReportsRemaining: Math.max(0, config.errorsReport - limits.errors),
       delayReportsRemaining: Math.max(0, config.delayedReport - limits.delays),
+      cacheStatus: nacosCacheManager.getStats(),
       isInitialized: this.isInitialized,
       configFetched: this.configFetched,
       version: packageJson.version
@@ -257,6 +255,9 @@ class ConfigManager {
   // 重置配置缓存（用于强制重新获取）
   public resetCache(): void {
     this.config = null;
+
+    // Invalidate NacosCacheManager cache
+    nacosCacheManager.invalidate('xhunt_config');
     this.configFetched = false;
     localStorage.removeItem(this.localStorageKey);
     devLog('log', `📋 [v${packageJson.version}] Config cache reset`);
