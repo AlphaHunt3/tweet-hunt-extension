@@ -34,6 +34,7 @@ function IndexPopup() {
   const [showAvatarRank, setShowAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
   const [showTokenAnalysis, setShowTokenAnalysis] = useLocalStorage('@settings/showTokenAnalysis', true);
   const [showSearchPanel, setShowSearchPanel] = useLocalStorage('@settings/showSearchPanel', true);
+  const [showHotTrending, setShowHotTrending] = useLocalStorage('@settings/showHotTrending', true);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t, lang, setLang } = useI18n();
 
@@ -182,6 +183,18 @@ function IndexPopup() {
             className="sr-only peer"
             checked={showSearchPanel}
             onChange={(e) => setShowSearchPanel(e.target.checked)}
+          />
+          <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
+        </label>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm">{t('showHotTrending')}</span>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={showHotTrending}
+            onChange={(e) => setShowHotTrending(e.target.checked)}
           />
           <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-400"></div>
         </label>

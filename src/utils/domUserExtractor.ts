@@ -91,11 +91,11 @@ export function extractUserInfoFromDOM(userId: string): DOMUserInfo | null {
     }
 
     // 2. SECOND PRIORITY: Try to extract avatar from profile image div
-    const mainElement = document.querySelector("main");
+    const mainElement = document.querySelector('main');
     if (!mainElement) return null;
 
     // Find profile image div with background-image style
-    const avatarDiv = mainElement.querySelector("div[style*='background-image: url(\"https://pbs.twimg.com/profile_images/']");
+    const avatarDiv = mainElement.querySelector('div[style*=\'background-image: url("https://pbs.twimg.com/profile_images/\']');
     if (!avatarDiv) return null;
 
     // Extract avatar URL from style
@@ -157,15 +157,16 @@ export function useDOMUserInfo(
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const currentUrl = useCurrentUrl();
-  const debouncedUserId = useDebounce(userId, { wait: 100 });
+  const debouncedUserId = useDebounce(userId, { wait: 500 });
 
   useEffect(() => {
     if (!debouncedUserId) {
-      setUserInfo(null);
       setIsLoading(false);
       setRetryCount(0);
       return;
     }
+
+    setUserInfo(null);
 
     setIsLoading(true);
 

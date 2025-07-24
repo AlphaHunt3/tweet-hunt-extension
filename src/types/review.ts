@@ -20,6 +20,10 @@ export interface ReviewStats {
   defaultTags: {
     kol: string[],
     project: string[],
+    colorTags: Record<string, {
+      color: string
+      bg: string
+    }>
   }
   isKol?: boolean;
   allTagCount?: number;

@@ -7,12 +7,33 @@ export interface KolFollower {
 export interface DeletedTweet {
   id: string;
   text: string;
-  createTime: string;
-  retweetCount: number;
-  replyCount: number;
-  likeCount: number;
-  quoteCount: number;
-  viewCount: number;
+  create_time: string;
+  quote_id?: string;
+  quote_status?: DeletedTweet;
+  profile: {
+    name: string;
+    username: string;
+    username_raw: string;
+    profile_image_url: string;
+    is_blue_verified: boolean;
+  };
+  info: {
+    html: string;
+    photos?: Array<{
+      id: string;
+      url: string;
+      alt_text: string | null;
+    }>;
+    videos?: Array<any>;
+  };
+  statistic: {
+    likes: number;
+    reply_count: number;
+    retweet_count: number;
+    quote_count: number;
+    views: number;
+    bookmark_count: number;
+  };
 }
 
 export interface TokenMention {
@@ -306,4 +327,21 @@ export interface ProfileHistoryData {
   };
   username: string;
   username_raw: string;
+}
+
+// 新增：项目成员数据结构
+export interface ProjectMember {
+  handle: string;
+  image: string;
+  name: string;
+}
+
+export interface ProjectMemberData {
+  handle: string;
+  "founder/executive": ProjectMember[] | null;
+  "ex-member": ProjectMember[] | null;
+  "member": ProjectMember[] | null;
+  "investor/advisor": ProjectMember[] | null;
+  "alumni": ProjectMember[] | null;
+  "contributor": ProjectMember[] | null;
 }
