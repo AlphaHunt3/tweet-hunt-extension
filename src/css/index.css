@@ -50,6 +50,37 @@
     margin: 0 20px;
 }
 
+.sidebarTextContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.unreadDot {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 8px;
+    height: 8px;
+    z-index: 2;
+}
+
+.unreadTextDot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+}
+
+.unreadDotInner {
+    display: block;
+    width: 8px;
+    height: 8px;
+    background-color: #f43f5e;
+    border-radius: 50%;
+}
+
 /* 针对 WebKit 浏览器（如 Chrome、Edge） */
 .hideScrollbar::-webkit-scrollbar {
     display: none; /* 隐藏滚动条 */

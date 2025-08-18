@@ -123,17 +123,17 @@ export interface KolData {
       day1: number | null;
       day7: number | null;
       day30: number | null;
-    }
+    };
     kolProjectRankChange: {
       day1: number | null;
       day7: number | null;
       day30: number | null;
-    },
+    };
     kolRankChange: {
       day1: number | null;
       day7: number | null;
       day30: number | null;
-    }
+    };
   };
   kolTokenMention: {
     day7: TokenPeriodData;
@@ -141,13 +141,108 @@ export interface KolData {
     day90: TokenPeriodData;
   };
   mbti?: {
-    en: MBTIData | MBTIData[],
-    cn: MBTIData | MBTIData[],
+    en: MBTIData | MBTIData[];
+    cn: MBTIData | MBTIData[];
   };
   // 更新：multiField 现在是多语言结构
   multiField?: MultiFieldData | null;
   // 🆕 新增：叙事字段
   narrative?: NarrativeData | null;
+}
+
+// 🆕 新接口的数据结构
+export interface NewTwitterUserData {
+  ai: {
+    classification: string;
+    is_cn: boolean;
+  };
+  create_time: string;
+  del: {
+    is_delete: boolean | null;
+    last_check: string | null;
+  };
+  feature: {
+    discussion?: {
+      discussion1dCn: DiscussionBulletPoints | null;
+      discussion1dEn: DiscussionBulletPoints | null;
+      discussion7dCn: DiscussionBulletPoints | null;
+      discussion7dEn: DiscussionBulletPoints | null;
+      popularity1d: number;
+      popularity7d: number;
+      twitter: string;
+      updateDate: string;
+    };
+    kol_followers?: {
+      cnKolFollowers: KolFollower[];
+      cnKolFollowersCount: number;
+      globalKolFollowers: KolFollower[];
+      globalKolFollowersCount: number;
+      topKolFollowers: KolFollower[];
+      topKolFollowersCount: number;
+      updateDate: string;
+    };
+    mbti?: {
+      en: MBTIData | MBTIData[] | null;
+      cn: MBTIData | MBTIData[] | null;
+    };
+    multi_field?: MultiFieldData | null;
+    narrative?: NarrativeData | null;
+    rank?: {
+      kolCnRank: number;
+      kolCnRankChange: {
+        day1: number | null;
+        day7: number | null;
+        day30: number | null;
+      };
+      kolProjectRank: number;
+      kolProjectRankChange: {
+        day1: number | null;
+        day7: number | null;
+        day30: number | null;
+      };
+      kolRank: number;
+      kolRankChange: {
+        day1: number | null;
+        day7: number | null;
+        day30: number | null;
+      };
+    };
+    token_mention?: {
+      day7: TokenPeriodData;
+      day30: TokenPeriodData;
+      day90: TokenPeriodData;
+    } | null;
+  };
+  id: string;
+  isKol: boolean;
+  // kol: {
+  //   [key: string]: {
+  //     cn: any | null;
+  //     degen: any | null;
+  //     global: {
+  //       is_kol: boolean;
+  //       rank: number;
+  //       score: number;
+  //     } | null;
+  //   };
+  // };
+  name: string;
+  profile: TwitterUserProfile;
+  profile_his?: {
+    history: ProfileHistory[];
+  };
+  username: string;
+  username_raw: string;
+  version: number;
+}
+
+// 🆕 新接口响应结构
+export interface NewTwitterUserResponse {
+  code: number;
+  message: string;
+  data: {
+    data: NewTwitterUserData;
+  };
 }
 
 export type KolTabType = 'global' | 'cn' | 'top100';
@@ -248,6 +343,20 @@ export interface RankResponse {
   kolProjectRank: number;
 }
 
+// 🆕 新的rank批量接口响应类型
+export interface NewRankBatchItem {
+  kolRank: number;
+  username: string;
+}
+
+export interface NewRankBatchResponse {
+  code: number;
+  message: string;
+  data: {
+    data: NewRankBatchItem[];
+  };
+}
+
 // 新增：关注关系数据类型
 export interface FollowAction {
   created_at: string;
@@ -334,14 +443,63 @@ export interface ProjectMember {
   handle: string;
   image: string;
   name: string;
+  level: string;
 }
 
 export interface ProjectMemberData {
   handle: string;
-  "founder/executive": ProjectMember[] | null;
-  "ex-member": ProjectMember[] | null;
-  "member": ProjectMember[] | null;
-  "investor/advisor": ProjectMember[] | null;
-  "alumni": ProjectMember[] | null;
-  "contributor": ProjectMember[] | null;
+  'founder/executive': ProjectMember[] | null;
+  'ex-member': ProjectMember[] | null;
+  member: ProjectMember[] | null;
+  'investor/advisor': ProjectMember[] | null;
+  alumni: ProjectMember[] | null;
+  contributor: ProjectMember[] | null;
+}
+
+// 灵魂浓度数据结构
+export interface SoulDensityData {
+  content_analysis: number;
+  engagement_analysis: number;
+  handle: string;
+  kol_interaction: number;
+  name: string;
+  profile_analysis: number;
+  reason: string;
+  score: number;
+  xhunt_analysis: number;
+}
+
+// AI内容分析相关类型
+export interface AiAnalysisResult {
+  ai_probability: string;
+  reason_en: string;
+  reason_zh: string;
+}
+
+export interface AiContentData {
+  [key: string]: AiAnalysisResult;
+}
+
+export interface AiContentResponse {
+  code: number;
+  data: AiContentData;
+}
+
+// AI聊天相关类型
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: number;
+}
+
+export interface ChatHistory {
+  handle: string;
+  messages: ChatMessage[];
+  lastUpdated: number;
+}
+
+export interface ChatRequest {
+  handle: string;
+  history: ChatMessage[];
+  message: ChatMessage[];
 }

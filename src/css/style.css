@@ -1,19 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;1,100;1,300;1,400&family=Noto+Sans+SC:wght@100..900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Theme variables */
-div[data-theme="light"] {
+div[data-theme='light'] {
   --bg-primary: #ffffff;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f3f4f6;
   --text-primary: #000000;
   --text-secondary: #4a5568;
-  --border-color: #e5e7eb;
+  --border-color: #eff3f4;
   --hover-bg: #f3f4f6;
+  --icon-color: #6b7280;
+  --icon-hover-color: #374151;
 }
 
-div[data-theme="dark"] {
+div[data-theme='dark'] {
   --bg-primary: #15202b;
   --bg-secondary: #1a2634;
   --bg-tertiary: #1e2732;
@@ -21,6 +24,8 @@ div[data-theme="dark"] {
   --text-secondary: #a0aec0;
   --border-color: #374151;
   --hover-bg: #283340;
+  --icon-color: #d1d5db;
+  --icon-hover-color: #f3f4f6;
 }
 
 /* Common styles */
@@ -52,6 +57,183 @@ div[data-theme="dark"] {
   background-color: var(--hover-bg);
 }
 
+.theme-icon {
+  color: var(--icon-color);
+}
+
+.theme-icon-hover:hover {
+  color: var(--icon-hover-color);
+}
+
+/* Ask 按钮图标在深浅色主题下的可读性优化 */
+.xhunt-ask-icon {
+  color: #111827; /* 默认深色 */
+}
+
+[data-theme='dark'] .xhunt-ask-icon {
+  color: #e5e7eb; /* 暗色主题下更亮 */
+}
+
+/* 与 Twitter 相邻按钮一致的边框风格：更细、更浅的灰蓝 */
+.xhunt-ask-border {
+  border-color: #cfd9de; /* Twitter 边框常用色 */
+}
+
+[data-theme='dark'] .xhunt-ask-border {
+  border-color: #2f3336; /* Twitter 暗色边框 */
+}
+
+/* 🎨 通用自定义滚动条样式 - 超细、简约、不占据布局空间 */
+.custom-scrollbar {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  /* 移除 scrollbar-gutter 属性，避免两侧留白 */
+}
+
+.custom-scrollbar:hover {
+  /* Firefox - 悬停时显示 */
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+/* WebKit 浏览器 (Chrome, Safari, Edge) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px; /* 纵向滚动条宽度 - 超细 */
+  height: 6px; /* 横向滚动条高度 - 超细 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* 轨道透明 */
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent; /* 默认透明 */
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+/* 悬停时显示滚动条 */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3); /* 浅灰色，半透明 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5); /* 悬停时稍微深一点 */
+}
+
+/* 暗色主题下的滚动条 */
+[data-theme='dark'] .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+}
+
+[data-theme='dark'] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}
+
+/* 亮色主题下的滚动条 */
+[data-theme='light'] .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.3);
+}
+
+[data-theme='light'] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.5);
+}
+
+/* 滚动条角落 - 确保不显示 */
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+  display: none;
+}
+
+/* ✨ AI Chat 专用滚动条：更纤细、更圆润、主题渐变 */
+.ai-scrollbar {
+  scrollbar-width: thin;
+}
+
+.ai-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.ai-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.25),
+    rgba(168, 85, 247, 0.25),
+    rgba(236, 72, 153, 0.25)
+  );
+  border-radius: 9999px; /* 全圆角 */
+}
+
+.ai-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.45),
+    rgba(168, 85, 247, 0.45),
+    rgba(236, 72, 153, 0.45)
+  );
+}
+
+/* 暗色主题下稍微更亮一点，便于观察 */
+[data-theme='dark'] .ai-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.35),
+    rgba(192, 132, 252, 0.35),
+    rgba(244, 114, 182, 0.35)
+  );
+}
+
+[data-theme='dark'] .ai-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.55),
+    rgba(192, 132, 252, 0.55),
+    rgba(244, 114, 182, 0.55)
+  );
+}
+
+/* 🎯 滚动方向控制类 - 在使用的地方添加这些类来控制滚动方向 */
+
+/* 只允许纵向滚动 */
+.scroll-y-only {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* 只允许横向滚动 */
+.scroll-x-only {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 禁用所有滚动 */
+.scroll-none {
+  overflow: hidden;
+}
+
+/* 允许双向滚动 */
+.scroll-both {
+  overflow: auto;
+}
+
+/* 🎯 特殊情况：完全隐藏横向滚动条（即使内容溢出） */
+.hide-scrollbar-x::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0px;
+}
+
+/* 🎯 特殊情况：完全隐藏纵向滚动条（即使内容溢出） */
+.hide-scrollbar-y::-webkit-scrollbar:vertical {
+  display: none;
+  width: 0px;
+}
+
 /* Breathing animation */
 @keyframes breathing {
   0% {
@@ -66,4 +248,8 @@ div[data-theme="dark"] {
     transform: rotate(360deg) scale(0.95);
     opacity: 0.5;
   }
+}
+
+.lato-font {
+  font-family: "'Lato','Noto Sans SC', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'";
 }

@@ -6,19 +6,28 @@
   border-radius: 4px;
   padding: 0 4px;
   margin: 0 2px;
-  transform: scale(.9);
+  transform: scale(0.9);
   transform-origin: center;
   transition: all 0.2s ease-in-out;
+  pointer-events: auto !important;
 }
 
-[data-theme="dark"] .xhunt-token-highlight {
-  background: linear-gradient(135deg, rgba(29, 155, 240, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+[data-theme='dark'] .xhunt-token-highlight {
+  background: linear-gradient(
+    135deg,
+    rgba(29, 155, 240, 0.1) 0%,
+    rgba(147, 51, 234, 0.1) 100%
+  );
   border: 1px solid rgba(29, 155, 240, 0.2);
   box-shadow: 0 0 10px rgba(29, 155, 240, 0.1);
 }
 
-[data-theme="light"] .xhunt-token-highlight {
-  background: linear-gradient(135deg, rgba(29, 155, 240, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+[data-theme='light'] .xhunt-token-highlight {
+  background: linear-gradient(
+    135deg,
+    rgba(29, 155, 240, 0.1) 0%,
+    rgba(147, 51, 234, 0.1) 100%
+  );
   border: 1px solid rgba(29, 155, 240, 0.3);
   box-shadow: 0 0 10px rgba(29, 155, 240, 0.1);
 }
