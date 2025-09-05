@@ -14,7 +14,7 @@ interface MessagesPageProps {
 export const MessagesPage: React.FC<MessagesPageProps> = ({
   showBackButton = true,
   onClose,
-  loading = false
+  loading = false,
 }) => {
   const { t } = useI18n();
   const { lang } = useI18n();
@@ -35,19 +35,19 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
 
   // Right content for header
   const headerRightContent = (
-    <div className="flex items-center gap-1">
+    <div className='flex items-center gap-1'>
       {/* Drag Handle */}
-      <div className="tw-hunt-drag-handle p-1.5 rounded-full theme-hover cursor-grab active:cursor-grabbing">
-        <GripVertical className="w-4 h-4 theme-text-secondary" />
+      <div className='tw-hunt-drag-handle p-1.5 rounded-full theme-hover cursor-grab active:cursor-grabbing'>
+        <GripVertical className='w-4 h-4 theme-text-secondary' />
       </div>
 
       {/* Close Button */}
       {onClose && (
         <button
-          className="p-1.5 rounded-full theme-hover transition-colors cursor-pointer"
+          className='p-1.5 rounded-full theme-hover transition-colors cursor-pointer'
           onClick={onClose}
         >
-          <CircleX className="w-4 h-4 theme-text-secondary" />
+          <CircleX className='w-4 h-4 theme-text-secondary' />
         </button>
       )}
     </div>
@@ -62,13 +62,13 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
       />
 
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[300px]">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-2" />
-          <p className="text-sm text-blue-400">{t('loading')}</p>
+        <div className='flex-1 flex flex-col items-center justify-center min-h-[300px]'>
+          <Loader2 className='w-8 h-8 text-blue-400 animate-spin mb-2' />
+          <p className='text-sm text-blue-400'>{t('loading')}</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
-          <InAppMessages showFullPanel={true} />
+        <div className='flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden'>
+          <InAppMessages />
         </div>
       )}
     </>

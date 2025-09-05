@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 import { ReviewStats, UserInfo } from '~types/review.ts';
 import { Avatar } from '~/compontents/UserAuthPanel.tsx';
 import { ReviewSection } from '~/compontents/ReviewSection.tsx';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
-import { openNewTab } from '~contents/utils';
-import { useLockFn } from 'ahooks';
+import { openNewTab, windowGtag } from '~contents/utils';
+import { useDebounceEffect, useLockFn } from 'ahooks';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -42,24 +42,48 @@ function _ReviewHeader({
   const isLoggedIn = !!token;
   const targetRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<FloatingContainerRef>(null);
-  const preHandler = useRef('');
+  const [preHandler, setPreHandler] = useState('');
   const maxTgaShow = 5;
   const moreTagCount = (stats?.tagCloud?.length || 0) - maxTgaShow;
   const isShowMoreTag = moreTagCount > 0;
 
-  useEffect(() => {
-    if (!loadingReviewInfo) {
-      preHandler.current = handler;
-    }
-  }, [loadingReviewInfo]);
+  const [user] = useLocalStorage<{
+    avatar: string;
+    displayName: string;
+    username: string;
+    id: string;
+    twitterId: string;
+  } | null | ''>('@xhunt/user', null);
 
-  if (preHandler.current !== handler) {
-    return <></>;
+  const isCurrentUser = useMemo(() => {
+    if (user) {
+      return String(user.username).toLowerCase() === String(handler).toLowerCase()
+    }
+    return false;
+  }, [user, handler]);
+
+
+  useDebounceEffect(() => {
+    if (!loadingReviewInfo && handler) {
+      setPreHandler(handler);
+    }
+  }, [loadingReviewInfo, handler], {
+    wait: 100,
+    maxWait: 300,
+    leading: true
+  });
+
+  if (preHandler !== handler) {
+    return <div style={{
+      display: 'contents'
+    }} key={`${handler}-review-none`} />;
   }
 
   return (
-    <>
-      {!stats || !('averageRating' in stats) || !stats?.topReviewers?.length ?
+    <div style={{
+      display: 'contents'
+    }} key={`${handler}-review`} data-user-handler={handler}>
+      {!stats || !stats.realTotalReviews ?
         <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -67,34 +91,36 @@ function _ReviewHeader({
                 <Star className="w-5 h-5 theme-text-secondary flex-shrink-0" />
                 <span className="text-lg font-semibold theme-text-secondary flex-shrink-0">{reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}</span>
               </div>
-              <span className={`theme-text-secondary pr-2 ${stats?.currentUserReview?.note ? 'text-xs' : 'text-sm'}`}>
-                {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}
-              </span>
+              {/*<span className={`theme-text-secondary pr-2 ${stats?.currentUserReview?.note ? 'text-xs' : 'text-sm'}`}>*/}
+              {/*  {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}*/}
+              {/*</span>*/}
             </div>
-            <div className="ml-auto flex-shrink-0">
-              <button
-                ref={targetRef}
-                onClick={() => {
-                  containerRef.current?.toggle()
-                }}
-                className="text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors"
-              >
-                {stats?.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
-              </button>
-            </div>
+            {!isCurrentUser &&
+							<div className="ml-auto flex-shrink-0">
+								<button
+									ref={targetRef}
+									onClick={() => {
+                    containerRef.current?.toggle()
+                  }}
+									className="text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors"
+								>
+                  {stats?.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
+								</button>
+							</div>
+            }
           </div>
         </div> : <>
           <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <Star className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`} />
-                <span className={`text-lg font-semibold ${getRatingColor(stats.averageRating)}`}>
+              {Boolean(stats.averageRating) && <div className="flex items-center gap-1.5">
+	              <Star className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`} />
+	              <span className={`text-lg font-semibold ${getRatingColor(stats.averageRating)}`}>
                   {Number(stats.averageRating).toFixed(1)}
                 </span>
-              </div>
+              </div>}
               <div className="flex items-center gap-2">
                 <span className="text-sm theme-text-secondary">
-                  ({stats.totalReviews} {t('reviews')})
+                  ({reviewOnlyKol ? `${stats.realTotalReviews || 0} ${t('reviews')} ${stats.realTotalReviews > stats.totalReviews ? `, ${stats.totalReviews || 0} ${t('reviews2')}` : ''}` : `${stats.totalReviews || 0} ${t('reviews')}`})
                 </span>
                 <div className="flex -space-x-2">
                   {stats.topReviewers.map((reviewer, index) => (
@@ -117,20 +143,20 @@ function _ReviewHeader({
                   ))}
                 </div>
               </div>
-              <div className="ml-auto">
-                <button
-                  ref={targetRef}
-                  onClick={() => {
+              {!isCurrentUser && <div className="ml-auto">
+								<button
+									ref={targetRef}
+									onClick={() => {
                     containerRef.current?.toggle()
                   }}
-                  className={`text-sm transition-colors font-medium ${
+									className={`text-sm transition-colors font-medium ${
                     stats.currentUserReview ? 'text-[#7dc9d9c7] hover:text-[#369cb2]' :
                       'text-[#1d9bf0] hover:text-[#1a8cd8]'
                   }`}
-                >
+								>
                   {stats.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
-                </button>
-              </div>
+								</button>
+							</div>}
             </div>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {stats.tagCloud.slice(0, maxTgaShow).map((tag, index) => (
@@ -147,19 +173,19 @@ function _ReviewHeader({
                 </span>
               ))}
               {isShowMoreTag && <span
-                key={`more-tag`}
-                style={{
+								key={`more-tag`}
+								style={{
                   opacity: 0.8,
                 }}
-                className="cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary transition-colors"
-              >
+								className="cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary transition-colors"
+							>
                 +{moreTagCount}个标签
               </span>}
-              {isLoggedIn && stats.currentUserReview?.note && (
-                <span key={'__my-note'} className="mt-0.5 ml-0.5 text-xs theme-text-secondary inline-block overflow-ellipsis">
-                  备注：{stats.currentUserReview.note}
-                </span>
-              )}
+              {/*{isLoggedIn && stats.currentUserReview?.note && (*/}
+              {/*  <span key={'__my-note'} className="mt-0.5 ml-0.5 text-xs theme-text-secondary inline-block overflow-ellipsis">*/}
+              {/*    备注：{stats.currentUserReview.note}*/}
+              {/*  </span>*/}
+              {/*)}*/}
             </div>
           </div>
         </>}
@@ -168,8 +194,9 @@ function _ReviewHeader({
           ref={containerRef}
           targetRef={targetRef}
           offsetX={-220}
-          offsetY={isLoggedIn ? -300 : -200}
-          maxWidth="300px"
+          // offsetY={isLoggedIn ? -300 : -200}
+          offsetY={isLoggedIn ? -200 : -200}
+          maxWidth="380px"
           maxHeight="500px"
         >
           <ReviewTooltip
@@ -182,7 +209,7 @@ function _ReviewHeader({
           />
         </FloatingContainer>
       </ErrorBoundary>
-    </>
+    </div>
   );
 }
 
@@ -208,6 +235,7 @@ function _ReviewTooltip({
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
   const onBtnClick = useLockFn(async () => {
+    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);
@@ -216,7 +244,7 @@ function _ReviewTooltip({
   });
 
   return (
-    <div data-theme={theme} className="w-[280px] theme-bg-secondary rounded-lg p-3 space-y-4">
+    <div data-theme={theme} className="w-[380px] theme-bg-secondary rounded-lg p-3 space-y-4">
       {!isLoggedIn ? (
         <>
           <div className="w-full theme-bg-tertiary rounded-lg overflow-hidden">

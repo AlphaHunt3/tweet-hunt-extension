@@ -3,21 +3,59 @@ import ReactDOM from 'react-dom';
 import indexText from 'data-text:~/css/index.css';
 import { useSize } from 'ahooks';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { navigationService } from '~/compontents/navigation/NavigationService';
+import { messageManager } from '~/utils/messageManager';
+import { useI18n } from '~contents/hooks/i18n.ts';
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
     selector: 'a[data-testid="AppTabBar_Profile_Link"]',
     styleText: indexText,
     useSiblings: true,
-    siblingsStyle: 'width:auto;height:auto;max-width:100%;min-width:50.25px'
+    siblingsStyle: 'width:auto;height:auto;max-width:100%;min-width:50.25px',
   });
-  const [showPanel, setShowPanel] = useLocalStorage('@settings/showPanel', true);
+  const [, setShowPanel] = useLocalStorage('@settings/showPanel', true);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [isCheckingMessages, setIsCheckingMessages] = useState(true);
+  const initialCheckDoneRef = useRef(false);
   const sidebar = useWaitForElement('nav[role]');
   const size = useSize(sidebar?.parentElement);
   const width = size?.width || 0;
   const isExpanded = width > 72;
+  const { lang } = useI18n();
+  const langRef = useRef(lang);
+
+  // Update message manager language when user language changes
+  useEffect(() => {
+    if (lang && lang !== langRef.current) {
+      langRef.current = lang;
+      messageManager.updateLanguage(lang as 'zh' | 'en');
+    }
+  }, [lang]);
+
+  // Use the message manager to check for unread messages
+  useEffect(() => {
+    // Initialize message manager if needed
+    if (!messageManager.getState().messages.length) {
+      messageManager.init();
+    }
+
+    // Add callback to listen for message state changes
+    const removeCallback = messageManager.addCallback((state) => {
+      setHasUnreadMessages(state.hasUnread);
+      setIsCheckingMessages(state.isLoading);
+      if (!initialCheckDoneRef.current && !state.isLoading) {
+        initialCheckDoneRef.current = true;
+      }
+    });
+
+    return () => {
+      removeCallback();
+    };
+  }, []);
+
   useEffect(() => {
     if (!shadowRoot) return;
 
@@ -52,18 +90,41 @@ function _SideBarIcon() {
       observer.disconnect();
     };
   }, [shadowRoot]);
+
   if (!shadowRoot) return null;
+
   return ReactDOM.createPortal(
-    <div className={`sidebarItem ${isExpanded ? 'sidebarItemExpanded' : ''}`} onClick={() => {
-      setShowPanel(!showPanel).then((r: any) => r)
-    }}>
+    <div
+      className={`sidebarItem ${isExpanded ? 'sidebarItemExpanded' : ''}`}
+      onClick={() => {
+        setShowPanel(true);
+
+        // Update last read timestamp when clicking the icon
+        if (hasUnreadMessages) {
+          messageManager.markAllAsRead();
+          setTimeout(() => {
+            navigationService.navigateTo('main-panel', '/messages');
+          }, 100);
+        }
+      }}
+    >
       <img
-        className="sidebarIcon"
-        src="https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/icon128.plasmo.c11f39af-hAH3o8gQMlm25S93rgNQ6atRDgLJcE.png"
-        alt=""
+        className='sidebarIcon'
+        src='https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/xhunt_new.jpg'
+        alt=''
       />
       {isExpanded && (
-        <span className="sidebarText">XHunt</span>
+        <div className='sidebarTextContainer'>
+          <span className='sidebarText'>XHunt</span>
+          {/* Only show the indicator when we've confirmed there are unread messages and initial check is done */}
+          {!isCheckingMessages &&
+            initialCheckDoneRef.current &&
+            hasUnreadMessages && (
+              <div className='unreadTextDot'>
+                <span className='unreadDotInner'></span>
+              </div>
+            )}
+        </div>
       )}
     </div>,
     shadowRoot

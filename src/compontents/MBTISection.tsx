@@ -6,15 +6,16 @@ import { getMBTIColor } from '~contents/utils';
 
 interface MBTISectionProps {
   data: MBTIData;
+  isHoverPanel?: boolean;
 }
 
-export function MBTISection({ data }: MBTISectionProps) {
+export function MBTISection({ data, isHoverPanel }: MBTISectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const { t } = useI18n();
   const mbtiColor = useMemo(() => getMBTIColor(data.mbti), [data.mbti]);
 
   return (
-    <div className="theme-border border-b">
+    <div className={`theme-border ${isHoverPanel ? '' : 'border-b'}`}>
       <div
         className="p-3 flex items-center justify-between cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}

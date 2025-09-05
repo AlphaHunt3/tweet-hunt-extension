@@ -7,6 +7,7 @@ interface StatItemProps {
   value: string | number | React.ReactNode;
   hoverContent: React.ReactNode;
   valueClassName?: string;
+  valueStyle?: Record<string, string>;
   labelClassName?: string;
   className?: string;
   onHover?: () => Promise<void> | void;
@@ -21,22 +22,37 @@ const activeInstances = new Set<string>();
 // Debounced z-index update function
 const updateZIndexes = () => {
   const mainElement = document.querySelector('main[role]') as HTMLElement;
-  const bannerElement = document.querySelector('header[role="banner"]') as HTMLElement;
-  const primaryColumn = mainElement?.querySelector('[data-testid="primaryColumn"]') as HTMLElement;
+  const bannerElement = document.querySelector(
+    'header[role="banner"]'
+  ) as HTMLElement;
+  const primaryColumn = mainElement?.querySelector(
+    '[data-testid="primaryColumn"]'
+  ) as HTMLElement;
   const firstChild = primaryColumn?.firstElementChild as HTMLElement;
   const TopElement = firstChild?.firstElementChild as HTMLElement;
 
-  if (!mainElement || !bannerElement || !primaryColumn || !firstChild || !TopElement) return;
+  if (
+    !mainElement ||
+    !bannerElement ||
+    !primaryColumn ||
+    !firstChild ||
+    !TopElement
+  )
+    return;
 
   if (activeInstances.size > 0) {
     mainElement.style.zIndex = '50';
     TopElement.style.transition = '0.3s ease-in-out';
     TopElement.style.opacity = '0.1';
+    TopElement.style.pointerEvents = 'none';
+    TopElement.setAttribute('data-xhunt-exclude', 'true');
     bannerElement.style.zIndex = '1';
   } else {
     mainElement.style.zIndex = '0';
     TopElement.style.transition = '0.3s ease-in-out';
     TopElement.style.opacity = '1';
+    TopElement.style.pointerEvents = 'auto';
+    TopElement.setAttribute('data-xhunt-exclude', 'true');
     bannerElement.style.zIndex = '3';
   }
 };
@@ -46,9 +62,10 @@ export function HoverStatItem({
   value,
   hoverContent,
   valueClassName = '',
+  valueStyle = {},
   labelClassName = '',
   className = '',
-  onHover
+  onHover,
 }: StatItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -76,7 +93,9 @@ export function HoverStatItem({
 
   useEffect(() => {
     if (isHovered) {
-      window.dispatchEvent(new CustomEvent('hover-stat-item-opened', { detail: idRef.current }));
+      window.dispatchEvent(
+        new CustomEvent('hover-stat-item-opened', { detail: idRef.current })
+      );
     } else if (!isLoadingRef.current) {
       hasCalledHover.current = false;
     }
@@ -128,12 +147,15 @@ export function HoverStatItem({
       ref={containerRef}
       data-theme={theme}
       className={`relative mr-4 ${className}`}
+      style={{
+        width: 'max-content',
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseMove={() => {
         requestIdleCallback(() => {
           if (isHovered) return;
           handleMouseEnter();
-        })
+        });
       }}
       onMouseLeave={() => {
         if (isLoadingRef.current) return;
@@ -142,23 +164,26 @@ export function HoverStatItem({
         }, 100);
       }}
     >
-      <div className="flex items-center gap-1 cursor-pointer">
+      <div className='flex items-center gap-1 cursor-pointer'>
         <span
           className={`text-sm theme-text-primary ${labelClassName}`}
           dangerouslySetInnerHTML={{ __html: label }}
         />
-        {typeof value === 'string' ? <span
-          className={`text-sm ${valueClassName}`}
-          dangerouslySetInnerHTML={{ __html: value || '' }}
-        /> : <span className={`text-sm ${valueClassName}`}>
-          {value}
-        </span>}
+        {typeof value === 'string' ? (
+          <span
+            className={`text-sm ${valueClassName}`}
+            style={valueStyle}
+            dangerouslySetInnerHTML={{ __html: value || '' }}
+          />
+        ) : (
+          <span className={`text-sm ${valueClassName}`}>{value}</span>
+        )}
       </div>
 
       {isHovered && (
         <div
           data-theme={theme}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 w-max max-w-[320px] z-50"
+          className='absolute bottom-full left-1/2 -translate-x-1/2 w-max max-w-[400px] z-50'
           onMouseEnter={() => {
             clearTimeout(hoverTimer.current);
             setIsHovered(true);
@@ -170,10 +195,16 @@ export function HoverStatItem({
             }, 100);
           }}
         >
-          <div className="z-10 theme-bg-secondary theme-text-primary rounded-lg shadow-lg theme-border border p-1 -translate-y-2">
+          <div className='z-10 theme-bg-secondary theme-text-primary rounded-lg shadow-lg theme-border border p-1 -translate-y-2 max-h-[400px] overflow-y-auto custom-scrollbar'>
             {hoverContent}
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-3 -bottom-[6px] w-3 h-3 rotate-45 theme-bg-secondary theme-border border-t-0 border-l-0"></div>
+          <div
+            className='inline-block absolute left-1/2 -translate-x-1/2 -bottom-[11px] w-0 h-0'
+            style={{
+              border: '10px solid transparent',
+              borderTopColor: 'var(--bg-secondary)',
+            }}
+          ></div>
         </div>
       )}
     </div>

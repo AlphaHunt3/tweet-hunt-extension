@@ -5,7 +5,7 @@ import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts'
 import { delHandeReviewInfo, postHandeReviewInfo } from '~contents/services/review.ts';
 import { useRequest } from 'ahooks';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
-import { calculateTagCharLength } from '~contents/utils';
+import { calculateTagCharLength, windowGtag } from '~contents/utils';
 import { useI18n } from '~contents/hooks/i18n.ts';
 
 const PRESET_TAGS = {
@@ -42,7 +42,7 @@ function _ReviewSection({
   const [hoverRating, setHoverRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>(stats?.currentUserReview?.tags || []);
   const [customTag, setCustomTag] = useState('');
-  const [note, setNote] = useState(stats?.currentUserReview?.note || '');
+  const [comment, setComment] = useState(stats?.currentUserReview?.comment || '');
   const activeCategory = stats?.isKol ? 'kol' : 'project';
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [errorInfo, setErrorInfo] = useState('');
@@ -65,6 +65,7 @@ function _ReviewSection({
   };
 
   const handleSubmit = async () => {
+    windowGtag('event', 'handleSubmit')
     if (!handler) {
       setErrorInfo(t('invalidHandler'));
       return;
@@ -93,13 +94,16 @@ function _ReviewSection({
         following: 0,
         rating,
         tags: (selectedTags || []).slice(0, 5),
-        note: note || ''
+        comment: comment || ''
       });
 
       setTips({
         text: t('reviewSubmitSuccess'),
         type: 'suc'
       });
+      windowGtag('event', 'handleSubmitSuc', {
+        value: `${handler} | ${rating} | ${JSON.stringify((selectedTags || []).slice(0, 5))}`
+      })
       await refreshAsyncReviewInfo();
       await refreshAsyncUserInfo();
       toggle();
@@ -118,6 +122,7 @@ function _ReviewSection({
         setErrorInfo(t('invalidHandler'));
         return;
       }
+      windowGtag('event', 'delReview')
       toggle();
       await delHandeReviewInfo(handler);
       await refreshAsyncReviewInfo();
@@ -138,6 +143,9 @@ function _ReviewSection({
     if (selectedTags && selectedTags?.length >= 5) return;
     const trimmedTag = customTag.trim();
     if (trimmedTag && !selectedTags.includes(trimmedTag)) {
+      windowGtag('event', 'addCustomTag', {
+        value: trimmedTag
+      })
       setSelectedTags(prev => [...prev, trimmedTag]);
       setCustomTag('');
       setIsAddingTag(false);
@@ -312,57 +320,61 @@ function _ReviewSection({
 
       {/* Preset Tags */}
       <div className="flex flex-wrap gap-2 border-t theme-border pt-2">
-        {((stats?.defaultTags || PRESET_TAGS)[activeCategory]).map((tag: string) => (
-          <button
+        {((stats?.defaultTags || PRESET_TAGS)[activeCategory]).map((tag: string) => {
+          const isTagIncluded = selectedTags.includes(tag);
+          return <button
             key={tag}
             onClick={() => {
               if (selectedTags.length >= 5) {
                 setErrorInfo(t('maxTagsError'));
                 return;
               }
-              if (!selectedTags.includes(tag)) {
+              if (!isTagIncluded) {
                 setSelectedTags(prev => [...prev, tag]);
               }
             }}
-            disabled={selectedTags.includes(tag)}
+            disabled={isTagIncluded}
             className={`px-2 py-1 rounded-full text-xs transition-colors ${
-              selectedTags.includes(tag)
+              isTagIncluded
                 ? 'bg-[#1d9bf0]/5 theme-text-secondary cursor-not-allowed'
                 : 'bg-[#1d9bf0]/10 hover:bg-[#1d9bf0]/20 theme-text-primary'
             }`}
+            style={stats?.defaultTags?.colorTags?.[tag] ? {
+              color: stats?.defaultTags?.colorTags?.[tag]?.color,
+              background: stats?.defaultTags?.colorTags?.[tag]?.bg,
+              opacity: isTagIncluded ? 0.5 : 1
+            } : {}}
           >
             {tag}
           </button>
-        ))}
+        })}
       </div>
     </div>
 
-    {/* Note */}
-    <div>
-      <textarea
-        maxLength={200}
-        ref={textareaRef}
-        value={note}
-        onFocus={() => {
-          currentInputRef.current = textareaRef.current;
-          setErrorInfo('');
-        }}
-        onBlur={() => {
-          currentInputRef.current = null;
-        }}
-        onChange={(e) => {
-          setNote(String(e.target.value).slice(0, 200));
-        }}
-        onCompositionStart={() => {
-          isComposingRef.current = true;
-        }}
-        onCompositionEnd={() => {
-          isComposingRef.current = false;
-        }}
-        placeholder={t('noteOptional')}
-        className="theme-text-primary w-full h-24 px-3 py-2 rounded bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0] placeholder-gray-400"
-      />
-    </div>
+    {/*comment */}
+    <textarea
+      maxLength={200}
+      ref={textareaRef}
+      value={comment}
+      onFocus={() => {
+        currentInputRef.current = textareaRef.current;
+        setErrorInfo('');
+      }}
+      onBlur={() => {
+        currentInputRef.current = null;
+      }}
+      onChange={(e) => {
+        setComment(String(e.target.value).slice(0, 300));
+      }}
+      onCompositionStart={() => {
+        isComposingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        isComposingRef.current = false;
+      }}
+      placeholder={t('commentPlaceholder')}
+      className="theme-text-primary w-full h-24 px-3 py-2 rounded bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0] placeholder-gray-400"
+    />
 
     <button
       onClick={handleSubmit}

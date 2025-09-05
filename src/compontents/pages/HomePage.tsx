@@ -165,19 +165,19 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* KOL Followers Section */}
           {twInfo && <KolFollowersSection kolData={twInfo} />}
 
-          {/* Project Members Section */}
-          {!loadingProjectMember && projectMemberData && 
-            (() => {
-              // 动态获取所有key（排除handle字段）
-              const memberGroups = Object.keys(projectMemberData)
-                .filter(key => key !== 'handle') // 排除handle字段
-                .map(key => projectMemberData[key as keyof typeof projectMemberData])
-                .filter(members => Array.isArray(members) && members.length > 0);
-              const totalMembers = memberGroups.reduce((total, members) => total + (members?.length || 0), 0);
-              return totalMembers > 0;
-            })() && (
-            <ProjectMembersSection data={projectMemberData} />
-          )}
+          {/*/!* Project Members Section *!/*/}
+          {/*{!loadingProjectMember && projectMemberData && */}
+          {/*  (() => {*/}
+          {/*    // 动态获取所有key（排除handle字段）*/}
+          {/*    const memberGroups = Object.keys(projectMemberData)*/}
+          {/*      .filter(key => key !== 'handle') // 排除handle字段*/}
+          {/*      .map(key => projectMemberData[key as keyof typeof projectMemberData])*/}
+          {/*      .filter(members => Array.isArray(members) && members.length > 0);*/}
+          {/*    const totalMembers = memberGroups.reduce((total, members) => total + (members?.length || 0), 0);*/}
+          {/*    return totalMembers > 0;*/}
+          {/*  })() && (*/}
+          {/*  <ProjectMembersSection data={projectMemberData} />*/}
+          {/*)}*/}
 
           {/* MBTI Section */}
           {mbti && <MBTISection data={mbti} />}

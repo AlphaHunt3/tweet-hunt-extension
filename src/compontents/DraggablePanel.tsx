@@ -1,5 +1,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { useDebounceFn } from 'ahooks';
 
 interface DraggablePanelProps {
   children: React.ReactNode;
@@ -9,6 +11,7 @@ interface DraggablePanelProps {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   width: number;
+  storageKey?: string; // 新增：用于存储位置的键名
 }
 
 export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(({
@@ -19,57 +22,161 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(({
   onMouseEnter,
   onMouseLeave,
   width,
+  storageKey = 'default-panel', // 默认存储键名
 }) => {
   const nodeRef = useRef<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState({
-    x: window.innerWidth - width - 16,
+
+  // 使用 localStorage 记住位置，获取加载状态
+  // 改为存储距离右边的距离而不是绝对位置
+  const [savedPosition, setSavedPosition, { isLoading }] = useLocalStorage(`@panel-position/${storageKey}`, {
+    rightOffset: 16, // 距离右边的距离
     y: 50
   });
 
-  const handleDrag = (_e: any, data: { x: number; y: number }) => {
-    const maxX = window.innerWidth - width - 16;
-    const minX = 16;
-    const maxY = window.innerHeight - 100;
-    const minY = 16;
+  // 等待存储加载完成后再初始化位置
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
 
-    const boundedX = Math.min(Math.max(data.x, minX), maxX);
-    const boundedY = Math.min(Math.max(data.y, minY), maxY);
+  // 防抖保存位置 - 拖拽停止1秒后才写入存储
+  const { run: debouncedSavePosition } = useDebounceFn(
+    (newPosition: { x: number; y: number }) => {
+      requestIdleCallback(() => {
+        // 计算距离右边的距离
+        const rightOffset = window.innerWidth - newPosition.x - width;
+        setSavedPosition({
+          rightOffset: Math.max(16, rightOffset), // 确保最小距离
+          y: newPosition.y
+        });
+      }, {
+        timeout: 200
+      })
+    },
+    {
+      wait: 1500, // 1.5秒延迟
+      leading: false,
+      trailing: true,
+    }
+  );
 
-    setPosition({ x: boundedX, y: boundedY });
+  // 根据右侧距离计算 x 坐标
+  const calculateXFromRightOffset = (rightOffset: number) => {
+    return window.innerWidth - width - rightOffset;
   };
 
-  useEffect(() => {
-    setPosition(prev => ({
-      x: window.innerWidth - width - 16,
-      y: prev.y
-    }));
-  }, [width]);
+  // 🎯 智能边界检测和位置调整
+  const adjustPositionForBoundaries = (targetX: number, targetY: number) => {
+    const minX = 16;
+    const maxX = window.innerWidth - width - 16;
+    const minY = 16;
+    const maxY = window.innerHeight - 100;
 
+    // 调整 X 坐标
+    let adjustedX = targetX;
+    if (targetX < minX) {
+      adjustedX = minX;
+    } else if (targetX > maxX) {
+      adjustedX = maxX;
+    }
+
+    // 调整 Y 坐标
+    let adjustedY = targetY;
+    if (targetY < minY) {
+      adjustedY = minY;
+    } else if (targetY > maxY) {
+      adjustedY = maxY;
+    }
+
+    return { x: adjustedX, y: adjustedY };
+  };
+
+  // 当存储加载完成后，初始化位置
   useEffect(() => {
+    if (!isLoading && !position) {
+      // 根据保存的右侧距离计算 x 坐标
+      const targetX = calculateXFromRightOffset(savedPosition.rightOffset);
+      const targetY = savedPosition.y;
+
+      // 🎯 应用智能边界检测
+      const adjustedPosition = adjustPositionForBoundaries(targetX, targetY);
+
+      setPosition(adjustedPosition);
+
+      // 如果位置需要调整，立即保存调整后的位置
+      const newRightOffset = window.innerWidth - adjustedPosition.x - width;
+      if (Math.abs(newRightOffset - savedPosition.rightOffset) > 1 || adjustedPosition.y !== savedPosition.y) {
+        setSavedPosition({
+          rightOffset: Math.max(16, newRightOffset),
+          y: adjustedPosition.y
+        });
+      }
+    }
+  }, [isLoading, savedPosition, width, position, setSavedPosition]);
+
+  const handleDrag = (_e: any, data: { x: number; y: number }) => {
+    // 立即更新UI位置
+    setPosition(data);
+  };
+
+  const handleDragStop = (_e: any, data: { x: number; y: number }) => {
+    // 🎯 应用智能边界检测
+    const boundedPosition = adjustPositionForBoundaries(data.x, data.y);
+
+    // 立即更新UI位置
+    setPosition(boundedPosition);
+
+    // 防抖保存到 localStorage（1.5秒后）
+    debouncedSavePosition(boundedPosition);
+  };
+
+  // 窗口大小变化时调整位置 - 保持右侧距离不变，但确保不超出边界
+  useEffect(() => {
+    if (!position) return; // 位置还未初始化时不处理
+
     const handleResize = () => {
-      const maxX = window.innerWidth - width - 16;
-      setPosition(prev => ({
-        x: maxX,
-        y: prev.y
-      }));
+      // 根据当前保存的右侧距离重新计算 x 坐标
+      const targetX = calculateXFromRightOffset(savedPosition.rightOffset);
+      const targetY = position.y;
+
+      // 🎯 应用智能边界检测
+      const adjustedPosition = adjustPositionForBoundaries(targetX, targetY);
+
+      // 更新位置
+      setPosition(adjustedPosition);
+      
+      // 如果位置被边界限制了，需要更新保存的右侧距离
+      const actualRightOffset = window.innerWidth - adjustedPosition.x - width;
+      if (Math.abs(actualRightOffset - savedPosition.rightOffset) > 1 || adjustedPosition.y !== savedPosition.y) {
+        setSavedPosition({
+          rightOffset: Math.max(16, actualRightOffset),
+          y: adjustedPosition.y
+        });
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [width, position]);
+  }, [width, position, savedPosition, setSavedPosition]);
+
+  // 如果位置还未初始化（存储还在加载），不渲染面板
+  if (!position) {
+    return null;
+  }
+
+  // 🎯 动态计算边界，确保拖拽时不会超出
+  const dragBounds = {
+    top: 16,
+    left: 16,
+    right: window.innerWidth - width - 16,
+    bottom: window.innerHeight - 100
+  };
 
   return (
     <Draggable
       nodeRef={nodeRef}
       position={position}
       onDrag={handleDrag}
+      onStop={handleDragStop}
       handle={`.${dragHandleClassName}`}
-      bounds={{
-        top: 16,
-        left: 16,
-        right: window.innerWidth - width - 16,
-        bottom: window.innerHeight - 100
-      }}
+      bounds={dragBounds}
       disabled={disabled}
     >
       <div

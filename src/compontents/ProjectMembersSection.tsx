@@ -5,7 +5,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { officialTagsManager } from '~/utils/officialTagsManager.ts';
 import { useRequest } from 'ahooks';
-import { fetchTwitterRankBatch } from '~contents/services/api.ts';
+import { rankService } from '~/utils/rankService';
 
 interface ProjectMembersSectionProps {
   data: ProjectMemberData;
@@ -92,7 +92,7 @@ function MemberCard({
           <img
             src={member.image}
             alt={member.name}
-            className="w-7 h-7 rounded-full border theme-border flex-shrink-0 group-hover:ring-1 group-hover:ring-blue-400 transition-all object-cover"
+            className="w-8 h-8 rounded-full border theme-border flex-shrink-0 group-hover:ring-1 group-hover:ring-blue-400 transition-all object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
             }}
@@ -111,12 +111,15 @@ function MemberCard({
             </div>
           </div>
 
-          {/* 官方标签 */}
-          {displayTags.length > 0 && (
-            <div className="flex items-center gap-[2px] flex-wrap justify-center w-full">
+          {/* 官方标签 + level badge */}
+          {(displayTags.length > 0 || member.level) && (
+            <div className="flex items-center gap-[2px] flex-wrap justify-center w-full mt-0.5">
               {displayTags.map((tag, index) => (
                 <OfficialTag key={index} text={tag} theme={theme} />
               ))}
+              {member.level && (
+                <OfficialTag text={member.level} theme={theme} />
+              )}
             </div>
           )}
         </div>
@@ -139,33 +142,41 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   const [memberRanks, setMemberRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
   const [showLoading, setShowLoading] = useState(false);
+  const [rankingSorted, setRankingSorted] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 定义固定的显示顺序
+  const FIXED_ORDER = [
+    'founder/executive',
+    'member',
+    'investor/advisor',
+    'contributor',
+    'ex-member',
+    'alumni'
+  ];
 
   // 动态获取所有成员组
   const memberGroups = React.useMemo(() => {
     if (!data) return [];
 
-    // 获取所有有效的成员组
-    const groups = Object.keys(data)
-      .filter(key => key !== 'handle') // 排除handle字段
-      .map(key => {
-        const members = data[key as keyof ProjectMemberData];
-        if (!Array.isArray(members) || members.length === 0) return null;
+    // 按照固定顺序获取有效的成员组
+    const groups = FIXED_ORDER
+    .filter(key => {
+      const members = data[key as keyof ProjectMemberData];
+      return Array.isArray(members) && members.length > 0;
+    })
+    .map(key => {
+      const members = data[key as keyof ProjectMemberData];
 
-        // 调用翻译函数
-        const translatedTitle = t(key);
+      // 调用翻译函数
+      const translatedTitle = t(key);
 
-        return {
-          key,
-          title: translatedTitle,
-          members: members as ProjectMember[]
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => {
-        // 按成员数量降序排序，数量多的在前面
-        return (b?.members?.length || 0) - (a?.members?.length || 0);
-      }) as Array<{ key: string; title: string; members: ProjectMember[] }>;
+      return {
+        key,
+        title: translatedTitle,
+        members: members as ProjectMember[]
+      };
+    });
 
     return groups;
   }, [data, t]);
@@ -186,14 +197,12 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   const activeGroup = memberGroups.find(group => group.key === activeTab);
   const activeMembers = activeGroup?.members || [];
 
-  // 批量获取排名的请求
-  const { runAsync: fetchRanks } = useRequest(fetchTwitterRankBatch, {
-    manual: true,
-  });
-
   // 获取成员排名
   useEffect(() => {
     if (!activeMembers.length) return;
+
+    // 重置排序状态
+    setRankingSorted(false);
 
     const usernames = activeMembers.map(member => member.handle);
 
@@ -212,37 +221,30 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
       setShowLoading(true);
     }, 1500);
 
+    // 添加状态监听
+    const removeCallback = rankService.addStatusCallback((loadingUsernames) => {
+      setLoadingRanks(loadingUsernames);
+    });
+
     const fetchMemberRanks = async () => {
       try {
-        const rankData = await fetchRanks(usernames);
-
-        if (rankData) {
-          const newRanks: Record<string, number> = {};
-
-          rankData.forEach((rank, index) => {
-            const username = usernames[index];
-            if (rank && rank.kolRank !== undefined) {
-              newRanks[username] = rank.kolRank;
-            }
-          });
-
-          setMemberRanks(prev => ({ ...prev, ...newRanks }));
-        }
+        const ranks = await rankService.getRanks(usernames);
+        setMemberRanks(prev => ({ ...prev, ...ranks }));
       } catch (error) {
         console.log('Failed to fetch member ranks:', error);
       } finally {
-        // 清除加载状态和loading UI
-        setLoadingRanks(new Set());
         setShowLoading(false);
+        setRankingSorted(true);
         if (loadingTimerRef.current) {
           clearTimeout(loadingTimerRef.current);
           loadingTimerRef.current = null;
         }
+        removeCallback();
       }
     };
 
     fetchMemberRanks();
-  }, [activeMembers, fetchRanks]);
+  }, [activeMembers]);
 
   // 按排名排序成员
   const sortedMembers = React.useMemo(() => {
@@ -263,13 +265,28 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   const maxHeight = React.useMemo(() => {
     if (!isHoverPanel) return 'auto';
 
-    // 找到成员最多的分组
-    const maxMembers = Math.max(...memberGroups.map(group => group.members.length));
+    // 计算所有分组中成员的最大数量，确保有足够的空间
+    const maxMembers = memberGroups.length > 0
+      ? Math.max(...memberGroups.map(group => group.members.length))
+      : 0;
     // 每行4个成员，计算需要的行数
     const rows = Math.ceil(maxMembers / 4);
-    // 每行约40px高度，加上tab导航和padding的高度
-    return `${rows * 40 + 120}px`; // 120px为tab导航和padding的高度
+    // 每行约44px高度，加上tab导航和padding的高度，增加一些缓冲空间
+    const baseHeight = 140; // tab导航、标题、padding等基础高度
+    const contentHeight = Math.max(rows * 44, 120); // 内容区域最小120px
+    return `${baseHeight + contentHeight}px`;
   }, [memberGroups, isHoverPanel]);
+
+  // 计算固定宽度（HoverPanel需要固定宽度）
+  const fixedWidth = React.useMemo(() => {
+    if (!isHoverPanel) return 'auto';
+
+    // 基础宽度：左右padding(24px) + 4列成员网格 + 列间距
+    // 每个成员卡片约70px宽度，4列 = 280px，加上间距15px，总共295px
+    // 再加上左右padding 24px，总共319px
+    // 为了确保tab导航和头像有足够空间，设置为350px
+    return '350px';
+  }, [isHoverPanel]);
 
   // 计算总成员数
   const totalMembers = memberGroups.reduce((total, group) => total + (group.members?.length || 0), 0);
@@ -284,7 +301,14 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   return (
     <div
       className={`theme-border ${isHoverPanel ? '' : 'border-b'}`}
-      style={isHoverPanel ? { minHeight: maxHeight } : {}}
+      style={isHoverPanel ? {
+        height: maxHeight,
+        minHeight: maxHeight,
+        width: fixedWidth,
+        minWidth: fixedWidth,
+        maxWidth: fixedWidth,
+        // backgroundColor: 'blue'
+      } : {}}
     >
       <div className="px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -306,9 +330,9 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
           {memberGroups.map((group) => (
             <button
               key={group.key}
-              className={`flex-shrink-0 py-1.5 px-2 text-[10px] font-medium transition-colors border-b-2 ${
-                activeTab === group.key 
-                  ? 'text-purple-400 border-purple-400' 
+              className={`flex-shrink-0 py-1.5 px-1.5 text-[10px] font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeTab === group.key
+                  ? 'text-purple-400 border-purple-400'
                   : 'theme-text-secondary border-transparent hover:theme-text-primary'
               }`}
               onClick={() => setActiveTab(group.key)}
@@ -320,32 +344,39 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
       </div>
 
       {/* 当前分组的成员列表 */}
-      <div className="px-3 pb-2 relative" style={isHoverPanel ? { minHeight: `calc(${maxHeight} - 80px)` } : {}}>
-        {showLoading && loadingRanks.size > 0 && (
+      <div
+        className="px-4 pb-2 relative overflow-hidden"
+        style={isHoverPanel ? {
+          height: 'auto',
+          width: fixedWidth,
+          minWidth: fixedWidth,
+          maxWidth: fixedWidth,
+          // backgroundColor: 'red'
+        } : {}}
+      >
+        {(!rankingSorted || (showLoading && loadingRanks.size > 0)) && (
           <div className="flex items-center justify-center py-1 mb-1">
             <Loader2 className="w-3 h-3 animate-spin text-purple-400 mr-1" />
-            <span className="text-[10px] theme-text-secondary">Loading rankings...</span>
+            <span className="text-[10px] theme-text-secondary">
+              {'Loading...'}
+            </span>
           </div>
         )}
 
-        <div className="grid grid-cols-4 gap-1">
-          {displayMembers.map((member, index) => (
-            <MemberCard
-              key={`${member.handle}-${index}`}
-              member={member}
-              theme={theme}
-            />
-          ))}
-        </div>
-
-        {/* 在hover面板中添加透明占位区域，保持高度一致 */}
-        {isHoverPanel && (
+        {rankingSorted && (
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ minHeight: maxHeight }}
-          />
+            className="grid grid-cols-4 gap-2"
+            style={isHoverPanel ? { width: '100%', minWidth: '100%' } : {}}
+          >
+            {displayMembers.map((member, index) => (
+              <MemberCard
+                key={`${member.handle}-${index}`}
+                member={member}
+                theme={theme}
+              />
+            ))}
+          </div>
         )}
-
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ export function NameHistorySection({ data }: NameHistorySectionProps) {
   };
 
   return (
-    <div className="border-b border-gray-700 w-[300px]">
+    <div className="w-[300px]">
       <div
         className="p-3 flex items-center justify-between cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -41,8 +41,8 @@ export function NameHistorySection({ data }: NameHistorySectionProps) {
         <div className="px-3 pb-3 space-y-2">
           {Object.entries(data?.screen_names).map(([name, dates]) => (
             <div key={name} className="flex items-center justify-between text-xs">
-              <span className="font-medium text-gray-200">{name}</span>
-              <div className="flex items-center gap-2 text-gray-400">
+              <span className="font-medium theme-text-primary">{name}</span>
+              <div className="flex items-center gap-2 theme-text-primary">
                 <span>{formatDate(dates[0])}</span>
                 <span>→</span>
                 <span>{formatDate(dates[1])}</span>

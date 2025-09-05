@@ -33,7 +33,7 @@ function _ReviewsOverview({
             </span>
           </div>
           <span className="text-sm text-gray-400">
-            ({stats && (stats?.totalReviews || 0)} {t('reviews')})
+            ({reviewOnlyKol ? `${stats.realTotalReviews || 0} ${t('reviews')} ${stats.realTotalReviews > stats.totalReviews ? `, ${stats.totalReviews || 0} ${t('reviews2')}` : ''}` : `${stats.totalReviews || 0} ${t('reviews')}`})
           </span>
         </div> : <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
@@ -72,8 +72,8 @@ function _ReviewsOverview({
 
       {/* Tag Cloud */}
       {stats && stats?.tagCloud?.length > 0 && <div className="w-full bg-[#101823] rounded-lg overflow-hidden">
-        <TokenWordCloud tokens={stats ? stats?.tagCloud || [] : []} height={100} />
-      </div>}
+				<TokenWordCloud tokens={stats ? stats?.tagCloud || [] : []} height={100} />
+			</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import useTweetDetail from '~contents/hooks/useTweetDetail.ts';
+import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
@@ -29,6 +30,7 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;
   const { tweetId, isTweetDetail } = useTweetDetail();
+  const currentUrl = useCurrentUrl();
 
   // AI 分析相关状态
   const [aiData, setAiData] = useState<AiContentData | null>(null);
@@ -36,20 +38,32 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  // 从URL中提取推文ID
+  const extractTweetIdFromUrl = (url: string): string | null => {
+    try {
+      // 匹配类似 https://x.com/username/status/1963660907017605191 的URL
+      const match = url.match(/\/status\/(\d+)/);
+      return match ? match[1] : null;
+    } catch (error) {
+      return null;
+    }
+  };
+
   // 使用 useLockFn 防止重复请求
-  const analyzeContent = useLockFn(async (text: string) => {
+  const analyzeContent = useLockFn(async (text: string, tweetId: string) => {
     setIsLoading(true);
     try {
       setError(null);
-      const response = await fetchAiContent(text);
-      if (response?.data) {
-        setAiData(response.data);
+      const response = await fetchAiContent(text, tweetId);
+
+      if (response && Object.keys(response).length > 0) {
+        setAiData(response);
         // 发送成功事件
         if (buttonRef.current) {
           const event = new CustomEvent<AiAnalysisDetail>(AI_ANALYSIS_EVENT, {
             detail: {
               type: 'success',
-              data: response.data,
+              data: response,
               element: buttonRef.current,
             },
           });
@@ -101,7 +115,6 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
       }
 
       setError(errorMessage);
-      // console.error('AI content analysis error:', err);
       // 发送错误事件
       if (buttonRef.current) {
         const event = new CustomEvent<AiAnalysisDetail>(AI_ANALYSIS_EVENT, {
@@ -152,6 +165,7 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
       await redirectToLogin();
       return;
     }
+
     if (aiData && buttonRef.current) {
       const event = new CustomEvent<AiAnalysisDetail>(AI_ANALYSIS_EVENT, {
         detail: {
@@ -168,14 +182,49 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
     const tweetTextElements = document.querySelectorAll(
       "article[data-testid='tweet'] div[data-testid='tweetText']"
     );
-    if (tweetTextElements.length === 0) return;
 
-    // 提取第一个推文文本内容
-    const firstTweetElement = tweetTextElements[0];
-    const textContent = firstTweetElement.textContent?.trim();
-    if (!textContent) return;
+    let textContent = '';
 
-    await analyzeContent(textContent);
+    if (tweetTextElements.length > 0) {
+      // 优先使用推文文本元素
+      const firstTweetElement = tweetTextElements[0];
+      textContent = firstTweetElement.textContent?.trim() || '';
+    } else {
+      // 退而求其次，查找整个 article 标签
+      const articleElements = document.querySelectorAll(
+        "article[data-testid='tweet']"
+      );
+
+      if (articleElements.length > 0) {
+        const firstArticleElement = articleElements[0];
+        textContent = firstArticleElement.textContent?.trim() || '';
+      } else {
+        return;
+      }
+    }
+
+    // 设置文本内容上限（例如 5000 字符）
+    const MAX_TEXT_LENGTH = 5000;
+    if (textContent.length > MAX_TEXT_LENGTH) {
+      textContent = textContent.substring(0, MAX_TEXT_LENGTH);
+    }
+
+    if (!textContent) {
+      return;
+    }
+
+    // 提取推文ID
+    const tweetIdFromUrl = extractTweetIdFromUrl(currentUrl);
+
+    if (!tweetIdFromUrl) {
+      return;
+    }
+
+    try {
+      await analyzeContent(textContent, tweetIdFromUrl);
+    } catch (error) {
+      // 错误已在 analyzeContent 中处理
+    }
   };
 
   const handleMouseEnter = () => {
@@ -199,19 +248,7 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
     }
 
     if (aiData) {
-      // 计算平均概率
-      const aiModels = Object.entries(aiData);
-      const averageProbability =
-        aiModels.length > 0
-          ? aiModels.reduce((sum, [_, data]) => {
-              const prob = parseFloat(data.ai_probability.replace('%', ''));
-              return sum + (isNaN(prob) ? 0 : prob);
-            }, 0) / aiModels.length
-          : 0;
-
-      return `${t('aiGenerationProbability')} ${averageProbability.toFixed(
-        1
-      )}%`;
+      return t('viewAnalysisResults');
     }
 
     return t('tweetAiAnalysis');
@@ -228,10 +265,10 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
         onClick={handleButtonClick}
         onMouseEnter={handleMouseEnter}
         disabled={isLoading}
-        className={`relative flex items-center justify-center px-3 py-1 rounded-full font-medium text-xs transition-all duration-200 cursor-pointer min-h-8 min-w-[60px] text-white mr-3 shadow-sm hover:opacity-90 ${
+        className={`relative flex items-center justify-center px-3 py-2 rounded-full font-medium text-sm transition-all duration-200 cursor-pointer min-h-8 min-w-[60px] text-white mr-3 shadow-sm hover:opacity-90 ${
           aiData || isLoading
-            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'
-            : 'bg-gradient-to-r from-sky-600 to-indigo-600'
+            ? 'bg-gradient-to-r from-blue-500 to-purple-500'
+            : 'bg-gradient-to-r from-blue-500 to-purple-500'
         } ${
           isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''
         }`}

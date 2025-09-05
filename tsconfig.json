@@ -31,10 +31,5 @@
     ".plasmo/index.d.ts",
     "src",
     "src/global.d.ts"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
   ]
 }

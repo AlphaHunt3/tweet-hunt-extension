@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { isUserUsingChinese } from '~contents/utils';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { kbPrefix } from '~contents/services/api.ts';
+import { nacosCacheManager } from '~/utils/nacosCacheManager';
 
 interface I18nData {
   zh: Record<string, string>;
@@ -11,6 +12,7 @@ interface I18nData {
 }
 
 const CACHE_KEY = '@xhunt/i18n-cache';
+const I18N_CACHE_TTL = 60 * 60 * 1000; // 1 hours cache for i18n data
 
 // Module-level promise to prevent multiple concurrent requests
 let translationPromise: Promise<I18nData | null> | null = null;
@@ -26,12 +28,11 @@ async function fetchRemoteTranslations(): Promise<I18nData | null> {
   // Create new promise for this request
   translationPromise = (async () => {
     try {
-      const response = await fetch(`${kbPrefix}/nacos-configs?dataId=xhunt_i18n&group=DEFAULT_GROUP`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data;
+      // Use NacosCacheManager to fetch with caching
+      const data = await nacosCacheManager.fetchWithCache<I18nData>('xhunt_i18n', I18N_CACHE_TTL);
+      return data || null;
     } catch (err) {
-      console.error('Failed to fetch translations:', err);
+      console.log('Failed to fetch translations:', err);
       return null;
     }
   })();
@@ -64,7 +65,7 @@ async function updateCache(data: I18nData) {
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     // localStorage.setItem(CACHE_TIMESTAMP_KEY, String(Date.now()));
   } catch (err) {
-    console.error('Failed to update translations cache:', err);
+    console.log('Failed to update translations cache:', err);
   }
 }
 
@@ -77,6 +78,10 @@ export const useI18n = () => {
   useEffect(() => {
     if(!isLoadingLang && !lang) {
       setLang(isUserUsingChinese() ? 'zh' : 'en');
+
+      // Preload translations for both languages
+      nacosCacheManager.fetchWithCache('xhunt_i18n', I18N_CACHE_TTL)
+        .catch(err => console.log('Failed to preload translations:', err));
     }
   }, [isLoadingLang, lang]);
 

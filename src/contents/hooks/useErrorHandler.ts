@@ -15,7 +15,7 @@ export function useErrorHandler() {
   useEffect(() => {
     if (!mainElement) return;
 
-    console.warn('⚠️ useErrorHandler is deprecated. Please use useSystemInitialization instead.');
+    console.log('⚠️ useErrorHandler is deprecated. Please use useSystemInitialization instead.');
 
     // 初始化页面可见性管理器
     visibilityManager.init();
@@ -31,7 +31,7 @@ export function useErrorHandler() {
     // 监听错误事件，可以在这里添加上报逻辑
     const handleErrorCapture = (event: CustomEvent) => {
       const errorInfo = event.detail;
-      
+
       // 开发环境下的额外处理
       if (process.env.PLASMO_PUBLIC_ENV === 'dev') {
         console.log('📊 Error captured for reporting:', errorInfo);

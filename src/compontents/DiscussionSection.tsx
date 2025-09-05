@@ -1,54 +1,33 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { HoverStatItem } from '~/compontents/HoverStatItem.tsx';
-import { DiscussionData, PopularityInfoType } from '~types';
-import { useRequest } from 'ahooks';
-import { fetchTwitterDiscussionDetail } from '~contents/services/api.ts';
+import { PopularityInfoType } from '~types';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { DiscussionPanel } from './DiscussionPanel';
 
 interface DiscussionSectionProps {
   userId: string;
-  discussionInfo: PopularityInfoType | null;
+  discussionInfo: PopularityInfoType | null | undefined;
   loadingDiscussionInfo: boolean;
 }
 
 function _DiscussionSection({ userId, discussionInfo, loadingDiscussionInfo }: DiscussionSectionProps) {
   const { t } = useI18n();
-  const controllerRef = useRef<AbortController | null>(null);
-  const [discussionDataForUI, setDiscussionDataForUI] = useState<DiscussionData | undefined>();
 
-  const fetchData = (): Promise<DiscussionData | undefined> => {
-    // 中止之前的请求
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-    }
+  // 直接从 discussionInfo 构造 discussionData
+  const discussionData = useMemo(() => {
+    if (!discussionInfo) return undefined;
 
-    // 创建新的控制器
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    // 发起请求，传入 signal
-    return fetchTwitterDiscussionDetail(userId, controller.signal);
-  };
-
-  const { data: discussionData, loading, run: fetchDiscussion } = useRequest<DiscussionData | undefined, []>(
-    fetchData,
-    {
-      manual: true,
-    }
-  );
-
-  // Clear discussion data and abort request when userId changes
-  useEffect(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-    }
-    setDiscussionDataForUI(undefined);
-  }, [userId]);
-
-  useEffect(() => {
-    setDiscussionDataForUI(discussionData);
-  }, [discussionData]);
+    return {
+      ca: discussionInfo.ca || '',
+      symbol: discussionInfo.symbol || '',
+      name: discussionInfo.name,
+      twitter: discussionInfo.twitter,
+      discussion1dCn: discussionInfo.discussion1dCn,
+      discussion1dEn: discussionInfo.discussion1dEn,
+      discussion7dCn: discussionInfo.discussion7dCn,
+      discussion7dEn: discussionInfo.discussion7dEn
+    };
+  }, [discussionInfo]);
 
   const d1Total = useMemo(() => {
     return (discussionInfo?.discussion1dCn?.negativeBulletPoints.length || 0) + (discussionInfo?.discussion1dCn?.positiveBulletPoints.length || 0)
@@ -64,12 +43,7 @@ function _DiscussionSection({ userId, discussionInfo, loadingDiscussionInfo }: D
         <HoverStatItem
           label={t('discussion1d')}
           value={`(${discussionInfo.popularity1d})`}
-          hoverContent={<DiscussionPanel data={discussionData} period="1d" loading={loading} />}
-          onHover={() => {
-            if (!discussionDataForUI) {
-              fetchDiscussion();
-            }
-          }}
+          hoverContent={<DiscussionPanel data={discussionData} period="1d" loading={loadingDiscussionInfo} />}
           valueClassName="text-blue-700"
         />
       ) : null}
@@ -79,12 +53,7 @@ function _DiscussionSection({ userId, discussionInfo, loadingDiscussionInfo }: D
         <HoverStatItem
           label={t('discussion7d')}
           value={`(${discussionInfo.popularity7d})`}
-          hoverContent={<DiscussionPanel data={discussionData} period="7d" loading={loading} />}
-          onHover={() => {
-            if (!discussionDataForUI) {
-              fetchDiscussion();
-            }
-          }}
+          hoverContent={<DiscussionPanel data={discussionData} period="7d" loading={loadingDiscussionInfo} />}
           valueClassName="text-blue-700"
         />
       ) : null}

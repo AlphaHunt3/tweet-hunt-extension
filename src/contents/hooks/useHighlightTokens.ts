@@ -23,11 +23,18 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
   const tickerElements = useTickerElements();
   const { supportedSymbols, supportedCAs } = useMemo(() => {
     if (!supportedTokens) {
-      return { supportedSymbols: localSupportedTokens, supportedCAs: new Set<string>() };
+      return {
+        supportedSymbols: localSupportedTokens,
+        supportedCAs: new Set<string>(),
+      };
     }
     return {
-      supportedSymbols: new Set(supportedTokens.map(token => token.symbol.toLowerCase())),
-      supportedCAs: new Set(supportedTokens.map(token => token.ca?.toLowerCase()).filter(Boolean))
+      supportedSymbols: new Set(
+        supportedTokens.map((token) => token.symbol.toLowerCase())
+      ),
+      supportedCAs: new Set(
+        supportedTokens.map((token) => token.ca?.toLowerCase()).filter(Boolean)
+      ),
     };
   }, [supportedTokens]);
 
@@ -35,7 +42,9 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
     if (!supportedTokens || !tickerElements.length) return;
 
     function createTokenRegex(tokens: string[]): RegExp {
-      const escaped = tokens.map(t => t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'));
+      const escaped = tokens.map((t) =>
+        t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+      );
       return new RegExp(`(${escaped.join('|')})`, 'g');
     }
 
@@ -49,7 +58,7 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
         matches.push({
           text: match[0],
           index: match.index,
-          length: match[0].length
+          length: match[0].length,
         });
       }
 
@@ -63,7 +72,11 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
       let text = node.textContent;
       if (!text.includes('$')) {
         const preSibling = element.previousSibling;
-        if (preSibling && preSibling.textContent && preSibling.textContent.endsWith('$')) {
+        if (
+          preSibling &&
+          preSibling.textContent &&
+          preSibling.textContent.endsWith('$')
+        ) {
           preSibling.textContent = preSibling.textContent.slice(0, -1);
           text = `$${text}`;
         } else {
@@ -87,13 +100,19 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
 
       for (const match of validMatches) {
         const isTicker = match.text.startsWith('$');
-        const key = isTicker ? match.text.slice(1).toLowerCase() : match.text.toLowerCase();
-        const isSupported = isTicker ? supportedSymbols.has(key) : supportedCAs.has(key);
+        const key = isTicker
+          ? match.text.slice(1).toLowerCase()
+          : match.text.toLowerCase();
+        const isSupported = isTicker
+          ? supportedSymbols.has(key)
+          : supportedCAs.has(key);
 
         if (!isSupported) continue;
 
         if (match.index > lastIndex) {
-          fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+          fragment.appendChild(
+            document.createTextNode(text.slice(lastIndex, match.index))
+          );
         }
 
         const wrapper = document.createElement('span');
@@ -108,23 +127,34 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
         wrapper.appendChild(textSpan);
 
         wrapper.addEventListener('mouseenter', () => {
-          requestIdleCallback(() => {
-            const detail: TokenHoverDetail = {
-              ticker: match.text,
-              element: wrapper
-            };
-            window.dispatchEvent(new CustomEvent(TOKEN_HOVER_EVENT, { detail }));
-          }, {
-             timeout: 300
-          });
+          requestIdleCallback(
+            () => {
+              const detail: TokenHoverDetail = {
+                ticker: match.text,
+                element: wrapper,
+              };
+              console.log('TOKEN_HOVER_EVENT 111111====', detail);
+              window.dispatchEvent(
+                new CustomEvent(TOKEN_HOVER_EVENT, { detail })
+              );
+            },
+            {
+              timeout: 300,
+            }
+          );
         });
 
         wrapper.addEventListener('mouseleave', () => {
-          requestIdleCallback(() => {
-            window.dispatchEvent(new CustomEvent(TOKEN_HOVER_EVENT, { detail: null }));
-          }, {
-            timeout: 300
-          });
+          requestIdleCallback(
+            () => {
+              window.dispatchEvent(
+                new CustomEvent(TOKEN_HOVER_EVENT, { detail: null })
+              );
+            },
+            {
+              timeout: 300,
+            }
+          );
         });
 
         fragment.appendChild(wrapper);
@@ -138,7 +168,7 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
       return fragment;
     };
 
-    tickerElements.forEach(element => {
+    tickerElements.forEach((element) => {
       const processedUrl = element.getAttribute('data-xhunt-url');
       const currentUrl = window.location.href;
 
@@ -151,6 +181,5 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
         element.setAttribute('data-xhunt-url', currentUrl);
       }
     });
-
   }, [theme, supportedSymbols, supportedCAs, tickerElements]);
 }

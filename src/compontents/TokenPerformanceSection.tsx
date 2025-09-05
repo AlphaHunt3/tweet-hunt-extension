@@ -9,9 +9,10 @@ interface TokenPerformanceSectionProps {
   kolData: KolData;
   defaultPeriod?: TokenPeriodType;
   mode?: 'WordCloud' | 'Metrics' | 'Default'
+  isHoverPanel?: boolean
 }
 
-export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Default' }: TokenPerformanceSectionProps) {
+export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Default', isHoverPanel = false }: TokenPerformanceSectionProps) {
   const [activePeriod, setActivePeriod] = useState<TokenPeriodType>(defaultPeriod || 'day30');
   const { t } = useI18n();
 
@@ -29,7 +30,7 @@ export function TokenPerformanceSection({ kolData, defaultPeriod, mode = 'Defaul
 
   const periodData = useMemo(() => getActivePeriodData(), [activePeriod, kolData]);
   return (
-    <div className="p-3 border-b theme-border">
+    <div className={`p-3 theme-border ${!isHoverPanel ? 'border-b' : ''}`}>
       {mode === 'Default' && <div className="flex items-center gap-2 mb-3">
 				<TrendingUp className="w-4 h-4 text-green-600" />
 				<h2 className="font-bold text-sm">{t('tokenPerformance')}</h2>

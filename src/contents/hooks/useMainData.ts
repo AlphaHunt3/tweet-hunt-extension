@@ -1,19 +1,31 @@
-import { useDebounceEffect, useDebounceFn, useRequest } from 'ahooks';
+import { useDebounceEffect, useDebounceFn, useLatest, useRequest } from 'ahooks';
 import {
   fetchDelTwitterInfo,
   fetchRootDataInfo,
+  fetchProjectMember,
   fetchSupportedTokens,
-  fetchTwitterDiscussionPopularity,
-  fetchTwitterInfo,
+  fetchTwitterInfoNew,
+  convertNewDataToKolData,
+  convertNewDataToPopularityInfo,
   fetchTwRenameInfo
 } from '~contents/services/api.ts';
-import { useEffect, useState } from 'react';
-import { extractUsernameFromUrl } from '~contents/utils';
+import { useEffect, useMemo, useState } from 'react';
+import { extractUsernameFromUrl, windowGtag } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
-import { AccountsResponse, DeletedTweet, InvestmentData, KolData, PopularityInfoType, SupportedToken } from '~types';
+import {
+  AccountsResponse,
+  DeletedTweet,
+  InvestmentData,
+  KolData,
+  NewTwitterUserData,
+  PopularityInfoType,
+  ProjectMemberData,
+  SupportedToken
+} from '~types';
 import { getHandeReviewInfo, updateUserInfo } from '~contents/services/review.ts';
 import { ReviewStats, UserInfo } from '~types/review.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { rankService } from '~/utils/rankService';
 
 export interface MainData {
   currentUrl: string;
@@ -33,10 +45,13 @@ export interface MainData {
   userInfo: UserInfo | null;
   loadingUserInfo: boolean;
   refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
-  discussionInfo: PopularityInfoType | null;
+  discussionInfo: PopularityInfoType | null | undefined;
   loadingDiscussionInfo: boolean;
   supportedTokens: SupportedToken[] | null;
   loadingSupportedTokens: boolean;
+  projectMemberData: ProjectMemberData | null;
+  loadingProjectMember: boolean;
+  newTwitterData: NewTwitterUserData | null;
 }
 
 const defaultRequestConfig = {
@@ -51,13 +66,16 @@ const useMainData = (): MainData => {
   const [userId, setUserId] = useState('');
   const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const [token] = useLocalStorage('@xhunt/token', '');
+  const [username] = useLocalStorage('@xhunt/current-username', '');
+  const userNameRef = useLatest(username);
 
   const { data: deletedTweets = [] as DeletedTweet[], run: fetchDelData, loading: loadingDel } = useRequest(() => fetchDelTwitterInfo(userId), {
     refreshDeps: [userId],
     ...defaultRequestConfig
   });
 
-  const { data: twInfo = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfo(userId), {
+  // 🆕 使用新接口获取用户信息
+  const { data: newTwitterData = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfoNew(userId), {
     refreshDeps: [userId],
     debounceWait: 50,
     debounceMaxWait: 50,
@@ -65,6 +83,18 @@ const useMainData = (): MainData => {
     debounceLeading: true,
     debounceTrailing: true,
   });
+
+  // 🆕 转换新数据为旧格式
+  const twInfo = useMemo(() => {
+    if (!newTwitterData) return null;
+    return convertNewDataToKolData(newTwitterData);
+  }, [newTwitterData]);
+
+  // 🆕 从新数据中提取讨论信息
+  const discussionInfo = useMemo(() => {
+    if (!newTwitterData) return null;
+    return convertNewDataToPopularityInfo(newTwitterData);
+  }, [newTwitterData]);
 
   const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userId), {
     refreshDeps: [userId],
@@ -78,11 +108,7 @@ const useMainData = (): MainData => {
 
   const { data: reviewInfo = null, run: fetchReviewInfo, loading: loadingReviewInfo, refreshAsync: refreshAsyncReviewInfo } = useRequest(() => getHandeReviewInfo(userId, reviewOnlyKol), {
     refreshDeps: [userId, reviewOnlyKol],
-    debounceWait: 50,
-    debounceMaxWait: 50,
-    manual: true,
-    debounceLeading: true,
-    debounceTrailing: true,
+    ...defaultRequestConfig
   });
 
   const { data: userInfo = null, run: fetchUserInfo, loading: loadingUserInfo, refreshAsync: refreshAsyncUserInfo } = useRequest(() => updateUserInfo(), {
@@ -90,12 +116,12 @@ const useMainData = (): MainData => {
     ...defaultRequestConfig
   });
 
-  const { data: discussionInfo = null, run: fetchDiscussionInfo, loading: loadingDiscussionInfo } = useRequest(() => fetchTwitterDiscussionPopularity(userId), {
-    refreshDeps: [userId],
+  const { data: supportedTokens = null, run: fetchSupportedTokensData, loading: loadingSupportedTokens } = useRequest(fetchSupportedTokens, {
     ...defaultRequestConfig
   });
 
-  const { data: supportedTokens = null, run: fetchSupportedTokensData, loading: loadingSupportedTokens } = useRequest(fetchSupportedTokens, {
+  const { data: projectMemberData = null, run: fetchProjectMemberData, loading: loadingProjectMember } = useRequest(() => fetchProjectMember(userId), {
+    refreshDeps: [userId],
     ...defaultRequestConfig
   });
 
@@ -105,7 +131,6 @@ const useMainData = (): MainData => {
     fetchRootData();
     fetchRenameInfo();
     fetchReviewInfo();
-    fetchDiscussionInfo();
   }, {
     wait: 1000,
     leading: true,
@@ -122,8 +147,21 @@ const useMainData = (): MainData => {
   useEffect(() => {
     if (!userId || String(userId).length < 1) return;
     loadData()
+    windowGtag('event', 'loadMainData', {
+      value: `${userNameRef.current} | ${userId}`
+    })
   }, [userId]);
 
+  // 单独处理项目成员数据请求 - 只有当用户是项目时才请求
+  useEffect(() => {
+    if (!userId || String(userId).length < 1) return;
+    if (!twInfo) return; // 等待 twInfo 加载完成
+
+    // 只有当 classification 是 'project' 时才请求项目成员数据
+    if (twInfo?.basicInfo?.classification === 'project') {
+      fetchProjectMemberData();
+    }
+  }, [userId, twInfo?.basicInfo?.classification]);
   useEffect(() => {
     fetchUserInfo();
     fetchSupportedTokensData();
@@ -132,7 +170,28 @@ const useMainData = (): MainData => {
   useDebounceEffect(() => {
     const uid = extractUsernameFromUrl(currentUrl);
     setUserId(uid);
-  }, [currentUrl], { wait: 300, leading: true });
+  }, [currentUrl], { wait: 100, maxWait: 500, leading: true });
+
+  // // 监听 kolRank20W 变化并更新排名缓存
+  // useDebounceEffect(() => {
+  //   if (userId && twInfo?.kolFollow?.kolRank20W !== undefined) {
+  //     // 预加载当前用户的排名到缓存
+  //     rankService.preloadRanks([userId]);
+  //   }
+  // }, [twInfo?.kolFollow?.kolRank20W], {
+  //   wait: 1000,
+  //   maxWait: 5000,
+  //   leading: false,
+  //   trailing: true
+  // });
+
+  // 将 newTwitterData 暴露给其他组件使用
+  const projectMemberDataProxy = useMemo(() => {
+    if (twInfo?.basicInfo?.classification === 'project' && userId) {
+      return projectMemberData;
+    }
+    return null;
+  }, [projectMemberData, userId])
 
   return {
     currentUrl,
@@ -153,9 +212,12 @@ const useMainData = (): MainData => {
     loadingUserInfo,
     refreshAsyncUserInfo,
     discussionInfo,
-    loadingDiscussionInfo,
+    loadingDiscussionInfo: loadingTwInfo,
     supportedTokens,
-    loadingSupportedTokens
+    loadingSupportedTokens,
+    projectMemberData: projectMemberDataProxy,
+    loadingProjectMember,
+    newTwitterData // 🆕 暴露 newTwitterData 供其他组件使用
   }
 }
 

@@ -51,7 +51,7 @@ export function useCurrentUsername() {
     }
   }, [currentUrl], {
     wait: 300,
-    maxWait: 1000
+    maxWait: 500
   });
 
   return username;

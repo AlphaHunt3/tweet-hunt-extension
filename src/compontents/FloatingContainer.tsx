@@ -1,5 +1,16 @@
-import React, { forwardRef, useImperativeHandle, useState, useRef, useEffect } from 'react';
-import { useEventListener, useLatest, useMemoizedFn, useUpdateEffect } from 'ahooks';
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useState,
+  useRef,
+  useEffect,
+} from 'react';
+import {
+  useEventListener,
+  useLatest,
+  useMemoizedFn,
+  useUpdateEffect,
+} from 'ahooks';
 
 export interface FloatingContainerProps {
   children?: React.ReactNode;
@@ -10,6 +21,7 @@ export interface FloatingContainerProps {
   maxHeight?: string;
   mask?: boolean;
   className?: string;
+  onClose?: () => void;
 }
 
 export interface FloatingContainerRef {
@@ -19,7 +31,10 @@ export interface FloatingContainerRef {
   // isVisible: boolean;
 }
 
-export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContainerProps>(
+export const FloatingContainer = forwardRef<
+  FloatingContainerRef,
+  FloatingContainerProps
+>(
   (
     {
       children,
@@ -29,7 +44,8 @@ export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContai
       maxWidth = '80vw',
       maxHeight = '80vh',
       mask = true,
-      className = ''
+      className = '',
+      onClose,
     },
     ref
   ) => {
@@ -62,8 +78,11 @@ export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContai
         let left = targetRect.left + offsetX;
         let top = targetRect.top + offsetY;
 
-        const adjustPosition = (pos: number, size: number, elementSize: number) =>
-          Math.min(Math.max(pos, 0), Math.max(0, size - elementSize));
+        const adjustPosition = (
+          pos: number,
+          size: number,
+          elementSize: number
+        ) => Math.min(Math.max(pos, 0), Math.max(0, size - elementSize));
 
         left = adjustPosition(left, viewportWidth, containerRect.width);
         top = adjustPosition(top, viewportHeight, containerRect.height);
@@ -71,16 +90,19 @@ export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContai
         container.style.top = `${top}px`;
         // container.style.opacity = '1';
       } catch (err) {
-        console.error('Error updating position:', err);
+        console.log('Error updating position:', err);
       }
     });
 
     // 显示时更新位置
     useEffect(() => {
       if (isVisible) {
-        requestAnimationFrame(updatePosition);
+        // 使用双重 RAF 确保 DOM 更新完成后再定位
+        requestAnimationFrame(() => {
+          requestAnimationFrame(updatePosition);
+        });
       }
-    }, [isVisible]);
+    }, [isVisible, updatePosition]);
 
     // 监听目标元素变化
     useUpdateEffect(() => {
@@ -95,6 +117,13 @@ export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContai
         updatePosition();
       }
     }, [containerRef.current?.offsetWidth, containerRef.current?.offsetHeight]);
+
+    // 监听可见性变化，调用 onClose 回调
+    useEffect(() => {
+      if (!isVisible && onClose) {
+        onClose();
+      }
+    }, [isVisible, onClose]);
 
     // 滚动和窗口大小变化时更新位置
     useEventListener(
@@ -121,11 +150,19 @@ export const FloatingContainer = forwardRef<FloatingContainerRef, FloatingContai
     useImperativeHandle(
       ref,
       () => ({
-        show: () => requestAnimationFrame(() => {
+        show: () => {
+          // 检查目标元素是否存在
+          if (!targetRef.current) {
+            console.warn(
+              'FloatingContainer: target element not found, cannot show'
+            );
+            return;
+          }
+          // 立即设置可见状态，避免异步延迟导致的展示问题
           setIsVisible(true);
-        }),
+        },
         hide: () => setIsVisible(false),
-        toggle: () => setIsVisible((prev) => !prev)
+        toggle: () => setIsVisible((prev) => !prev),
       }),
       []
     );

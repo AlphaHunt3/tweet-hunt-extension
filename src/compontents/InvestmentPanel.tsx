@@ -7,7 +7,7 @@ interface InvestmentPanelProps {
   data: InvestmentData;
 }
 
-export const renderInvestorList = (title: string, investors: Investor[], totalFunding: string | number | undefined, showLogo: boolean = false) => (
+export const renderInvestorList = (title: string, investors: Investor[], totalFunding: string | number | undefined, projectLink: string | undefined, showLogo: boolean = false) => (
   <div className="space-y-2">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -22,14 +22,15 @@ export const renderInvestorList = (title: string, investors: Investor[], totalFu
             <>({investors.length})</>
         }</h3>
       </div>
-      {showLogo && <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50/10">
-        <span className="text-[10px] text-orange-400/80">来源</span>
-        <img
-          src="https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/rootdata-orange.png"
-          alt="root-data"
-          className="h-[24px] w-auto object-contain"
-        />
-      </div>}
+      {showLogo &&
+				<a target={'_blank'} href={projectLink} className="flex cursor-pointer items-center gap-1 px-2 py-1 rounded-full">
+					<span className="text-[10px] text-orange-400/80 hover:underline">来源</span>
+					<img
+						src="https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/rootdata-orange.png"
+						alt="root-data"
+						className="h-[24px] w-auto object-contain"
+					/>
+				</a>}
     </div>
     <div className="max-h-[94px] overflow-y-auto custom-scrollbar">
       <div className="grid grid-cols-2 gap-2 py-2">
@@ -72,11 +73,11 @@ export function InvestmentPanel({ data }: InvestmentPanelProps) {
   return (
     <div className="p-3 space-y-4">
       {data.invested.investors.length > 0 && (
-        renderInvestorList(t('investors'), data.invested.investors, data?.invested?.total_funding)
+        renderInvestorList(t('investors'), data.invested.investors, data?.invested?.total_funding, data.projectLink)
       )}
       {data.investor.investors.length > 0 && (
         <>
-          {renderInvestorList(t('portfolio'), data.investor.investors, data?.investor?.total_funding)}
+          {renderInvestorList(t('portfolio'), data.investor.investors, data?.investor?.total_funding, data.projectLink)}
         </>
       )}
     </div>

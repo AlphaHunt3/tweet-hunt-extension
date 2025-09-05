@@ -10,7 +10,7 @@ export function useDelayReporter() {
   const recorderInstanceRef = useRef<DelayRecorderInstance | null>(null);
 
   useEffect(() => {
-    console.warn('⚠️ useDelayReporter is deprecated. Please use useSystemInitialization instead.');
+    console.log('⚠️ useDelayReporter is deprecated. Please use useSystemInitialization instead.');
 
     // 初始化延迟上报器，获取实例
     recorderInstanceRef.current = delayReporter.init(secureFetch);
