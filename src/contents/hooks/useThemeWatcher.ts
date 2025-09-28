@@ -39,12 +39,12 @@ function detectSystemTheme(): 'light' | 'dark' {
 export function useThemeWatcher() {
   const currentUrl = useCurrentUrl();
   const canReloadRef = useRef(false);
-  const [theme, setTheme] = useLocalStorage<'light' | 'dark' | ''>(
-    THEME_KEY,
-    ''
-  );
+  const [theme, setTheme, { isLoading: isThemeStoreLoading }] = useLocalStorage<
+    'light' | 'dark' | ''
+  >(THEME_KEY, '');
 
   const checkAndApplyThemeChange = useCallback(() => {
+    if (isThemeStoreLoading) return;
     const newTheme = detectSystemTheme();
     const body = document.body;
     if (!body) return;
@@ -65,27 +65,30 @@ export function useThemeWatcher() {
       setTheme(newTheme);
       canReloadRef.current = true;
     }
-  }, [theme, setTheme]);
+  }, [theme, setTheme, isThemeStoreLoading]);
 
   useDebounceEffect(
     () => {
+      if (isThemeStoreLoading) return;
       const timer = setTimeout(() => {
         checkAndApplyThemeChange();
       }, 1500);
       return () => clearTimeout(timer);
     },
-    [currentUrl],
+    [currentUrl, isThemeStoreLoading],
     { wait: 100, maxWait: 500 }
   );
 
   useEffect(() => {
+    if (isThemeStoreLoading) return;
     const intervalId = window.setInterval(() => {
       checkAndApplyThemeChange();
     }, 15000);
     return () => window.clearInterval(intervalId);
-  }, [theme]); // 添加 theme 作为依赖项，确保闭包读取最新值
+  }, [theme, isThemeStoreLoading]); // 添加 theme 作为依赖项，确保闭包读取最新值
 
   useEffect(() => {
+    if (isThemeStoreLoading) return;
     if (canReloadRef.current) {
       canReloadRef.current = false;
       // Prevent infinite reload loops
@@ -112,7 +115,7 @@ export function useThemeWatcher() {
         // window.location.reload();
       }
     }
-  }, [theme]);
+  }, [theme, isThemeStoreLoading]);
 }
 
 export default useThemeWatcher;

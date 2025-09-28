@@ -133,7 +133,6 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
                 ticker: match.text,
                 element: wrapper,
               };
-              console.log('TOKEN_HOVER_EVENT 111111====', detail);
               window.dispatchEvent(
                 new CustomEvent(TOKEN_HOVER_EVENT, { detail })
               );

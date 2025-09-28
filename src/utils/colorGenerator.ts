@@ -62,3 +62,67 @@ export const generatePersonalizedColor = (abilities: string[]): { primary: strin
     };
   }
 };
+// 基于分数动态生成颜色的函数
+export const generateScoreBasedColor = (score: number): { primary: string; secondary: string } => {
+  if (score >= 90) {
+    // 90-100分：深紫色 - 代表卓越、神秘、高贵
+    return {
+      primary: '#7c3aed', // violet-600
+      secondary: 'rgba(124, 58, 237, 0.15)'
+    };
+  } else if (score >= 80) {
+    // 80-89分：蓝色 - 代表专业、可靠、智慧
+    return {
+      primary: '#2563eb', // blue-600
+      secondary: 'rgba(37, 99, 235, 0.15)'
+    };
+  } else if (score >= 70) {
+    // 70-79分：青色 - 代表清新、活力、创新
+    return {
+      primary: '#0891b2', // cyan-600
+      secondary: 'rgba(8, 145, 178, 0.15)'
+    };
+  } else if (score >= 60) {
+    // 60-69分：绿色 - 代表成长、平衡、稳定
+    return {
+      primary: '#16a34a', // green-600
+      secondary: 'rgba(22, 163, 74, 0.15)'
+    };
+  } else if (score >= 50) {
+    // 50-59分：黄色 - 代表警示、中等、需要关注
+    return {
+      primary: '#ca8a04', // yellow-600
+      secondary: 'rgba(202, 138, 4, 0.15)'
+    };
+  } else if (score >= 40) {
+    // 40-49分：橙色 - 代表警告、活跃但不稳定
+    return {
+      primary: '#ea580c', // orange-600
+      secondary: 'rgba(234, 88, 12, 0.15)'
+    };
+  } else if (score >= 30) {
+    // 30-39分：深橙色 - 代表关注、需要改进
+    return {
+      primary: '#dc2626', // red-600
+      secondary: 'rgba(220, 38, 38, 0.15)'
+    };
+  } else if (score >= 20) {
+    // 20-29分：红色 - 代表问题、风险
+    return {
+      primary: '#b91c1c', // red-700
+      secondary: 'rgba(185, 28, 28, 0.15)'
+    };
+  } else if (score >= 10) {
+    // 10-19分：深红色 - 代表严重问题
+    return {
+      primary: '#991b1b', // red-800
+      secondary: 'rgba(153, 27, 27, 0.15)'
+    };
+  } else {
+    // 0-9分：极深红色 - 代表极低质量
+    return {
+      primary: '#7f1d1d', // red-900
+      secondary: 'rgba(127, 29, 29, 0.15)'
+    };
+  }
+};

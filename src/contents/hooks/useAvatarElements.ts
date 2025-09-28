@@ -23,10 +23,15 @@ export function useAvatarElements() {
       }
 
       const matchedElements = new Set<HTMLElement>();
-      const elements = document.querySelectorAll('[data-testid^="UserAvatar-Container-"]');
+      const elements = document.querySelectorAll(
+        '[data-testid^="UserAvatar-Container-"]'
+      );
 
-      elements.forEach(element => {
-        if (element instanceof HTMLElement && !processedNodesRef.current.has(element)) {
+      elements.forEach((element) => {
+        if (
+          element instanceof HTMLElement &&
+          !processedNodesRef.current.has(element)
+        ) {
           let parent = element.parentElement;
           let shouldExclude = false;
 
@@ -50,10 +55,11 @@ export function useAvatarElements() {
             // Track large avatars
             if (rect.width > 120 || rect.height > 120) {
               const testId = element.getAttribute('data-testid');
-              const username = testId?.replace('UserAvatar-Container-', '') || '';
+              const username =
+                testId?.replace('UserAvatar-Container-', '') || '';
               largeAvatarsRef.current.set(element, {
                 element,
-                username
+                username,
               });
             }
           }
@@ -116,10 +122,13 @@ export function useAvatarElements() {
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
-          const hasNewAvatars = Array.from(mutation.addedNodes).some(node => {
+          const hasNewAvatars = Array.from(mutation.addedNodes).some((node) => {
             if (node instanceof HTMLElement) {
-              return node.matches?.('[data-testid^="UserAvatar-Container-"]') ||
-                node.querySelector('[data-testid^="UserAvatar-Container-"]') !== null;
+              return (
+                node.matches?.('[data-testid^="UserAvatar-Container-"]') ||
+                node.querySelector('[data-testid^="UserAvatar-Container-"]') !==
+                  null
+              );
             }
             return false;
           });
@@ -130,17 +139,22 @@ export function useAvatarElements() {
             }
             controllerRef.current = new AbortController();
 
-            requestIdleCallback(() => findAvatarElements(), { timeout: 500 });
+            // Coalesce bursts of mutations
+            requestIdleCallback(() => findAvatarElements(), { timeout: 300 });
             break;
           }
         }
       }
     });
 
-    const targetNode = document.querySelector('.avatar-container') || document.body;
+    // Narrow observer root to the main content area to reduce global overhead
+    const targetNode =
+      document.querySelector('main[role]') ||
+      document.querySelector('.avatar-container') ||
+      document.body;
     observer.observe(targetNode, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
 
     return () => {

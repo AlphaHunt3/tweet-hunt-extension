@@ -22,7 +22,7 @@ class OfficialTagsManager {
     en: OfficialTagsConfig | null;
   } = {
     zh: null,
-    en: null
+    en: null,
   };
   private defaultTags: OfficialTagsConfig = {};
   private tagsFetched: {
@@ -30,19 +30,22 @@ class OfficialTagsManager {
     en: boolean;
   } = {
     zh: false,
-    en: false
+    en: false,
   };
   private isInitialized: boolean = false;
   private localStorageKeyPrefix = 'xhunt-official-tags';
   private currentLang: string = 'zh'; // 默认语言
-  private readonly TAGS_CACHE_TTL = 22 * 60 * 60 * 1000; // 22 hours cache for tags
+  private readonly TAGS_CACHE_TTL = 3 * 60 * 60 * 1000; // 3 hours cache for tags
 
   // 初始化标签管理器
   public async init(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      devLog('log', `🏷️ [v${packageJson.version}] OfficialTagsManager initializing...`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] OfficialTagsManager initializing...`
+      );
 
       // 获取当前语言设置
       await this.getCurrentLanguage();
@@ -63,13 +66,21 @@ class OfficialTagsManager {
       }
 
       this.isInitialized = true;
-      // @ts-ignore
-      devLog('log', `🏷️ [v${packageJson.version}] OfficialTagsManager initialized with ${Object.keys(this.tags[this.currentLang] || {}).length} users in ${this.currentLang} language`);
+      const langKey = (this.currentLang === 'en' ? 'en' : 'zh') as 'zh' | 'en';
+      const usersCount = Object.keys(this.tags[langKey] || {}).length;
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] OfficialTagsManager initialized with ${usersCount} users in ${this.currentLang} language`
+      );
     } catch (error) {
       this.tags.zh = this.defaultTags;
       this.tags.en = this.defaultTags;
       this.isInitialized = true;
-      devLog('error', `🏷️ [v${packageJson.version}] Failed to initialize OfficialTagsManager:`, error);
+      devLog(
+        'error',
+        `🏷️ [v${packageJson.version}] Failed to initialize OfficialTagsManager:`,
+        error
+      );
     }
   }
 
@@ -83,9 +94,16 @@ class OfficialTagsManager {
         // 如果没有设置语言或语言设置不是 zh/en，则使用默认语言
         this.currentLang = 'zh';
       }
-      devLog('log', `🏷️ [v${packageJson.version}] Current language set to: ${this.currentLang}`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] Current language set to: ${this.currentLang}`
+      );
     } catch (error) {
-      devLog('warn', `🏷️ [v${packageJson.version}] Failed to get current language, using default:`, error);
+      devLog(
+        'warn',
+        `🏷️ [v${packageJson.version}] Failed to get current language, using default:`,
+        error
+      );
       this.currentLang = 'zh';
     }
   }
@@ -102,29 +120,51 @@ class OfficialTagsManager {
         if (this.isValidTagsConfig(storedData.tags)) {
           this.tags[lang] = storedData.tags;
           this.tagsFetched[lang] = true;
-          devLog('log', `🏷️ [v${packageJson.version}] Loaded official tags (${lang}) from localStorage: ${Object.keys(this.tags[lang] || {}).length} users`);
+          devLog(
+            'log',
+            `🏷️ [v${
+              packageJson.version
+            }] Loaded official tags (${lang}) from localStorage: ${
+              Object.keys(this.tags[lang] || {}).length
+            } users`
+          );
           return;
         }
       }
     } catch (error) {
-      devLog('warn', `🏷️ [v${packageJson.version}] Failed to load official tags (${lang}) from localStorage:`, error);
+      devLog(
+        'warn',
+        `🏷️ [v${packageJson.version}] Failed to load official tags (${lang}) from localStorage:`,
+        error
+      );
     }
 
     // 如果本地存储没有有效标签，使用默认标签
     this.tags[lang] = this.defaultTags;
-    devLog('log', `🏷️ [v${packageJson.version}] Using default official tags for ${lang}`);
+    devLog(
+      'log',
+      `🏷️ [v${packageJson.version}] Using default official tags for ${lang}`
+    );
   }
 
   // 异步获取远程标签并更新本地存储
   private async fetchAndUpdateTags(lang: 'zh' | 'en'): Promise<void> {
     try {
-      devLog('log', `🏷️ [v${packageJson.version}] Fetching remote official tags for ${lang}...`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] Fetching remote official tags for ${lang}...`
+      );
 
       // 根据语言选择不同的 dataId
-      const dataId = lang === 'en' ? 'xhunt_built_in_tag_en' : 'xhunt_built_in_tag';
+      const dataId =
+        lang === 'en' ? 'xhunt_built_in_tag_en' : 'xhunt_built_in_tag';
 
       // 使用 NacosCacheManager 获取数据，设置24小时缓存
-      const remoteTags = await nacosCacheManager.fetchWithCache<OfficialTagsConfig>(dataId, this.TAGS_CACHE_TTL);
+      const remoteTags =
+        await nacosCacheManager.fetchWithCache<OfficialTagsConfig>(
+          dataId,
+          this.TAGS_CACHE_TTL
+        );
 
       // 验证标签格式
       if (this.isValidTagsConfig(remoteTags)) {
@@ -135,32 +175,52 @@ class OfficialTagsManager {
         // 保存到本地存储
         this.saveTagsToLocalStorage(remoteTags, lang);
 
-        devLog('log', `🏷️ [v${packageJson.version}] Remote official tags (${lang}) updated: ${Object.keys(this.tags[lang] || {}).length} users`);
+        devLog(
+          'log',
+          `🏷️ [v${
+            packageJson.version
+          }] Remote official tags (${lang}) updated: ${
+            Object.keys(this.tags[lang] || {}).length
+          } users`
+        );
       } else {
         throw new Error(`Invalid remote official tags format for ${lang}`);
       }
-
     } catch (error) {
-      devLog('warn', `🏷️ [v${packageJson.version}] Failed to fetch remote official tags for ${lang}:`, error);
+      devLog(
+        'warn',
+        `🏷️ [v${packageJson.version}] Failed to fetch remote official tags for ${lang}:`,
+        error
+      );
       // 保持当前标签不变（本地存储的或默认的）
     }
   }
 
   // 保存标签到本地存储
-  private saveTagsToLocalStorage(tags: OfficialTagsConfig, lang: 'zh' | 'en'): void {
+  private saveTagsToLocalStorage(
+    tags: OfficialTagsConfig,
+    lang: 'zh' | 'en'
+  ): void {
     try {
       const storageKey = `${this.localStorageKeyPrefix}-${lang}`;
       const dataToStore = {
         tags,
         timestamp: Date.now(),
         version: packageJson.version,
-        language: lang
+        language: lang,
       };
 
       localStorage.setItem(storageKey, JSON.stringify(dataToStore));
-      devLog('log', `🏷️ [v${packageJson.version}] Official tags (${lang}) saved to localStorage`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] Official tags (${lang}) saved to localStorage`
+      );
     } catch (error) {
-      devLog('error', `🏷️ [v${packageJson.version}] Failed to save official tags (${lang}) to localStorage:`, error);
+      devLog(
+        'error',
+        `🏷️ [v${packageJson.version}] Failed to save official tags (${lang}) to localStorage:`,
+        error
+      );
     }
   }
 
@@ -171,13 +231,16 @@ class OfficialTagsManager {
     }
 
     // 如果没有指定语言，使用当前语言
-    const useLang = lang || this.currentLang as 'zh' | 'en';
+    const useLang = lang || (this.currentLang as 'zh' | 'en');
 
     // 如果指定语言的标签未加载，尝试使用另一种语言
     if (!this.tags[useLang]) {
       const fallbackLang = useLang === 'zh' ? 'en' : 'zh';
       if (this.tags[fallbackLang]) {
-        devLog('log', `🏷️ [v${packageJson.version}] Using fallback language ${fallbackLang} for user ${username}`);
+        devLog(
+          'log',
+          `🏷️ [v${packageJson.version}] Using fallback language ${fallbackLang} for user ${username}`
+        );
         return this.getUserTagsFromLanguage(username, fallbackLang);
       }
       return [];
@@ -187,7 +250,10 @@ class OfficialTagsManager {
   }
 
   // 从特定语言获取用户标签
-  private getUserTagsFromLanguage(username: string, lang: 'zh' | 'en'): string[] {
+  private getUserTagsFromLanguage(
+    username: string,
+    lang: 'zh' | 'en'
+  ): string[] {
     const tags = this.tags[lang] || this.defaultTags;
 
     // 尝试精确匹配
@@ -233,7 +299,7 @@ class OfficialTagsManager {
     }
 
     // 如果没有指定语言，使用当前语言
-    const useLang = lang || this.currentLang as 'zh' | 'en';
+    const useLang = lang || (this.currentLang as 'zh' | 'en');
 
     // 如果指定语言的标签未加载，尝试使用另一种语言
     if (!this.tags[useLang]) {
@@ -265,7 +331,7 @@ class OfficialTagsManager {
       }
 
       // 检查标签数组中的每个元素都是字符串
-      if (!value.every(tag => typeof tag === 'string')) {
+      if (!value.every((tag) => typeof tag === 'string')) {
         return false;
       }
     }
@@ -282,22 +348,26 @@ class OfficialTagsManager {
       languages: {} as Record<string, any>,
       isInitialized: this.isInitialized,
       cacheStatus: nacosCacheManager.getStats(),
-      version: packageJson.version
+      version: packageJson.version,
     };
 
     // 为每种语言添加统计信息
     for (const lang of ['zh', 'en'] as const) {
       const tags = this.tags[lang] || this.defaultTags;
       const totalUsers = Object.keys(tags).length;
-      const totalTags = Object.values(tags).reduce((sum, userTags) => sum + userTags.length, 0);
-      const avgTagsPerUser = totalUsers > 0 ? (totalTags / totalUsers).toFixed(2) : '0';
+      const totalTags = Object.values(tags).reduce(
+        (sum, userTags) => sum + userTags.length,
+        0
+      );
+      const avgTagsPerUser =
+        totalUsers > 0 ? (totalTags / totalUsers).toFixed(2) : '0';
 
       stats.languages[lang] = {
         totalUsers,
         totalTags,
         avgTagsPerUser,
         tagsFetched: this.tagsFetched[lang],
-        sampleUsers: Object.keys(tags).slice(0, 3) // 显示前3个用户作为示例
+        sampleUsers: Object.keys(tags).slice(0, 3), // 显示前3个用户作为示例
       };
     }
 
@@ -308,14 +378,18 @@ class OfficialTagsManager {
   public resetCache(lang?: 'zh' | 'en'): void {
     if (lang) {
       // 重置 NacosCacheManager 缓存
-      const dataId = lang === 'en' ? 'xhunt_built_in_tag_en' : 'xhunt_built_in_tag';
+      const dataId =
+        lang === 'en' ? 'xhunt_built_in_tag_en' : 'xhunt_built_in_tag';
       nacosCacheManager.invalidate(dataId);
 
       // 重置特定语言的缓存
       this.tags[lang] = null;
       this.tagsFetched[lang] = false;
       localStorage.removeItem(`${this.localStorageKeyPrefix}-${lang}`);
-      devLog('log', `🏷️ [v${packageJson.version}] Official tags cache for ${lang} reset`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] Official tags cache for ${lang} reset`
+      );
     } else {
       // 重置所有语言的缓存
       nacosCacheManager.invalidate('xhunt_built_in_tag');
@@ -327,14 +401,20 @@ class OfficialTagsManager {
       this.tagsFetched.en = false;
       localStorage.removeItem(`${this.localStorageKeyPrefix}-zh`);
       localStorage.removeItem(`${this.localStorageKeyPrefix}-en`);
-      devLog('log', `🏷️ [v${packageJson.version}] All official tags caches reset`);
+      devLog(
+        'log',
+        `🏷️ [v${packageJson.version}] All official tags caches reset`
+      );
     }
   }
 
   // 清理方法
   public cleanup(): void {
     this.isInitialized = false;
-    devLog('log', `🏷️ [v${packageJson.version}] OfficialTagsManager cleaned up`);
+    devLog(
+      'log',
+      `🏷️ [v${packageJson.version}] OfficialTagsManager cleaned up`
+    );
   }
 }
 

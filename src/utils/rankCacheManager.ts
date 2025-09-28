@@ -3,8 +3,9 @@ import packageJson from '../../package.json';
 
 // Constants
 const MAX_CACHE_SIZE = 500;
-const CACHE_EXPIRATION = 24 * 60 * 60 * 1000; // 1 day
-const RANK_CACHE_KEY = '@xhunt/rank-cache';
+const CACHE_EXPIRATION = 12 * 60 * 60 * 1000; // 0.5 day
+const RANK_CACHE_KEY_OLD = '@xhunt/rank-cache';
+const RANK_CACHE_KEY = '@xhunt/rank-cache-new';
 const BATCH_OPERATION_DELAY = 100; // Delay for batch operations
 
 // Cache management
@@ -135,20 +136,20 @@ export class RankCacheManager {
   static async get(username: string): Promise<RankCacheEntry | null> {
     try {
       const cache = await this.getCache();
-      const entry = cache[username];
+      const entry = cache[username.toLowerCase()];
 
       if (!entry) return null;
 
       const now = Date.now();
       if (now - entry.timestamp > CACHE_EXPIRATION) {
-        delete cache[username];
+        delete cache[username.toLowerCase()];
         await this.setCache(cache);
         return null;
       }
 
       // Update last accessed time
       entry.lastAccessed = now;
-      cache[username] = entry;
+      cache[username.toLowerCase()] = entry;
       await this.setCache(cache);
 
       return entry;
@@ -164,7 +165,7 @@ export class RankCacheManager {
       let cache = await this.getCache();
       const now = Date.now();
 
-      cache[username] = {
+      cache[username.toLowerCase()] = {
         kolRank: rank,
         timestamp: now,
         lastAccessed: now
@@ -175,7 +176,7 @@ export class RankCacheManager {
       devLog('error', `📊 [v${packageJson.version}] Failed to set cache entry:`, error);
       // Create minimal cache
       const minimalCache = {
-        [username]: {
+        [username.toLowerCase()]: {
           kolRank: rank,
           timestamp: Date.now(),
           lastAccessed: Date.now()
@@ -194,37 +195,37 @@ export class RankCacheManager {
   static async setBatch(usernameRankMap: Record<string, number>): Promise<void> {
     try {
       if (Object.keys(usernameRankMap).length === 0) return;
-      
+
       let cache = await this.getCache();
       const now = Date.now();
-      
+
       // Update all entries in one operation
       Object.entries(usernameRankMap).forEach(([username, rank]) => {
-        cache[username] = {
+        cache[username.toLowerCase()] = {
           kolRank: rank,
           timestamp: now,
           lastAccessed: now
         };
       });
-      
+
       await this.setCache(cache);
       devLog('log', `📊 [v${packageJson.version}] Batch updated ${Object.keys(usernameRankMap).length} rank entries`);
     } catch (error) {
       devLog('error', `📊 [v${packageJson.version}] Failed to batch set cache entries:`, error);
-      
+
       // If batch operation fails, try to save at least some entries
       try {
         const minimalCache: RankCache = {};
         const entries = Object.entries(usernameRankMap).slice(0, 10); // Take first 10 entries
-        
+
         entries.forEach(([username, rank]) => {
-          minimalCache[username] = {
+          minimalCache[username.toLowerCase()] = {
             kolRank: rank,
             timestamp: Date.now(),
             lastAccessed: Date.now()
           };
         });
-        
+
         await localStorage.setItem(RANK_CACHE_KEY, JSON.stringify(minimalCache));
         devLog('warn', `📊 [v${packageJson.version}] Created minimal cache with ${entries.length} entries`);
       } catch (fallbackError) {
@@ -237,35 +238,35 @@ export class RankCacheManager {
   static async getBatch(usernames: string[]): Promise<Record<string, RankCacheEntry>> {
     try {
       if (usernames.length === 0) return {};
-      
+
       const cache = await this.getCache();
       const now = Date.now();
       const result: Record<string, RankCacheEntry> = {};
       const cacheUpdates: Record<string, RankCacheEntry> = {};
       let needsUpdate = false;
-      
+
       usernames.forEach(username => {
-        const entry = cache[username];
-        
+        const entry = cache[username.toLowerCase()];
+
         if (!entry) return;
-        
+
         // Check expiration
         if (now - entry.timestamp > CACHE_EXPIRATION) {
-          delete cache[username];
+          delete cache[username.toLowerCase()];
           needsUpdate = true;
           return;
         }
-        
+
         // Update last accessed time
         if (now - entry.lastAccessed > 60000) { // Only update if last access was more than a minute ago
           entry.lastAccessed = now;
-          cacheUpdates[username] = entry;
+          cacheUpdates[username.toLowerCase()] = entry;
           needsUpdate = true;
         }
-        
-        result[username] = entry;
+
+        result[username.toLowerCase()] = entry;
       });
-      
+
       // Update cache if needed (with delay to avoid excessive writes)
       if (needsUpdate) {
         setTimeout(async () => {
@@ -273,12 +274,12 @@ export class RankCacheManager {
             // Only update the cache if there are actual updates
             if (Object.keys(cacheUpdates).length > 0) {
               const updatedCache = await this.getCache();
-              
+
               // Apply all updates
               Object.entries(cacheUpdates).forEach(([username, entry]) => {
                 updatedCache[username] = entry;
               });
-              
+
               await this.setCache(updatedCache);
               devLog('log', `📊 [v${packageJson.version}] Updated lastAccessed for ${Object.keys(cacheUpdates).length} entries`);
             }
@@ -287,7 +288,7 @@ export class RankCacheManager {
           }
         }, BATCH_OPERATION_DELAY);
       }
-      
+
       return result;
     } catch (error) {
       devLog('error', `📊 [v${packageJson.version}] Failed to batch get cache entries:`, error);
@@ -328,6 +329,19 @@ export class RankCacheManager {
   // Manual cleanup
   static async manualCleanup() {
     await this.performScheduledCleanup();
+  }
+
+  // Force clear all cache data
+  static async forceClearAll(): Promise<void> {
+    try {
+      // Clear localStorage
+      await localStorage.removeItem(RANK_CACHE_KEY);
+      await localStorage.removeItem(RANK_CACHE_KEY_OLD);
+
+      devLog('log', `📊 [v${packageJson.version}] Force cleared all rank cache data`);
+    } catch (error) {
+      devLog('error', `📊 [v${packageJson.version}] Failed to force clear rank cache:`, error);
+    }
   }
 }
 

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import usePlacementTrackingClick from '~contents/hooks/usePlacementTrackingClick.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import cssText from 'data-text:~/css/style.css';
@@ -21,8 +20,10 @@ import { UICheckSection } from '~compontents/UICheckSection.tsx';
 import { useSystemInitialization } from '~contents/hooks/useSystemInitialization.ts';
 import TweetDetailButton from '~compontents/area/TweetDetailButton.tsx';
 import useThemeWatcher from '~contents/hooks/useThemeWatcher.ts';
-import { ProfileFollowButtonArea } from '~compontents/area/ProfileFollowButtonArea.tsx';
-import { AiChatDialog } from '~compontents/area/AiChatDialog.tsx';
+import useOpenSettingsHandler from '~contents/hooks/useOpenSettingsHandler.ts';
+import SoundPlayer from '~compontents/area/SoundPlayer.tsx';
+import { LeaderProvider } from '~contents/contexts/LeaderContext.tsx';
+import RealtimeNotification from '~compontents/RealtimeNotification.tsx';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -35,6 +36,13 @@ export const getStyle = () => {
 };
 
 const Main = () => {
+  // Early guard: do not run hooks/components on non-x.com pages
+  if (
+    typeof window !== 'undefined' &&
+    !window.location.href.includes('x.com')
+  ) {
+    return <></>;
+  }
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   useSystemInitialization();
   useThemeWatcher();
@@ -44,9 +52,17 @@ const Main = () => {
   const mainData = useMainData();
   useHighlightTokens(mainData.supportedTokens);
   useAvatarRanks();
+  useOpenSettingsHandler();
 
-  if (!mainData.currentUrl.includes('x.com')) return <></>;
+  return (
+    <LeaderProvider>
+      <MainContent theme={theme} mainData={mainData} />
+    </LeaderProvider>
+  );
+};
 
+// 内部组件，可以安全使用 useLeader
+function MainContent({ theme, mainData }: { theme: string; mainData: any }) {
   return (
     <div
       data-theme={theme}
@@ -56,6 +72,10 @@ const Main = () => {
       }}
     >
       <GlobalInjector />
+
+      <ErrorBoundary name='SoundPlayerSection'>
+        <SoundPlayer />
+      </ErrorBoundary>
 
       <ErrorBoundary name='UICheckSection'>
         <UICheckSection />
@@ -104,8 +124,25 @@ const Main = () => {
       <ErrorBoundary name='AiChatDialog'>
         <AiChatDialog />
       </ErrorBoundary> */}
+
+      {/* 实时通知组件 */}
+      <ErrorBoundary name='RealtimeNotification'>
+        <RealtimeNotification
+          getTargetElement={() => {
+            const main = document.querySelector('main');
+            const firstChild = main?.firstChild;
+            console.log('[Main] getTargetElement:', {
+              main,
+              firstChild,
+              isElement: firstChild instanceof Element,
+            });
+            return (firstChild as Element) || document.body;
+          }}
+          offset={{ x: 0, y: 0 }}
+        />
+      </ErrorBoundary>
     </div>
   );
-};
+}
 
 export default Main;

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;1,100;1,300;1,400&family=Noto+Sans+SC:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Edu+NSW+ACT+Cursive:wght@400..700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;1,100;1,300;1,400&family=Noto+Sans+SC:wght@100..900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -252,4 +252,11 @@ div[data-theme='dark'] {
 
 .lato-font {
   font-family: "'Lato','Noto Sans SC', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'";
+}
+
+.edu-font {
+  font-family: 'Edu NSW ACT Cursive', 'Lato', 'Noto Sans SC', cursive;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
 }

@@ -41,7 +41,11 @@ class AvatarStyler {
 
       return false;
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Error in findAvatarImage:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Error in findAvatarImage:`,
+        error
+      );
       return false;
     }
   }
@@ -82,9 +86,16 @@ class AvatarStyler {
 
       badge.setAttribute('data-theme', theme);
       badge.classList.toggle('loading', isLoading);
-      badge.innerHTML = `<span class="xhunt-avatar-rank-text">${formatRank(Number(rank), username)}</span>`;
+      badge.innerHTML = `<span class="xhunt-avatar-rank-text">${formatRank(
+        Number(rank),
+        username
+      )}</span>`;
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Error in updateRankBadge:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Error in updateRankBadge:`,
+        error
+      );
     }
   }
 
@@ -116,7 +127,11 @@ class AvatarStyler {
       parent4.style.overflow = 'visible';
     } catch (error) {
       // 静默处理错误
-      devLog('error', `📊 [v${packageJson.version}] Error in setDMOverflowVisible:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Error in setDMOverflowVisible:`,
+        error
+      );
     }
   }
 }
@@ -132,10 +147,17 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
         const href = currentElement.getAttribute('href');
         const testId = currentElement.getAttribute('data-testid');
 
-        if (href && href.startsWith('/') && testId === 'DM_Conversation_Avatar') {
+        if (
+          href &&
+          href.startsWith('/') &&
+          testId === 'DM_Conversation_Avatar'
+        ) {
           const username = href.slice(1); // 移除开头的 '/'
           if (username && username !== 'unknown') {
-            devLog('log', `📊 [v${packageJson.version}] Resolved unknown username via ancestor: ${username}`);
+            devLog(
+              'log',
+              `📊 [v${packageJson.version}] Resolved unknown username via ancestor: ${username}`
+            );
             return username;
           }
         }
@@ -151,17 +173,27 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
         if (href && href.startsWith('/')) {
           const username = href.slice(1); // 移除开头的 '/'
           if (username && username !== 'unknown') {
-            devLog('log', `📊 [v${packageJson.version}] Resolved unknown username via sibling: ${username}`);
+            devLog(
+              'log',
+              `📊 [v${packageJson.version}] Resolved unknown username via sibling: ${username}`
+            );
             return username;
           }
         }
       }
     }
 
-    devLog('log', `📊 [v${packageJson.version}] Could not resolve unknown username, will be filtered out`);
+    devLog(
+      'log',
+      `📊 [v${packageJson.version}] Could not resolve unknown username, will be filtered out`
+    );
     return null;
   } catch (error) {
-    devLog('error', `📊 [v${packageJson.version}] Error resolving unknown username:`, error);
+    devLog(
+      'error',
+      `📊 [v${packageJson.version}] Error resolving unknown username:`,
+      error
+    );
     return null;
   }
 }
@@ -188,8 +220,15 @@ async function safeChromeCaller<T>(
 ): Promise<T> {
   try {
     // 检查扩展上下文是否有效
-    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
-      devLog('warn', `📊 [v${packageJson.version}] ${operationName} skipped: Extension context invalid`);
+    if (
+      typeof chrome === 'undefined' ||
+      !chrome.runtime ||
+      !chrome.runtime.id
+    ) {
+      devLog(
+        'warn',
+        `📊 [v${packageJson.version}] ${operationName} skipped: Extension context invalid`
+      );
       return fallback;
     }
 
@@ -200,10 +239,20 @@ async function safeChromeCaller<T>(
     return result;
   } catch (error) {
     // 检查是否是上下文失效错误
-    if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-      devLog('warn', `📊 [v${packageJson.version}] ${operationName} failed: Extension context invalidated`);
+    if (
+      error instanceof Error &&
+      error.message.includes('Extension context invalidated')
+    ) {
+      devLog(
+        'warn',
+        `📊 [v${packageJson.version}] ${operationName} failed: Extension context invalidated`
+      );
     } else {
-      devLog('warn', `📊 [v${packageJson.version}] ${operationName} failed:`, error);
+      devLog(
+        'warn',
+        `📊 [v${packageJson.version}] ${operationName} failed:`,
+        error
+      );
     }
     return fallback;
   }
@@ -215,7 +264,9 @@ export function useAvatarRanks() {
   const currentUrl = useCurrentUrl();
   const preUrlRef = useRef('');
   const hasCredibilityBadgeRef = useRef<undefined | boolean>(undefined);
-  const [loadingUsernames, setLoadingUsernames] = useState<Set<string>>(new Set());
+  const [loadingUsernames, setLoadingUsernames] = useState<Set<string>>(
+    new Set()
+  );
 
   // 初始化排名服务
   useEffect(() => {
@@ -247,7 +298,7 @@ export function useAvatarRanks() {
       }
 
       // Extract usernames from elements
-      const usernameElements: Array<{el: HTMLElement, username: string}> = [];
+      const usernameElements: Array<{ el: HTMLElement; username: string }> = [];
       const usernamesToCheck: string[] = [];
 
       // First pass: extract usernames and prepare for batch cache check
@@ -266,7 +317,7 @@ export function useAvatarRanks() {
         }
 
         if (username && username !== 'unknown') {
-          usernameElements.push({el, username});
+          usernameElements.push({ el, username });
           usernamesToCheck.push(username);
         }
       }
@@ -278,8 +329,10 @@ export function useAvatarRanks() {
       // 使用排名服务获取排名
       const ranks = await rankService.getRanks(usernamesToCheck);
 
-      // 处理排名结果并更新UI
-      for (const {el, username} of usernameElements) {
+      // 处理排名结果并更新UI（批量读写，减少布局抖动）
+      const writeTasks: Array<() => void> = [];
+
+      for (const { el, username } of usernameElements) {
         const rank = ranks[username] ?? -2;
         const isLoading = loadingUsernames.has(username);
 
@@ -299,49 +352,94 @@ export function useAvatarRanks() {
         const isSquareShape = AvatarStyler.findAvatarImage(el);
         const borderRadius = isSquareShape ? '10%' : '50%';
 
-        if (hasTweetUserAvatar) {
-          parent.classList.add('xhunt-avatar-inner-border');
-          parent.style.borderRadius = borderRadius;
-
-          const grandParent = parent.parentElement;
-          if (grandParent) {
-            grandParent.classList.add('xhunt-avatar-outer-border');
-            grandParent.style.borderRadius = borderRadius;
-          }
-        } else {
-          const rect = el.getBoundingClientRect();
-          const size = Math.max(rect.width, rect.height);
-          el.style.backgroundColor = 'transparent';
-          el.style.border = `${size > 120 ? '5px' : '3px'} solid rgba(96, 165, 250, 0.5)`;
-          el.style.borderRadius = borderRadius;
-        }
-
-        // 为每个头像元素设置 DM 对话的 overflow
-        AvatarStyler.setDMOverflowVisible(el);
-
+        // 单次测量
         const rect = el.getBoundingClientRect();
-        const isLarge = Math.max(rect.width, rect.height) > 120;
+        const size = Math.max(rect.width, rect.height);
+        const isLarge = size > 120;
 
-        if (hasTweetUserAvatar) {
-          const grandParent = parent.parentElement;
-          if (grandParent) {
-            AvatarStyler.updateRankBadge(grandParent, rank, isLoading, false, isLarge, username, theme, hasCredibilityBadgeRef.current);
+        // 收集写任务
+        writeTasks.push(() => {
+          if (hasTweetUserAvatar) {
+            if (!parent.classList.contains('xhunt-avatar-inner-border')) {
+              parent.classList.add('xhunt-avatar-inner-border');
+            }
+            if (parent.style.borderRadius !== borderRadius) {
+              parent.style.borderRadius = borderRadius;
+            }
+
+            const grandParent = parent.parentElement;
+            if (grandParent) {
+              if (
+                !grandParent.classList.contains('xhunt-avatar-outer-border')
+              ) {
+                grandParent.classList.add('xhunt-avatar-outer-border');
+              }
+              if (grandParent.style.borderRadius !== borderRadius) {
+                grandParent.style.borderRadius = borderRadius;
+              }
+              AvatarStyler.updateRankBadge(
+                grandParent,
+                rank,
+                isLoading,
+                false,
+                isLarge,
+                username,
+                theme,
+                hasCredibilityBadgeRef.current
+              );
+            }
+          } else {
+            if (el.style.backgroundColor !== 'transparent') {
+              el.style.backgroundColor = 'transparent';
+            }
+            const expectedBorder = `${
+              size > 120 ? '5px' : '3px'
+            } solid rgba(96, 165, 250, 0.5)`;
+            if (el.style.border !== expectedBorder) {
+              el.style.border = expectedBorder;
+            }
+            if (el.style.borderRadius !== borderRadius) {
+              el.style.borderRadius = borderRadius;
+            }
+            AvatarStyler.updateRankBadge(
+              el,
+              rank,
+              isLoading,
+              true,
+              isLarge,
+              username,
+              theme,
+              hasCredibilityBadgeRef.current
+            );
           }
-        } else {
-          AvatarStyler.updateRankBadge(el, rank, isLoading, true, isLarge, username, theme, hasCredibilityBadgeRef.current);
-        }
 
-        if (!isLoading) {
-          (el as any).processedUrl = currentUrl;
-        }
+          // 为每个头像元素设置 DM 对话的 overflow
+          AvatarStyler.setDMOverflowVisible(el);
+
+          if (!isLoading) {
+            (el as any).processedUrl = currentUrl;
+          }
+        });
+      }
+
+      if (writeTasks.length) {
+        requestAnimationFrame(() => {
+          for (const task of writeTasks) task();
+        });
       }
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Error in processAvatars:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Error in processAvatars:`,
+        error
+      );
     }
   };
 
   useEffect(() => {
-    hasCredibilityBadgeRef.current = !!document.querySelector('.credibility-badge-wrapper');
+    hasCredibilityBadgeRef.current = !!document.querySelector(
+      '.credibility-badge-wrapper'
+    );
     const largeAvatars = (useAvatarElements as any).getLargeAvatars();
     const resetAvatar = (useAvatarElements as any).resetAvatar;
     const processedNodesRef = (useAvatarElements as any).processedNodes;
@@ -370,6 +468,6 @@ export function useAvatarRanks() {
   // 🆕 返回缓存管理方法供调试使用
   return {
     getServiceStats: rankService.getStats,
-    preloadRanks: rankService.preloadRanks
+    preloadRanks: rankService.preloadRanks,
   };
 }

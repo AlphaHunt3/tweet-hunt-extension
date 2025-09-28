@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDebounce } from 'ahooks';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
 import { extractUsernameFromUrl } from '~contents/utils';
+import { NewTwitterUserData } from '~types';
 
 export interface DOMUserInfo {
   username: string;    // Twitter handle (without @)
@@ -144,31 +145,58 @@ export function extractUserInfoFromDOM(userId: string): DOMUserInfo | null {
 /**
  * Hook to get user information with retry logic
  * @param userId - The user ID from URL
+ * @param newTwitterData - Data from fetchTwitterInfoNew (优先使用)
+ * @param isLoadingTwitterData - Whether fetchTwitterInfoNew is loading
  * @param maxRetries - Maximum number of retries
  * @param retryInterval - Interval between retries in ms
  * @returns User information and loading state
  */
 export function useDOMUserInfo(
   userId: string,
+  newTwitterData?: NewTwitterUserData | null,
+  isLoadingTwitterData?: boolean,
   maxRetries = 5,
-  retryInterval = 200
+  retryInterval = 1500
 ): { userInfo: DOMUserInfo | null; isLoading: boolean } {
   const [userInfo, setUserInfo] = useState<DOMUserInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDOMLoading, setIsDOMLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const currentUrl = useCurrentUrl();
   const debouncedUserId = useDebounce(userId, { wait: 500 });
 
+  // 计算最终的 loading 状态
+  const isLoading = isLoadingTwitterData || isDOMLoading;
+
   useEffect(() => {
     if (!debouncedUserId) {
-      setIsLoading(false);
+      setIsDOMLoading(false);
       setRetryCount(0);
       return;
     }
 
-    setUserInfo(null);
+    // 如果正在加载 Twitter 数据，等待加载完成
+    if (isLoadingTwitterData) {
+      setIsDOMLoading(true);
+      return;
+    }
 
-    setIsLoading(true);
+    // 优先使用 NewTwitterUserData 中的 profile 信息
+    if (newTwitterData?.profile) {
+      const profile = newTwitterData.profile;
+      setUserInfo({
+        username: profile.username_raw || profile.username,
+        name: profile.name,
+        avatar: profile.profile_image_url,
+        source: 'data-testid' // 标记为来自 API 数据
+      });
+      setIsDOMLoading(false);
+      setRetryCount(0);
+      return;
+    }
+
+    // 如果没有 NewTwitterUserData，才从 DOM 提取
+    setUserInfo(null);
+    setIsDOMLoading(true);
 
     // Try to extract user info immediately
     let extractedInfo = extractUserInfoFromDOM(debouncedUserId);
@@ -183,7 +211,7 @@ export function useDOMUserInfo(
 
     if (extractedInfo) {
       setUserInfo(extractedInfo);
-      setIsLoading(false);
+      setIsDOMLoading(false);
       setRetryCount(0);
       return;
     }
@@ -203,7 +231,7 @@ export function useDOMUserInfo(
 
         if (retryExtractedInfo) {
           setUserInfo(retryExtractedInfo);
-          setIsLoading(false);
+          setIsDOMLoading(false);
           setRetryCount(0);
         } else {
           setRetryCount(prev => prev + 1);
@@ -211,11 +239,11 @@ export function useDOMUserInfo(
       }, retryInterval * Math.pow(1.5, retryCount));
 
       return () => clearTimeout(timer);
-    } else if (isLoading) {
+    } else if (isDOMLoading) {
       // After max retries, set loading to false but keep userInfo as null
-      setIsLoading(false);
+      setIsDOMLoading(false);
     }
-  }, [debouncedUserId, retryCount, currentUrl, maxRetries, retryInterval]);
+  }, [debouncedUserId, retryCount, currentUrl, maxRetries, retryInterval, newTwitterData, isLoadingTwitterData]);
 
   return { userInfo, isLoading };
 }
