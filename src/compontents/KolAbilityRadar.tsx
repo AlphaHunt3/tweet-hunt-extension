@@ -5,7 +5,10 @@ import { generatePersonalizedColor } from '~/utils/colorGenerator.ts';
 import { safeNumber, safeString } from '~/utils/dataValidation.ts';
 import { MultiFieldItem, NewTwitterUserData } from '~types';
 import { useDOMUserInfo } from '~utils/domUserExtractor.ts';
-import { getCanvasContext, releaseCanvasContext } from '~utils/canvasContextManager';
+import {
+  getCanvasContext,
+  releaseCanvasContext,
+} from '~utils/canvasContextManager';
 
 export interface KolAbilityData {
   abilities: MultiFieldItem[];
@@ -39,22 +42,31 @@ const MAX_STORAGE_SIZE = 100 * 1024; // 100KB存储限制
 
 // 🆕 Canvas 安全配置
 const CANVAS_CONFIG = {
-  MAX_WIDTH: 800,        // 最大宽度
-  MAX_HEIGHT: 400,       // 最大高度
-  MIN_WIDTH: 300,        // 最小宽度
-  MIN_HEIGHT: 200,       // 最小高度
-  DEFAULT_WIDTH: 360,    // 默认宽度
-  DEFAULT_HEIGHT: 260,   // 默认高度
+  MAX_WIDTH: 800, // 最大宽度
+  MAX_HEIGHT: 400, // 最大高度
+  MIN_WIDTH: 300, // 最小宽度
+  MIN_HEIGHT: 200, // 最小高度
+  DEFAULT_WIDTH: 360, // 默认宽度
+  DEFAULT_HEIGHT: 260, // 默认高度
   MAX_DEVICE_PIXEL_RATIO: 2, // 最大设备像素比
-  MAX_CANVAS_AREA: 320000    // 最大画布面积 (800x400)
+  MAX_CANVAS_AREA: 320000, // 最大画布面积 (800x400)
 };
 
 // 🆕 安全的画布尺寸计算
-const calculateSafeCanvasSize = (requestedWidth: number, requestedHeight: number) => {
+const calculateSafeCanvasSize = (
+  requestedWidth: number,
+  requestedHeight: number
+) => {
   try {
     // 限制尺寸范围
-    let safeWidth = Math.max(CANVAS_CONFIG.MIN_WIDTH, Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH));
-    let safeHeight = Math.max(CANVAS_CONFIG.MIN_HEIGHT, Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT));
+    let safeWidth = Math.max(
+      CANVAS_CONFIG.MIN_WIDTH,
+      Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH)
+    );
+    let safeHeight = Math.max(
+      CANVAS_CONFIG.MIN_HEIGHT,
+      Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT)
+    );
 
     // 检查总面积
     const totalArea = safeWidth * safeHeight;
@@ -67,12 +79,17 @@ const calculateSafeCanvasSize = (requestedWidth: number, requestedHeight: number
 
     // 确保是有效数值
     safeWidth = isFinite(safeWidth) ? safeWidth : CANVAS_CONFIG.DEFAULT_WIDTH;
-    safeHeight = isFinite(safeHeight) ? safeHeight : CANVAS_CONFIG.DEFAULT_HEIGHT;
+    safeHeight = isFinite(safeHeight)
+      ? safeHeight
+      : CANVAS_CONFIG.DEFAULT_HEIGHT;
 
     return { width: safeWidth, height: safeHeight };
   } catch (error) {
     console.log('Error calculating canvas size, using defaults:', error);
-    return { width: CANVAS_CONFIG.DEFAULT_WIDTH, height: CANVAS_CONFIG.DEFAULT_HEIGHT };
+    return {
+      width: CANVAS_CONFIG.DEFAULT_WIDTH,
+      height: CANVAS_CONFIG.DEFAULT_HEIGHT,
+    };
   }
 };
 
@@ -98,8 +115,11 @@ const getAvatarCache = (): AvatarCacheStorage => {
 
     // 过滤过期数据
     const validCache: AvatarCacheStorage = {};
-    Object.keys(data).forEach(username => {
-      if (data[username] && now - data[username].timestamp < CACHE_EXPIRY_TIME) {
+    Object.keys(data).forEach((username) => {
+      if (
+        data[username] &&
+        now - data[username].timestamp < CACHE_EXPIRY_TIME
+      ) {
         validCache[username] = data[username];
       }
     });
@@ -119,8 +139,8 @@ const setAvatarCache = (cache: AvatarCacheStorage): void => {
     // 如果超过数量限制，按时间戳排序，保留最新的
     if (cacheEntries.length > MAX_CACHE_SIZE) {
       cacheEntries = cacheEntries
-      .sort(([, a], [, b]) => b.timestamp - a.timestamp)
-      .slice(0, MAX_CACHE_SIZE);
+        .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+        .slice(0, MAX_CACHE_SIZE);
     }
 
     const trimmedCache = Object.fromEntries(cacheEntries);
@@ -128,17 +148,23 @@ const setAvatarCache = (cache: AvatarCacheStorage): void => {
 
     // 检查存储大小限制
     if (cacheString.length > MAX_STORAGE_SIZE) {
-      console.log(`Avatar cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`);
+      console.log(
+        `Avatar cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`
+      );
 
       // 激进清理：只保留最近的数据
       const entries = Object.entries(cache);
       const recentEntries = entries
-      .filter(([, entry]) => Date.now() - entry.timestamp < 24 * 60 * 60 * 1000) // 只保留24小时内的
-      .sort(([, a], [, b]) => b.timestamp - a.timestamp)
-      .slice(0, Math.floor(MAX_CACHE_SIZE * 0.5)); // 只保留50%
+        .filter(
+          ([, entry]) => Date.now() - entry.timestamp < 24 * 60 * 60 * 1000
+        ) // 只保留24小时内的
+        .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+        .slice(0, Math.floor(MAX_CACHE_SIZE * 0.5)); // 只保留50%
 
       cache = Object.fromEntries(recentEntries);
-      console.log(`Aggressive cleanup completed, kept ${recentEntries.length} entries`);
+      console.log(
+        `Aggressive cleanup completed, kept ${recentEntries.length} entries`
+      );
     }
 
     localStorage.setItem(AVATAR_CACHE_KEY, JSON.stringify(trimmedCache));
@@ -153,12 +179,15 @@ const setAvatarCache = (cache: AvatarCacheStorage): void => {
   }
 };
 
-const updateAvatarCache = (username: string, data: { name: string; avatar: string }): void => {
+const updateAvatarCache = (
+  username: string,
+  data: { name: string; avatar: string }
+): void => {
   const cache = getAvatarCache();
   cache[username] = {
     name: data.name,
     avatar: data.avatar,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
   setAvatarCache(cache);
 };
@@ -187,13 +216,13 @@ const manageCacheSize = () => {
   }> = [];
 
   // 收集所有缓存条目
-  Object.keys(avatarCacheByUrl).forEach(url => {
-    Object.keys(avatarCacheByUrl[url]).forEach(username => {
+  Object.keys(avatarCacheByUrl).forEach((url) => {
+    Object.keys(avatarCacheByUrl[url]).forEach((username) => {
       totalCacheCount++;
       allCacheEntries.push({
         url,
         username,
-        timestamp: avatarCacheByUrl[url][username].timestamp
+        timestamp: avatarCacheByUrl[url][username].timestamp,
       });
     });
   });
@@ -204,7 +233,10 @@ const manageCacheSize = () => {
     allCacheEntries.sort((a, b) => a.timestamp - b.timestamp);
 
     // 删除最旧的缓存，直到数量在限制内
-    const entriesToDelete = allCacheEntries.slice(0, totalCacheCount - MAX_MEMORY_CACHE_SIZE);
+    const entriesToDelete = allCacheEntries.slice(
+      0,
+      totalCacheCount - MAX_MEMORY_CACHE_SIZE
+    );
 
     entriesToDelete.forEach(({ url, username }) => {
       if (avatarCacheByUrl[url] && avatarCacheByUrl[url][username]) {
@@ -217,30 +249,38 @@ const manageCacheSize = () => {
       }
     });
 
-    console.log(`🗑️ Cleaned up ${entriesToDelete.length} old memory cache entries`);
+    console.log(
+      `🗑️ Cleaned up ${entriesToDelete.length} old memory cache entries`
+    );
   }
 };
 
-function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitterData, loadingTwInfo }: KolAbilityRadarProps) {
+function KolAbilityRadar({
+  abilities = [],
+  summary,
+  isLoading,
+  userId,
+  newTwitterData,
+  loadingTwInfo,
+}: KolAbilityRadarProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(() =>
-    calculateSafeCanvasSize(CANVAS_CONFIG.DEFAULT_WIDTH, CANVAS_CONFIG.DEFAULT_HEIGHT)
+    calculateSafeCanvasSize(
+      CANVAS_CONFIG.DEFAULT_WIDTH,
+      CANVAS_CONFIG.DEFAULT_HEIGHT
+    )
   );
   // const { userInfo: domUserInfo, isLoading: domUserInfoLoading } = useDOMUserInfo(userId);
-  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } = useDOMUserInfo(
-    userId,
-    newTwitterData,
-    loadingTwInfo
-  );
-
+  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } =
+    useDOMUserInfo(userId, newTwitterData, loadingTwInfo);
 
   // 从 abilities 中提取能力名称用于生成个性化颜色
   const abilityNames = useMemo(() => {
     try {
-      return abilities.map(item => {
+      return abilities.map((item) => {
         const key = Object.keys(item)[0];
         return safeString(key, 'Unknown');
       });
@@ -297,10 +337,10 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
         <>
           {parts[0]}
           <a
-            href="https://x.com/xhunt_ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-700 hover:text-blue-500 transition-colors cursor-pointer"
+            href='https://x.com/xhunt_ai'
+            target='_blank'
+            rel='noopener noreferrer'
+            className='text-blue-700 hover:text-blue-500 transition-colors cursor-pointer'
             onClick={(e) => e.stopPropagation()}
           >
             @XHunt_ai
@@ -333,14 +373,21 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
       const devicePixelRatio = getSafeDevicePixelRatio();
 
       // 🆕 安全的画布尺寸计算
-      const safeSize = calculateSafeCanvasSize(canvasSize.width, canvasSize.height);
+      const safeSize = calculateSafeCanvasSize(
+        canvasSize.width,
+        canvasSize.height
+      );
       const displayWidth = safeSize.width;
       const displayHeight = safeSize.height;
 
       // 🆕 检查画布尺寸是否合理
-      const canvasArea = displayWidth * displayHeight * devicePixelRatio * devicePixelRatio;
-      if (canvasArea > CANVAS_CONFIG.MAX_CANVAS_AREA * 4) { // 考虑设备像素比的影响
-        console.log('Canvas area too large, skipping render to prevent memory overflow');
+      const canvasArea =
+        displayWidth * displayHeight * devicePixelRatio * devicePixelRatio;
+      if (canvasArea > CANVAS_CONFIG.MAX_CANVAS_AREA * 4) {
+        // 考虑设备像素比的影响
+        console.log(
+          'Canvas area too large, skipping render to prevent memory overflow'
+        );
         return;
       }
 
@@ -468,10 +515,16 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
             if (!isFinite(labelX) || !isFinite(labelY)) continue;
 
             // 绘制能力名称
-            const labelText = safeString(radarData[i]?.ability, `Label${i + 1}`);
+            const labelText = safeString(
+              radarData[i]?.ability,
+              `Label${i + 1}`
+            );
 
             // 🔧 处理长文本，如果超过6个字符则截断
-            const displayText = labelText.length > 6 ? labelText.substring(0, 6) + '...' : labelText;
+            const displayText =
+              labelText.length > 20
+                ? labelText.substring(0, 20) + '...'
+                : labelText;
 
             // 🔧 修复 textContent 为 null 的问题 - 确保 fillText 参数有效
             if (displayText && typeof displayText === 'string') {
@@ -508,7 +561,7 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
             if (!isFinite(scoreX) || !isFinite(scoreY)) continue;
 
             // 🔧 修复 textContent 为 null 的问题 - 确保分数文字有效
-            const scoreText = value.toString();
+            const scoreText = value != null ? value.toString() : '0';
             if (scoreText && typeof scoreText === 'string') {
               ctx.fillText(scoreText, scoreX, scoreY);
             }
@@ -587,12 +640,13 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
       } catch {
         console.log('Failed to draw data points');
       }
-
     } catch (error) {
       console.log('Canvas rendering error:', error);
       // 🆕 Canvas 渲染失败时的错误处理
       if (error instanceof Error && error.message.includes('out of memory')) {
-        console.log('Canvas out of memory error detected, reducing canvas size');
+        console.log(
+          'Canvas out of memory error detected, reducing canvas size'
+        );
         // 尝试使用更小的画布尺寸
         const fallbackSize = calculateSafeCanvasSize(200, 150);
         setCanvasSize(fallbackSize);
@@ -611,15 +665,15 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
 
   if (isLoading) {
     return (
-      <div className="p-3 flex flex-col items-center justify-center min-w-[360px] min-h-[240px] gap-2 theme-bg-secondary rounded-lg">
+      <div className='p-3 flex flex-col items-center justify-center min-w-[360px] min-h-[240px] gap-2 theme-bg-secondary rounded-lg'>
         <div
-          className="w-5 h-5 border-2 rounded-full animate-spin"
+          className='w-5 h-5 border-2 rounded-full animate-spin'
           style={{
             borderColor: `${personalizedColors.secondary}`,
-            borderTopColor: personalizedColors.primary
+            borderTopColor: personalizedColors.primary,
           }}
         />
-        <p className="text-xs theme-text-secondary">{t('loading')}</p>
+        <p className='text-xs theme-text-secondary'>{t('loading')}</p>
       </div>
     );
   }
@@ -629,17 +683,20 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
   }
 
   return (
-    <div className="px-3 pt-1 pb-3 min-w-[360px] theme-bg-secondary rounded-lg relative" data-theme={theme}>
+    <div
+      className='px-3 pt-1 pb-3 min-w-[360px] theme-bg-secondary rounded-lg relative'
+      data-theme={theme}
+    >
       {/* 🆕 用户信息头部 */}
-      <div className="flex items-center gap-3 pb-1 border-b theme-border">
+      <div className='flex items-center gap-3 pb-1 border-b theme-border'>
         {/* 头像区域 */}
-        <div className="relative">
+        <div className='relative'>
           {domUserInfoLoading ? (
             // 🆕 加载占位符
-            <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse flex items-center justify-center">
-              <div className="w-5 h-5 text-gray-400">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            <div className='w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse flex items-center justify-center'>
+              <div className='w-5 h-5 text-gray-400'>
+                <svg viewBox='0 0 24 24' fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
                 </svg>
               </div>
             </div>
@@ -647,7 +704,7 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
             <img
               src={domUserInfo.avatar}
               alt={domUserInfo.name}
-              className="w-10 h-10 rounded-full border-2 theme-border"
+              className='w-10 h-10 rounded-full border-2 theme-border'
               onError={(e) => {
                 // 头像加载失败时隐藏
                 (e.target as HTMLImageElement).style.display = 'none';
@@ -655,29 +712,31 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
             />
           ) : (
             // 🆕 默认头像（首字母）
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center border-2 theme-border">
-              <span className="text-white font-medium text-sm">
+            <div className='w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center border-2 theme-border'>
+              <span className='text-white font-medium text-sm'>
                 {/* 🔧 修复 textContent 为 null 的问题 - 安全获取首字母 */}
-                {domUserInfo?.name ? domUserInfo.name.charAt(0).toUpperCase() : '?'}
+                {domUserInfo?.name
+                  ? domUserInfo.name.charAt(0).toUpperCase()
+                  : '?'}
               </span>
             </div>
           )}
         </div>
 
         {/* 🆕 用户信息 - 显示name而不是"KOL能力模型" */}
-        <div className="flex-1">
+        <div className='flex-1'>
           {domUserInfoLoading ? (
             // 🆕 文字加载占位符
-            <div className="space-y-1">
-              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-20"></div>
-              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-16"></div>
+            <div className='space-y-1'>
+              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-20'></div>
+              <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-16'></div>
             </div>
           ) : (
             <>
-              <h3 className="text-sm font-medium theme-text-primary leading-tight">
+              <h3 className='text-sm font-medium theme-text-primary leading-tight'>
                 {domUserInfo?.name || 'Unknown User'}
               </h3>
-              <p className="text-xs theme-text-secondary leading-tight">
+              <p className='text-xs theme-text-secondary leading-tight'>
                 @{domUserInfo?.username || 'unknown'}
               </p>
             </>
@@ -685,32 +744,40 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
         </div>
 
         {/* 功能标题移到右侧 */}
-        <div className="text-right">
-          <h3 className="text-xs font-medium theme-text-primary">{t('kolAbilityModel')}</h3>
+        <div className='text-right'>
+          <h3 className='text-xs font-medium theme-text-primary'>
+            {t('kolAbilityModel')}
+          </h3>
         </div>
       </div>
 
       {/* 🔧 雷达图容器 - 动态宽度，固定高度260 */}
-      <div ref={containerRef} className="w-full h-[245px] flex justify-center items-center py-2">
+      <div
+        ref={containerRef}
+        className='w-full h-[245px] flex justify-center items-center py-2'
+      >
         <canvas
           ref={canvasRef}
-          style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
+          style={{
+            width: `${canvasSize.width}px`,
+            height: `${canvasSize.height}px`,
+          }}
         />
       </div>
 
       {/* 能力总结区域 */}
       {summary && (
-        <div className="pt-2 pb-2 border-t theme-border">
-          <div className="flex items-start gap-2">
+        <div className='pt-2 pb-2 border-t theme-border'>
+          <div className='flex items-start gap-2'>
             <div
-              className="w-1 h-4 rounded-full flex-shrink-0 mt-0.5"
+              className='w-1 h-4 rounded-full flex-shrink-0 mt-0.5'
               style={{ backgroundColor: personalizedColors.primary }}
             />
-            <div className="flex-1">
-              <h4 className="text-xs font-medium theme-text-primary mb-1">
+            <div className='flex-1'>
+              <h4 className='text-xs font-medium theme-text-primary mb-1'>
                 {t('abilityAnalysis')}
               </h4>
-              <p className="text-xs theme-text-secondary leading-relaxed">
+              <p className='text-xs theme-text-secondary leading-relaxed'>
                 {summary}
               </p>
             </div>
@@ -719,7 +786,7 @@ function KolAbilityRadar({ abilities = [], summary, isLoading, userId, newTwitte
       )}
 
       {/* 🆕 整个弹框右下角水印 - 添加可点击链接 */}
-      <div className="absolute bottom-1 right-3 text-[9px] z-50 theme-text-secondary opacity-60 leading-tight">
+      <div className='absolute bottom-1 right-3 text-[9px] z-50 theme-text-secondary opacity-60 leading-tight'>
         {watermarkContent}
       </div>
     </div>

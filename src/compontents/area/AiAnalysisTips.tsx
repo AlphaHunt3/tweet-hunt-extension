@@ -62,17 +62,22 @@ const getAssessmentColor = (level: string) => {
 const getDimensionColor = (dimension: string, level: string) => {
   const baseColor = getAssessmentColor(level);
 
-  // 对于推广倾向，低是正面（绿色），高是负面（红色）
-  if (dimension === 'promotional_tendency') {
+  // 对于以下维度：低是正面（绿色），高是负面（红色）
+  // - promotional_tendency 推广倾向
+  // - ai_generation_probability AI 生成概率
+  if (
+    dimension === 'promotional_tendency' ||
+    dimension === 'ai_generation_probability'
+  ) {
     const isLow = level === '低' || level === 'Low';
     const isHigh = level === '高' || level === 'High';
 
-    if (isLow) return getAssessmentColor('高'); // 绿色
-    if (isHigh) return getAssessmentColor('低'); // 红色
-    return baseColor; // 黄色
+    if (isLow) return getAssessmentColor('高'); // 显示为绿色
+    if (isHigh) return getAssessmentColor('低'); // 显示为红色
+    return baseColor; // 中等为黄色
   }
 
-  // 对于其他维度，高是正面（绿色），低是负面（红色）
+  // 其他维度：高为绿色，低为红色
   return baseColor;
 };
 
@@ -108,9 +113,9 @@ const ModelResultBlock = memo(function ModelResultBlock({
       value: translateAssessment(analysis.information_value),
     },
     {
-      key: 'originality',
-      label: t('originality'),
-      value: translateAssessment(analysis.originality),
+      key: 'credibility',
+      label: t('credibility'),
+      value: translateAssessment(analysis.credibility),
     },
     {
       key: 'promotional_tendency',
@@ -175,7 +180,13 @@ const ModelResultBlock = memo(function ModelResultBlock({
           className='text-[11px] theme-text-primary leading-relaxed rounded-lg border border-white/10 p-1'
           style={{ background: 'rgba(255,255,255,0.03)' }}
         >
-          {lang === 'zh' ? analysis.explanation_cn : analysis.explanation_en}
+          {(lang === 'zh' ? analysis.explanation_cn : analysis.explanation_en)
+            ?.split('\n')
+            .map((line: string, index: number) => (
+              <div key={index} className='mb-1 last:mb-0'>
+                {line}
+              </div>
+            ))}
         </div>
       </div>
     </div>
@@ -189,22 +200,6 @@ function AiAnalysisContentInner({
   onMouseEnter,
 }: AiAnalysisContentProps) {
   const { t, lang } = useI18n();
-
-  // 获取所有模型的分析结果
-  const aiModels = Object.entries(aiData);
-
-  const renderModel = useCallback(
-    ([name, d]: [string, any]) => (
-      <ModelResultBlock
-        key={name}
-        title={name.toUpperCase()}
-        analysis={d}
-        t={t}
-        lang={lang}
-      />
-    ),
-    [t, lang]
-  );
   return (
     <div
       className='w-[380px] rounded-xl overflow-hidden backdrop-blur-xl'
@@ -245,8 +240,15 @@ function AiAnalysisContentInner({
       {/* Content */}
       <div className='relative max-h-[400px] overflow-y-auto custom-scrollbar'>
         <div className='p-4 space-y-3'>
-          {/* 模型分析结果（显示所有模型） */}
-          <div className='space-y-3'>{aiModels.map(renderModel)}</div>
+          {/* 单一模型综合分析结果 */}
+          <div className='space-y-3'>
+            <ModelResultBlock
+              title={'XHUNT'}
+              analysis={aiData as any}
+              t={t}
+              lang={lang}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X } from 'lucide-react';
 import {
   ChevronDown,
   TrendingUp,
@@ -17,6 +18,9 @@ import {
 import { TokenTreemapVisualization } from './HotProjectsKOLs/TokenTreemapVisualization';
 import { TrendingListVisualization } from './HotProjectsKOLs/TrendingListVisualization';
 import { HotItem, HotToken, HotDiscussion } from './HotProjectsKOLs/types';
+import { localStorageInstance } from '~storage/index.ts';
+import { navigationService } from '~/compontents/navigation/NavigationService';
+import { useCrossPageSettings } from '~utils/settingsManager';
 
 export interface HotProjectsKOLsProps {
   className?: string;
@@ -25,17 +29,22 @@ export interface HotProjectsKOLsProps {
 export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const { isEnabled } = useCrossPageSettings();
   const [activeType, setActiveType] = useLocalStorage<
     'project' | 'person' | 'token' | 'discussion' | 'following'
   >('@xhunt/hotProjectsActiveType', 'token');
   const [activeDays, setActiveDays] = useState<1 | 7>(1);
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
-  const [region, setRegion] = useLocalStorage<'cn' | 'global'>(
+  const [region, setRegion] = useLocalStorage<'cn' | 'global' | ''>(
     '@xhunt/hotProjectsRegion',
-    'cn'
+    ''
   );
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  const currentRegion = region || (lang === 'zh' ? 'cn' : 'global');
 
   // 关注数据请求（原项目数据）
   const {
@@ -44,12 +53,12 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
     run: fetchFollowingData,
   } = useRequest(
     () => {
-      return getHotProject(region, 'project', activeDays);
+      return getHotProject(currentRegion, 'project', activeDays);
     },
     {
       manual: true,
       debounceWait: 300,
-      refreshDeps: [region],
+      refreshDeps: [currentRegion],
     }
   );
 
@@ -60,12 +69,12 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
     run: fetchPersonData,
   } = useRequest(
     () => {
-      return getHotProject(region, 'person', activeDays);
+      return getHotProject(currentRegion, 'person', activeDays);
     },
     {
       manual: true,
       debounceWait: 300,
-      refreshDeps: [region],
+      refreshDeps: [currentRegion],
     }
   );
 
@@ -86,12 +95,12 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
     run: fetchDiscussionData,
   } = useRequest(
     () => {
-      return getTopTag('mention', region, activeDays);
+      return getTopTag('mention', currentRegion, activeDays);
     },
     {
       manual: true,
       debounceWait: 300,
-      refreshDeps: [region],
+      refreshDeps: [currentRegion],
     }
   );
 
@@ -101,7 +110,7 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
     fetchPersonData();
     fetchDiscussionData();
     // tokenData已经自动加载了
-  }, [activeDays, region]);
+  }, [activeDays, currentRegion]);
 
   // 获取tab说明文字
   const getTabDescription = (tabId: string) => {
@@ -194,8 +203,21 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
       ? hotDiscussions.length > 0
       : hotItems.length > 0;
 
+  // 检查热门趋势是否启用
+  if (!isEnabled('showHotTrending')) {
+    return (
+      <div className='px-4 pt-4 text-center'>
+        <div className='text-sm theme-text-secondary'>
+          {t('hotTrendingDisabled')}
+        </div>
+      </div>
+    );
+  }
+
+  if (isHidden) return <></>;
+
   return (
-    <>
+    <div className='relative'>
       {/* Header */}
       <div className='px-4 pt-3 theme-border flex-shrink-0'>
         {/* 标题和区域/日期选择 */}
@@ -204,7 +226,7 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
             🔥 XHunt {t('trendingNow')}
           </h3>
 
-          {/* 区域与日期下拉选择 */}
+          {/* 右侧操作区：区域/日期下拉 + 关闭 */}
           <div className='flex items-center gap-2'>
             {/* 区域下拉选择（在日期选择左边一点） - 仅非token标签显示 */}
             {activeType !== 'token' && (
@@ -213,7 +235,7 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
                   className='flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md theme-text-primary theme-hover transition-colors border theme-border whitespace-nowrap'
                   onClick={() => setShowRegionDropdown(!showRegionDropdown)}
                 >
-                  {region === 'cn' ? t('cnRegion') : t('enRegion')}
+                  {currentRegion === 'cn' ? t('cnRegion') : t('enRegion')}
                   <ChevronDown className='w-3 h-3' />
                 </button>
 
@@ -231,7 +253,7 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
                         <button
                           key={opt.key}
                           className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${
-                            region === opt.key
+                            currentRegion === opt.key
                               ? 'bg-blue-500/20 text-blue-400'
                               : 'theme-text-primary theme-hover'
                           }`}
@@ -287,6 +309,17 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
                 </>
               )}
             </div>
+
+            {/* 关闭按钮 */}
+            <button
+              type='button'
+              aria-label='Close Hot Trending'
+              title='Close'
+              className='p-1.5 rounded-md theme-hover border theme-border theme-text-primary'
+              onClick={() => setShowCloseConfirm(true)}
+            >
+              <X className='w-4 h-4' />
+            </button>
           </div>
         </div>
 
@@ -367,6 +400,65 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
           </div>
         )}
       </div>
-    </>
+
+      {/* 关闭确认弹框（放在最外层容器末尾，避免被头部层覆盖） */}
+      {showCloseConfirm && (
+        <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
+          <div
+            className='absolute inset-0 z-[999001] theme-bg-secondary'
+            style={{ opacity: 0.8 }}
+            onClick={() => setShowCloseConfirm(false)}
+          />
+          <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-4'>
+            <div className='text-sm leading-5'>
+              {t('confirmCloseTrendingPrefix')}{' '}
+              <button
+                type='button'
+                className='underline text-blue-400 hover:text-blue-300'
+                onClick={() => {
+                  try {
+                    const openEvt = new CustomEvent('xhunt:open-panel');
+                    window.dispatchEvent(openEvt);
+                  } catch {}
+                  try {
+                    setTimeout(() => {
+                      navigationService.navigateTo('main-panel', '/settings');
+                    }, 100);
+                  } catch {}
+                }}
+              >
+                {t('settingsTitle')}
+              </button>{' '}
+              {t('confirmCloseTrendingSuffix')}
+            </div>
+            <div className='mt-3 flex justify-end gap-2'>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
+                onClick={() => setShowCloseConfirm(false)}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
+                onClick={async () => {
+                  setIsHidden(true);
+                  setShowCloseConfirm(false);
+                  try {
+                    await localStorageInstance.set(
+                      '@settings/showHotTrending',
+                      false
+                    );
+                  } catch {}
+                }}
+              >
+                {t('save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

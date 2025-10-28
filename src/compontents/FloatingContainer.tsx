@@ -28,6 +28,8 @@ export interface FloatingContainerRef {
   show: () => void;
   hide: () => void;
   toggle: () => void;
+  detachFromAnchor: () => void; // 脱离锚点，居中显示
+  attachToAnchor: () => void; // 重新回归锚点
   // isVisible: boolean;
 }
 
@@ -51,19 +53,34 @@ export const FloatingContainer = forwardRef<
   ) => {
     const [isVisible, setIsVisible] = useState(false);
     const isVisibleRef = useLatest(isVisible);
+    const [isDetached, setIsDetached] = useState(false); // 是否脱离锚点
+    const isDetachedRef = useLatest(isDetached);
     const rafIdRef = useRef<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const updatePosition = useMemoizedFn(() => {
       try {
-        const target = targetRef.current;
         const container = containerRef.current;
-        if (!target || !container || !isVisible) return;
+        if (!container || !isVisible) return;
 
-        const targetRect = target.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
+
+        // 如果已脱离锚点，使用居中定位
+        if (isDetachedRef.current) {
+          const left = (viewportWidth - containerRect.width) / 2;
+          const top = (viewportHeight - containerRect.height) / 2;
+          container.style.left = `${Math.max(0, left)}px`;
+          container.style.top = `${Math.max(0, top)}px`;
+          return;
+        }
+
+        // 否则使用锚点定位
+        const target = targetRef.current;
+        if (!target) return;
+
+        const targetRect = target.getBoundingClientRect();
 
         const isTargetVisible =
           targetRect.top < viewportHeight &&
@@ -82,7 +99,7 @@ export const FloatingContainer = forwardRef<
           pos: number,
           size: number,
           elementSize: number
-        ) => Math.min(Math.max(pos, 0), Math.max(0, size - elementSize));
+        ) => Math.min(Math.max(pos, 40), Math.max(20, size - elementSize - 40));
 
         left = adjustPosition(left, viewportWidth, containerRect.width);
         top = adjustPosition(top, viewportHeight, containerRect.height);
@@ -94,7 +111,7 @@ export const FloatingContainer = forwardRef<
       }
     });
 
-    // 显示时更新位置
+    // 显示时或脱离/回归锚点时更新位置
     useEffect(() => {
       if (isVisible) {
         // 使用双重 RAF 确保 DOM 更新完成后再定位
@@ -102,7 +119,7 @@ export const FloatingContainer = forwardRef<
           requestAnimationFrame(updatePosition);
         });
       }
-    }, [isVisible, updatePosition]);
+    }, [isVisible, isDetached, updatePosition]);
 
     // 监听目标元素变化
     useUpdateEffect(() => {
@@ -118,6 +135,25 @@ export const FloatingContainer = forwardRef<
       }
     }, [containerRef.current?.offsetWidth, containerRef.current?.offsetHeight]);
 
+    // 监听内容宽度变化，重新计算位置
+    useEffect(() => {
+      if (!isVisible || !containerRef.current) return;
+
+      const resizeObserver = new ResizeObserver(() => {
+        if (isVisible) {
+          requestAnimationFrame(() => {
+            updatePosition();
+          });
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, [isVisible, updatePosition]);
+
     // 监听可见性变化，调用 onClose 回调
     useEffect(() => {
       if (!isVisible && onClose) {
@@ -125,11 +161,12 @@ export const FloatingContainer = forwardRef<
       }
     }, [isVisible, onClose]);
 
-    // 滚动和窗口大小变化时更新位置
+    // 滚动时更新位置（仅在锚定状态下）
     useEventListener(
       'scroll',
       () => {
-        if (rafIdRef.current || !isVisibleRef.current) return;
+        if (rafIdRef.current || !isVisibleRef.current || isDetachedRef.current)
+          return;
         rafIdRef.current = requestAnimationFrame(() => {
           updatePosition();
           rafIdRef.current = null;
@@ -153,9 +190,9 @@ export const FloatingContainer = forwardRef<
         show: () => {
           // 检查目标元素是否存在
           if (!targetRef.current) {
-            console.warn(
-              'FloatingContainer: target element not found, cannot show'
-            );
+            // console.log(
+            //   'FloatingContainer: target element not found, cannot show'
+            // );
             return;
           }
           // 立即设置可见状态，避免异步延迟导致的展示问题
@@ -163,8 +200,22 @@ export const FloatingContainer = forwardRef<
         },
         hide: () => setIsVisible(false),
         toggle: () => setIsVisible((prev) => !prev),
+        detachFromAnchor: () => {
+          setIsDetached(true);
+          // 立即更新位置到居中
+          requestAnimationFrame(() => {
+            requestAnimationFrame(updatePosition);
+          });
+        },
+        attachToAnchor: () => {
+          setIsDetached(false);
+          // 立即更新位置回锚点
+          requestAnimationFrame(() => {
+            requestAnimationFrame(updatePosition);
+          });
+        },
       }),
-      []
+      [updatePosition]
     );
 
     return (
@@ -180,7 +231,7 @@ export const FloatingContainer = forwardRef<
             overflow: 'auto',
             display: isVisible ? 'block' : 'none',
             pointerEvents: isVisible ? 'auto' : 'none',
-            transition: '10ms',
+            transition: '100ms',
           }}
           className={`shadow-[0_8px_24px_rgba(0,0,0,0.25)] theme-border rounded-lg ${className}`}
         >

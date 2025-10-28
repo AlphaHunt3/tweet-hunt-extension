@@ -26,6 +26,7 @@ import SoulDensity from '~/compontents/SoulDensity.tsx';
 import { getSoulInfo } from '~contents/services/api.ts';
 import { useRequest } from 'ahooks';
 import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
+import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 
 function _NameRightData({
   newTwitterData,
@@ -50,6 +51,9 @@ function _NameRightData({
     styleText: cssText,
   });
   const { t, lang } = useI18n();
+
+  // 使用响应式设置管理
+  const { isEnabled } = useCrossPageSettings();
 
   // 获取灵魂浓度数据
   const { data: soulData, loading: loadingSoulData } = useRequest<
@@ -169,13 +173,14 @@ function _NameRightData({
       <NotesSection userId={userId} reviewInfo={reviewInfo} />
       <div className='flex flex-wrap items-center w-full mh-[40px] h-auto mt-4 gap-1'>
         {/* 项目成员 */}
-        {!loadingProjectMember &&
+        {isEnabled('showProjectMembers') &&
+          !loadingProjectMember &&
           projectMemberData &&
           projectMemberStats.hasMembers &&
           twInfo?.basicInfo?.classification !== 'person' && (
             <HoverStatItem
               label={t('projectMembers')}
-              value={`(${projectMemberStats.totalMembers})`}
+              value={`(${projectMemberStats.totalMembers || 0})`}
               hoverContent={
                 <ProjectMembersSection
                   data={projectMemberData}
@@ -189,7 +194,9 @@ function _NameRightData({
         {!loadingRootData ? (
           <>
             {/*投资人*/}
-            {rootData && rootData?.invested?.investors?.length ? (
+            {isEnabled('showInvestors') &&
+            rootData &&
+            rootData?.invested?.investors?.length ? (
               <HoverStatItem
                 label={t('investors')}
                 value={
@@ -215,10 +222,12 @@ function _NameRightData({
                 valueClassName={'text-[#1D9BF0]'}
               />
             ) : null}
-            {rootData && rootData?.investor?.investors?.length ? (
+            {isEnabled('showPortfolio') &&
+            rootData &&
+            rootData?.investor?.investors?.length ? (
               <HoverStatItem
                 label={t('portfolio')}
-                value={`(${rootData?.investor?.investors?.length})`}
+                value={`(${rootData?.investor?.investors?.length || 0})`}
                 hoverContent={renderInvestorList(
                   t('portfolio'),
                   rootData.investor.investors,
@@ -234,10 +243,12 @@ function _NameRightData({
         {!loadingTwInfo ? (
           <>
             {/*90d谈及代币*/}
-            {isPerson && Number(day90TokenMentionsLength) ? (
+            {isEnabled('show90dMention') &&
+            isPerson &&
+            Number(day90TokenMentionsLength) ? (
               <HoverStatItem
                 label={t('90dMention')}
-                value={`(${day90TokenMentionsLength})`}
+                value={`(${day90TokenMentionsLength || 0})`}
                 hoverContent={
                   <TokenPerformanceSection
                     isHoverPanel={true}
@@ -251,7 +262,9 @@ function _NameRightData({
             ) : null}
 
             {/*90d收益率*/}
-            {isPerson && day90NowProfitAvg ? (
+            {isEnabled('show90dPerformance') &&
+            isPerson &&
+            day90NowProfitAvg ? (
               <HoverStatItem
                 label={t('90dPerformance')}
                 value={`(${day90NowProfitAvgStr})`}
@@ -279,17 +292,21 @@ function _NameRightData({
         )}
 
         {/*MBTI*/}
-        {!loadingTwInfo && twInfo && twInfo?.mbti && (
-          <HoverStatItem
-            label={t('personalityType')}
-            value={`(${mbti?.mbti})`}
-            hoverContent={<MBTISection data={mbti!} isHoverPanel={true} />}
-            valueClassName={mbtiColor}
-          />
-        )}
+        {isEnabled('showPersonalityType') &&
+          !loadingTwInfo &&
+          twInfo &&
+          twInfo?.mbti && (
+            <HoverStatItem
+              label={t('personalityType')}
+              value={`(${mbti?.mbti || 'N/A'})`}
+              hoverContent={<MBTISection data={mbti!} isHoverPanel={true} />}
+              valueClassName={mbtiColor}
+            />
+          )}
 
         {/*改名*/}
-        {!loadingRenameInfo &&
+        {isEnabled('showRenameInfo') &&
+        !loadingRenameInfo &&
         renameInfo &&
         renameInfo?.accounts?.length &&
         Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ? (
@@ -304,10 +321,14 @@ function _NameRightData({
         ) : null}
 
         {/*删帖*/}
-        {isKol && !loadingDel && deletedTweets && deletedTweets?.length ? (
+        {isEnabled('showDelInfo') &&
+        isKol &&
+        !loadingDel &&
+        deletedTweets &&
+        deletedTweets?.length ? (
           <HoverStatItem
             label={t('delInfo')}
-            value={`(${String(deletedTweets?.length)})`}
+            value={`(${deletedTweets?.length || 0})`}
             hoverContent={
               <DeletedTweetsSection
                 isHoverPanel={true}
@@ -319,7 +340,7 @@ function _NameRightData({
           />
         ) : null}
 
-        {twInfo?.kolFollow?.isProject && (
+        {isEnabled('showDiscussion') && twInfo?.kolFollow?.isProject && (
           <DiscussionSection
             userId={userId}
             discussionInfo={discussionInfo}
@@ -328,33 +349,35 @@ function _NameRightData({
         )}
 
         {/* 能力模型 - 🆕 使用自定义的最大宽高 */}
-        {!loadingTwInfo && shouldShowAbilityModel && (
-          <HoverStatItem
-            label={t('kolAbilityModel')}
-            value={
-              <AbilityTags
-                abilities={abilities}
-                personalizedColor={personalizedColors.primary}
-              />
-            }
-            hoverContent={
-              <KolAbilityRadar
-                abilities={abilities}
-                summary={summary}
-                userId={userId}
-                newTwitterData={newTwitterData}
-                loadingTwInfo={loadingTwInfo}
-              />
-            }
-            valueClassName={'text-[#1D9BF0]'}
-          />
-        )}
+        {isEnabled('showKolAbilityModel') &&
+          !loadingTwInfo &&
+          shouldShowAbilityModel && (
+            <HoverStatItem
+              label={t('kolAbilityModel')}
+              value={
+                <AbilityTags
+                  abilities={abilities}
+                  personalizedColor={personalizedColors.primary}
+                />
+              }
+              hoverContent={
+                <KolAbilityRadar
+                  abilities={abilities}
+                  summary={summary}
+                  userId={userId}
+                  newTwitterData={newTwitterData}
+                  loadingTwInfo={loadingTwInfo}
+                />
+              }
+              valueClassName={'text-[#1D9BF0]'}
+            />
+          )}
 
         {/* 灵魂浓度 */}
-        {!loadingSoulData && soulData && (
+        {isEnabled('showSoulIndex') && !loadingSoulData && soulData && (
           <HoverStatItem
             label={t('soulIndex')}
-            value={`(${soulData.score}${t('points')})`}
+            value={`(${soulData.score || 0}${t('points')})`}
             hoverContent={
               <SoulDensity
                 data={soulData}
@@ -371,12 +394,15 @@ function _NameRightData({
       </div>
 
       {/* 🆕 叙事功能区域 */}
-      {twInfo && twInfo?.narrative && !loadingTwInfo && (
-        <NarrativeSection
-          narrative={twInfo?.narrative}
-          isLoading={loadingTwInfo}
-        />
-      )}
+      {isEnabled('showNarrative') &&
+        twInfo &&
+        twInfo?.narrative &&
+        !loadingTwInfo && (
+          <NarrativeSection
+            narrative={twInfo?.narrative}
+            isLoading={loadingTwInfo}
+          />
+        )}
     </>,
     shadowRoot
   );

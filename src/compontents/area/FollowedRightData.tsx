@@ -14,6 +14,7 @@ import ReactDOMServer from 'react-dom/server';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { KolData } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 
 const renderRankChange = (change: number | undefined | null) => {
   try {
@@ -194,6 +195,9 @@ function _FollowedRightData({
     targetFilter: targetFilter,
   });
   const { t, lang } = useI18n();
+
+  // 使用响应式设置管理
+  const { isEnabled } = useCrossPageSettings();
   const kolRankChangeDom = ReactDOMServer.renderToStaticMarkup(
     renderRankChange(twInfo?.kolFollow?.kolRankChange?.day1 || 0)
   );
@@ -219,76 +223,87 @@ function _FollowedRightData({
         <>
           <div className={'mr-6'} />
           {/*全球KOL粉丝*/}
-          <HoverStatItem
-            label={formatNumber(
-              twInfo?.kolFollow?.globalKolFollowersCount || 0
-            )}
-            value={t('KOL_Followers')}
-            hoverContent={
-              twInfo?.kolFollow?.globalKolFollowersCount ? (
-                <KolFollowersSection
-                  kolData={twInfo}
-                  isHoverPanel={true}
-                  defaultTab={'global'}
-                />
-              ) : null
-            }
-            labelClassName={'font-bold'}
-            valueClassName={'theme-text-secondary'}
-          />
+          {isEnabled('showKolFollowers') && (
+            <HoverStatItem
+              label={formatNumber(
+                twInfo?.kolFollow?.globalKolFollowersCount || 0
+              )}
+              value={t('KOL_Followers')}
+              hoverContent={
+                twInfo?.kolFollow?.globalKolFollowersCount ? (
+                  <KolFollowersSection
+                    kolData={twInfo}
+                    isHoverPanel={true}
+                    defaultTab={'global'}
+                  />
+                ) : null
+              }
+              labelClassName={'font-bold'}
+              valueClassName={'theme-text-secondary'}
+            />
+          )}
 
           {/*TOP100_KOLs*/}
-          <HoverStatItem
-            label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)}
-            value={t('TOP100_KOLs')}
-            hoverContent={
-              twInfo?.kolFollow?.topKolFollowersCount ? (
-                <KolFollowersSection
-                  kolData={twInfo}
-                  isHoverPanel={true}
-                  defaultTab={'top100'}
-                />
-              ) : null
-            }
-            labelClassName={'font-bold'}
-            valueClassName={'theme-text-secondary'}
-          />
+          {isEnabled('showTop100Kols') && (
+            <HoverStatItem
+              label={formatNumber(twInfo?.kolFollow?.topKolFollowersCount || 0)}
+              value={t('TOP100_KOLs')}
+              hoverContent={
+                twInfo?.kolFollow?.topKolFollowersCount ? (
+                  <KolFollowersSection
+                    kolData={twInfo}
+                    isHoverPanel={true}
+                    defaultTab={'top100'}
+                  />
+                ) : null
+              }
+              labelClassName={'font-bold'}
+              valueClassName={'theme-text-secondary'}
+            />
+          )}
 
           {/*中文KOLs*/}
-          <HoverStatItem
-            label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)}
-            value={t('CN_KOLs')}
-            hoverContent={
-              twInfo?.kolFollow?.cnKolFollowersCount ? (
-                <KolFollowersSection
-                  kolData={twInfo}
-                  isHoverPanel={true}
-                  defaultTab={'cn'}
-                />
-              ) : null
-            }
-            labelClassName={'font-bold'}
-            valueClassName={'theme-text-secondary'}
-          />
+          {isEnabled('showCnKols') && (
+            <HoverStatItem
+              label={formatNumber(twInfo?.kolFollow?.cnKolFollowersCount || 0)}
+              value={t('CN_KOLs')}
+              hoverContent={
+                twInfo?.kolFollow?.cnKolFollowersCount ? (
+                  <KolFollowersSection
+                    kolData={twInfo}
+                    isHoverPanel={true}
+                    defaultTab={'cn'}
+                  />
+                ) : null
+              }
+              labelClassName={'font-bold'}
+              valueClassName={'theme-text-secondary'}
+            />
+          )}
 
           {/*关注着质量排名变化 */}
-          <HoverStatItem
-            label={`${(() => {
-              const rank = twInfo?.kolFollow?.kolRank20W;
-              if (!rank || rank <= 0) return '>200K';
-              return (
-                numeral(rank || 0).format('0,0') + '/200K' + kolRankChangeDom
-              );
-            })()}`}
-            value={t('FQRank')}
-            hoverContent={<RankTooltip twInfo={twInfo} rankType='followers' />}
-            labelClassName={'font-bold'}
-            valueClassName={'theme-text-secondary'}
-          />
+          {isEnabled('showFqRank') && (
+            <HoverStatItem
+              label={`${(() => {
+                const rank = twInfo?.kolFollow?.kolRank20W;
+                if (!rank || rank <= 0) return '>200K';
+                return (
+                  numeral(rank || 0).format('0,0') + '/200K' + kolRankChangeDom
+                );
+              })()}`}
+              value={t('FQRank')}
+              hoverContent={
+                <RankTooltip twInfo={twInfo} rankType='followers' />
+              }
+              labelClassName={'font-bold'}
+              valueClassName={'theme-text-secondary'}
+            />
+          )}
 
           {/* 影响力排名：中文显示华语；英文显示英文影响力（按条件） */}
           {lang === 'zh'
-            ? twInfo?.kolFollow?.isCn && (
+            ? isEnabled('showCnRank') &&
+              twInfo?.kolFollow?.isCn && (
                 <HoverStatItem
                   label={`${
                     !twInfo?.kolFollow?.kolCnRank ||
@@ -310,7 +325,8 @@ function _FollowedRightData({
                   valueClassName={'theme-text-secondary'}
                 />
               )
-            : !!twInfo?.kolFollow?.kolGlobalRank && (
+            : isEnabled('showEnInfluenceRank') &&
+              !!twInfo?.kolFollow?.kolGlobalRank && (
                 <HoverStatItem
                   label={`${(() => {
                     const total = Number(t('kolEnRankTotal')) || 10000;
@@ -339,7 +355,7 @@ function _FollowedRightData({
               )}
 
           {/*项目排名变化 */}
-          {twInfo?.kolFollow?.isProject && (
+          {isEnabled('showProjectRank') && twInfo?.kolFollow?.isProject && (
             <HoverStatItem
               label={`${
                 !twInfo?.kolFollow?.kolProjectRank ||
@@ -361,30 +377,32 @@ function _FollowedRightData({
           )}
         </>
       )}
-      <ErrorBoundary>
-        {/*// @ts-ignore*/}
-        <ReviewHeader
-          stats={{
-            averageRating: reviewInfo?.averageRating ?? 0,
-            totalReviews: reviewInfo?.totalReviews ?? 0,
-            realTotalReviews: reviewInfo?.realTotalReviews ?? 0,
-            tagCloud: reviewInfo?.tagCloud ?? [],
-            topReviewers: reviewInfo?.topReviewers ?? [],
-            currentUserReview: reviewInfo?.currentUserReview,
-            defaultTags: reviewInfo?.defaultTags ?? {
-              kol: [],
-              project: [],
-              colorTags: {},
-            },
-            isKol: twInfo?.basicInfo?.classification !== 'project',
-            allTagCount: reviewInfo?.allTagCount ?? 0,
-          }}
-          handler={userId}
-          refreshAsyncReviewInfo={refreshAsyncReviewInfo}
-          refreshAsyncUserInfo={refreshAsyncUserInfo}
-          loadingReviewInfo={loadingReviewInfo}
-        />
-      </ErrorBoundary>
+      {isEnabled('showReviews') && (
+        <ErrorBoundary>
+          {/*// @ts-ignore*/}
+          <ReviewHeader
+            stats={{
+              averageRating: reviewInfo?.averageRating ?? 0,
+              totalReviews: reviewInfo?.totalReviews ?? 0,
+              realTotalReviews: reviewInfo?.realTotalReviews ?? 0,
+              tagCloud: reviewInfo?.tagCloud ?? [],
+              topReviewers: reviewInfo?.topReviewers ?? [],
+              currentUserReview: reviewInfo?.currentUserReview,
+              defaultTags: reviewInfo?.defaultTags ?? {
+                kol: [],
+                project: [],
+                colorTags: {},
+              },
+              isKol: twInfo?.basicInfo?.classification !== 'project',
+              allTagCount: reviewInfo?.allTagCount ?? 0,
+            }}
+            handler={userId}
+            refreshAsyncReviewInfo={refreshAsyncReviewInfo}
+            refreshAsyncUserInfo={refreshAsyncUserInfo}
+            loadingReviewInfo={loadingReviewInfo}
+          />
+        </ErrorBoundary>
+      )}
     </>,
     shadowRoot
   );

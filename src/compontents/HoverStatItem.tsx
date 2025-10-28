@@ -176,7 +176,9 @@ export function HoverStatItem({
             dangerouslySetInnerHTML={{ __html: value || '' }}
           />
         ) : (
-          <span className={`text-sm ${valueClassName}`}>{value}</span>
+          <span className={`text-sm ${valueClassName}`}>
+            {value != null ? value : ''}
+          </span>
         )}
       </div>
 

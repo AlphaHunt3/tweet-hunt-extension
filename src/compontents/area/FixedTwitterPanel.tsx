@@ -7,14 +7,50 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { PanelNavigator } from '~/compontents/navigation/PanelNavigator';
 import { HomePage } from '~/compontents/pages/HomePage';
 import { MessagesPage } from '~/compontents/pages/MessagesPage';
+import SettingsPage from '~/compontents/pages/SettingsPage';
 import { navigationService } from '~/compontents/navigation/NavigationService';
+import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 
-function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, error, userId, rootData, loadingRootData, reviewInfo, userInfo, projectMemberData, loadingProjectMember }: MainData) {
-  const [showPanel, setShowPanel] = useLocalStorage('@settings/showPanel', true);
-  const searchInput = useWaitForElement('input[data-testid="SearchBox_Search_Input"]', [showPanel]);
+function _FixedTwitterPanel({
+  twInfo,
+  deletedTweets,
+  loadingTwInfo,
+  loadingDel,
+  error,
+  userId,
+  rootData,
+  loadingRootData,
+  reviewInfo,
+  userInfo,
+  projectMemberData,
+  loadingProjectMember,
+}: MainData) {
+  const [showPanel, setShowPanel] = useLocalStorage(
+    '@settings/showPanel',
+    true
+  );
+  const searchInput = useWaitForElement(
+    'input[data-testid="SearchBox_Search_Input"]',
+    [showPanel]
+  );
+
+  const [panelWidth, , { isLoading: isPanelWidthLoading }] =
+    useLocalStorage<number>('@xhunt/panelWidth', 340);
+  const safeWidth = Math.min(
+    400,
+    Math.max(300, Number(isPanelWidthLoading ? 340 : panelWidth) || 340)
+  );
   const [isFocused, setIsFocused] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout>>();
-  
+  const currentUrl = useCurrentUrl();
+
+  // 供外部触发打开面板
+  useEffect(() => {
+    const openPanel = () => setShowPanel(true);
+    window.addEventListener('xhunt:open-panel', openPanel);
+    return () => window.removeEventListener('xhunt:open-panel', openPanel);
+  }, []);
+
   useEffect(() => {
     if (!searchInput) return;
 
@@ -31,7 +67,7 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
     };
 
     searchInput.addEventListener('focus', handleFocus);
-    searchInput.addEventListener('blur', handleBlur)
+    searchInput.addEventListener('blur', handleBlur);
 
     return () => {
       searchInput.removeEventListener('focus', handleFocus);
@@ -49,7 +85,7 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
     '/home': {
       path: '/home',
       component: (
-        <HomePage 
+        <HomePage
           twInfo={twInfo}
           deletedTweets={deletedTweets}
           loadingTwInfo={loadingTwInfo}
@@ -63,56 +99,72 @@ function _FixedTwitterPanel({ twInfo, deletedTweets, loadingTwInfo, loadingDel, 
           onClose={handleClosePanel}
         />
       ),
-      showBackButton: false
+      showBackButton: false,
     },
     '/messages': {
       path: '/messages',
       component: (
-        <MessagesPage 
+        <MessagesPage
           showBackButton={!!userId} // 只有在有userId时才显示返回按钮
           onClose={handleClosePanel}
         />
       ),
-      showBackButton: !!userId // 只有在有userId时才显示返回按钮
-    }
+      showBackButton: !!userId, // 只有在有userId时才显示返回按钮
+    },
+    '/settings': {
+      path: '/settings',
+      component: <SettingsPage onClose={handleClosePanel} />,
+      showBackButton: true,
+    },
   };
 
-  if (!showPanel) {
-    return null
+  // Hide panel on Twitter OAuth authorization page
+  const isOAuthPage = currentUrl.includes('x.com/i/oauth2/authorize');
+
+  if (!showPanel || isOAuthPage) {
+    return null;
   }
-  
+
   if (error) {
-    return <></>
+    return <></>;
   }
 
-  return <DraggablePanel
-    width={340}
-    dragHandleClassName="tw-hunt-drag-handle"
-    storageKey="fixed-twitter-panel"
-  >
-    <div style={{
-      opacity: isFocused ? 0 : 1,
-      pointerEvents: isFocused ? 'none' : 'auto',
-      transition: 'opacity 0.3s ease-in-out'
-    }} className="relative w-[340px]" data-key={showPanel} data-xhunt-exclude={'true'}>
-      {/* Panel Content */}
+  return (
+    <DraggablePanel
+      width={safeWidth}
+      dragHandleClassName='tw-hunt-drag-handle'
+      storageKey='fixed-twitter-panel'
+    >
       <div
-        className={`absolute top-0 right-0 w-full theme-bg-secondary rounded-2xl theme-text-primary overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]`}
+        className='relative'
         style={{
-          backgroundColor: 'var(--bg-secondary)',
-          maxHeight: 'calc(90vh - 32px)'
+          opacity: isFocused ? 0 : 1,
+          pointerEvents: isFocused ? 'none' : 'auto',
+          transition: 'opacity 0.3s ease-in-out',
+          width: `${Math.min(500, Math.max(300, Number(panelWidth) || 340))}px`,
         }}
+        data-key={showPanel}
+        data-xhunt-exclude={'true'}
       >
-        {/* Navigation System */}
-        <PanelNavigator 
-          routes={routes} 
-          initialRoute={userId ? '/home' : '/messages'}
-        />
+        {/* Panel Content */}
+        <div
+          className={`absolute top-0 right-0 w-full theme-bg-secondary rounded-2xl theme-text-primary overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]`}
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            maxHeight: 'calc(90vh - 32px)',
+          }}
+        >
+          {/* Navigation System */}
+          <PanelNavigator
+            routes={routes}
+            initialRoute={userId ? '/home' : '/messages'}
+          />
 
-        <UserAuthPanel userInfo={userInfo} />
+          <UserAuthPanel userInfo={userInfo} />
+        </div>
       </div>
-    </div>
-  </DraggablePanel>
+    </DraggablePanel>
+  );
 }
 
 export const FixedTwitterPanel = React.memo(_FixedTwitterPanel);
