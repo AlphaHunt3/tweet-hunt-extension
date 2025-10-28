@@ -13,6 +13,10 @@ export interface RealtimeSettings {
     showNotification: boolean;
     playSound: boolean;
   };
+  listing: {
+    showNotification: boolean;
+    playSound: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: RealtimeSettings = {
@@ -21,6 +25,10 @@ const DEFAULT_SETTINGS: RealtimeSettings = {
     playSound: false,
   },
   gossip: {
+    showNotification: false,
+    playSound: false,
+  },
+  listing: {
     showNotification: false,
     playSound: false,
   },
@@ -76,7 +84,7 @@ export function useRealtimeSettings() {
   // 更新设置
   const updateSettings = useCallback(
     async (
-      tab: 'bnb' | 'gossip',
+      tab: 'bnb' | 'gossip' | 'listing',
       key: 'showNotification' | 'playSound',
       value: boolean
     ) => {
@@ -108,7 +116,7 @@ export function useRealtimeSettings() {
         const savedSettings = await readSettings();
         setSettings(savedSettings);
       } catch (error) {
-        console.warn('[useRealtimeSettings] Failed to load settings:', error);
+        console.log('[useRealtimeSettings] Failed to load settings:', error);
       } finally {
         setIsLoading(false);
       }

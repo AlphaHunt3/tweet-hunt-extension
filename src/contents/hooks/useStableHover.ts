@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useDebounce, useDebounceFn } from 'ahooks';
+import { useGlobalResize } from './useGlobalResize';
+import { useGlobalScroll } from './useGlobalScroll';
 
 // 只获取当前元素自身的文本内容（不包含子元素）
 function getDirectTextContent(el: HTMLElement): string {
   return Array.from(el.childNodes)
-  .filter(node => node.nodeType === Node.TEXT_NODE)
-  .map(node => node.textContent || '')
-  .join('')
-  .trim();
+    .filter((node) => node.nodeType === Node.TEXT_NODE)
+    .map((node) => node.textContent || '')
+    .join('')
+    .trim();
 }
 
 export function useStableHover(delay = 800) {
@@ -34,39 +36,63 @@ export function useStableHover(delay = 800) {
 
   const { run: debouncedUpdate } = useDebounceFn(updateHoveredElement, {
     wait: delay,
-    maxWait: 1000
+    maxWait: 1000,
   });
 
   useEffect(() => {
+    let rafId: number | null = null;
+    let lastExecuteTime = 0;
+    const throttleDelay = 100; // 节流：每 100ms 最多执行一次
+
     const handleMouseMove = (e: MouseEvent) => {
-      debouncedUpdate(e);
+      const now = Date.now();
+
+      // 节流：如果距离上次执行时间不足 100ms，取消之前的 rAF 并重新调度
+      if (now - lastExecuteTime < throttleDelay) {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+        }
+      }
+
+      // 使用 requestAnimationFrame 确保在浏览器下一帧更新
+      rafId = requestAnimationFrame(() => {
+        const currentTime = Date.now();
+        if (currentTime - lastExecuteTime >= throttleDelay) {
+          lastExecuteTime = currentTime;
+          debouncedUpdate(e);
+        }
+        rafId = null;
+      });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    // 使用 passive listener 提升性能（mousemove 不需要阻止默认行为）
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, [debouncedUpdate]);
 
-  // 滚动或窗口缩放时更新 rect
-  useEffect(() => {
-    if (!element) return;
-
-    const updateRect = () => {
-      if (element) {
-        setRect(element.getBoundingClientRect());
-      }
-    };
-
-    window.addEventListener('scroll', updateRect, true);
-    window.addEventListener('resize', updateRect);
-
-    return () => {
-      window.removeEventListener('scroll', updateRect, true);
-      window.removeEventListener('resize', updateRect);
-    };
+  // Use global scroll listener (shared across all components for better performance)
+  useGlobalScroll(() => {
+    if (element) {
+      setRect(element.getBoundingClientRect());
+    }
   }, [element]);
 
-  return { element: elementDebounce, textContent: textContentDebounce, rect: rectDebounce };
+  // Use global resize listener (shared across all components)
+  useGlobalResize(() => {
+    if (element) {
+      setRect(element.getBoundingClientRect());
+    }
+  }, [element]);
+
+  return {
+    element: elementDebounce,
+    textContent: textContentDebounce,
+    rect: rectDebounce,
+  };
 }

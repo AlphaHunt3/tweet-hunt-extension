@@ -5,11 +5,12 @@ import {
   Eye,
   Sparkles,
   CircleX,
+  TrendingUp,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import React, { SetStateAction, Dispatch } from 'react';
-import { TokenAnalysisData } from '~types';
+import { TokenAnalysisData, TokenSearchResponse } from '~types';
 import { useI18n } from '~contents/hooks/i18n.ts';
 
 dayjs.extend(relativeTime);
@@ -18,6 +19,9 @@ interface TokenAnalysisPanelProps {
   token: string;
   data: TokenAnalysisData | undefined;
   isLoading: boolean;
+  searchData?: TokenSearchResponse | undefined;
+  isLoadingSearch?: boolean;
+  onTradeClick?: () => void;
   onClose?: () => void;
   setIsVisible: Dispatch<SetStateAction<boolean>>;
   onMouseEnter?: () => void;
@@ -29,6 +33,9 @@ function TokenAnalysisPanel({
   token,
   data,
   isLoading,
+  searchData,
+  isLoadingSearch,
+  onTradeClick,
   setIsVisible,
   onMouseEnter,
   onMouseLeave,
@@ -47,14 +54,14 @@ function TokenAnalysisPanel({
     <>
       {/* Panel */}
       <div
-        className='z-50 w-[480px] rounded-xl shadow-2xl overflow-hidden theme-border'
+        className='z-50 w-[650px] rounded-xl shadow-2xl overflow-hidden theme-border'
         data-xhunt-exclude={'true'}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onMouseOver={onMouseOver}
       >
         {/* Header */}
-        <div className='flex items-center justify-between px-3 py-2 theme-border border-b theme-bg-secondary backdrop-blur-md'>
+        <div className='flex items-center justify-between px-3 py-1.5 theme-border border-b theme-bg-secondary backdrop-blur-md'>
           <div className='flex items-center gap-2'>
             {data && token && (
               <img
@@ -108,7 +115,7 @@ function TokenAnalysisPanel({
           >
             {/* Left Column - Tweets */}
             {data?.tweets && Boolean(data?.tweets?.length) && (
-              <div className='h-[400px] overflow-y-auto custom-scrollbar theme-bg-secondary backdrop-blur-md'>
+              <div className='h-[400px] overflow-y-auto custom-scrollbar theme-bg-secondary backdrop-blur-md overflow-x-hidden'>
                 <div className='px-3 py-1.5 theme-border'>
                   <h3 className='text-xs font-medium theme-text-secondary'>
                     Related Tweets
@@ -190,8 +197,8 @@ function TokenAnalysisPanel({
             )}
 
             {/* Right Column - AI Analysis */}
-            <div className='h-[400px] overflow-hidden theme-bg-secondary backdrop-blur-md'>
-              <div className='h-full p-3 overflow-y-auto custom-scrollbar'>
+            <div className='h-[400px] overflow-hidden theme-bg-secondary backdrop-blur-md flex flex-col'>
+              <div className='flex-1 p-3 overflow-y-auto custom-scrollbar'>
                 <div className='mb-3'>
                   <div className='flex items-center gap-2'>
                     <Sparkles className='w-5 h-5 text-blue-400' />
@@ -211,6 +218,44 @@ function TokenAnalysisPanel({
                   </div>
                 </div>
               </div>
+              {/* Trade Button - Fixed at bottom right */}
+              {onTradeClick && (
+                <div className='flex justify-end p-3 pt-2 border-t theme-border'>
+                  <button
+                    onClick={onTradeClick}
+                    disabled={
+                      isLoadingSearch ||
+                      !searchData?.data ||
+                      searchData.data.length === 0
+                    }
+                    className='flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-blue-500 disabled:to-purple-500 text-white text-xs font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-80 disabled:cursor-not-allowed transform hover:scale-105 disabled:transform-none'
+                  >
+                    {isLoadingSearch && (
+                      <svg
+                        className='animate-spin w-3 h-3'
+                        xmlns='http://www.w3.org/2000/svg'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                      >
+                        <circle
+                          className='opacity-25'
+                          cx='12'
+                          cy='12'
+                          r='10'
+                          stroke='currentColor'
+                          strokeWidth='4'
+                        ></circle>
+                        <path
+                          className='opacity-75'
+                          fill='currentColor'
+                          d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                        ></path>
+                      </svg>
+                    )}
+                    {t('trade')}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

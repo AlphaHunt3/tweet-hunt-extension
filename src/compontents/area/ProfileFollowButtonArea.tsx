@@ -37,7 +37,7 @@ function _ProfileFollowButtonArea(mainData: MainData) {
     }
     // 确保buttonRef.current存在
     if (!buttonRef.current) {
-      console.warn('Button ref not found');
+      console.log('Button ref not found');
       return;
     }
 

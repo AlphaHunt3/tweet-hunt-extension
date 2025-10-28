@@ -6,7 +6,10 @@ import { SoulDensityData, NewTwitterUserData } from '~types';
 import { useDOMUserInfo } from '~utils/domUserExtractor.ts';
 import { safeNumber, safeString } from '~utils/dataValidation.ts';
 import { generateScoreBasedColor } from '~utils/colorGenerator.ts';
-import { getCanvasContext, releaseCanvasContext } from '~utils/canvasContextManager';
+import {
+  getCanvasContext,
+  releaseCanvasContext,
+} from '~utils/canvasContextManager';
 
 interface SoulDensityProps {
   data?: SoulDensityData;
@@ -25,14 +28,23 @@ const CANVAS_CONFIG = {
   DEFAULT_WIDTH: 360,
   DEFAULT_HEIGHT: 260,
   MAX_DEVICE_PIXEL_RATIO: 2,
-  MAX_CANVAS_AREA: 320000
+  MAX_CANVAS_AREA: 320000,
 };
 
 // 🆕 安全的画布尺寸计算
-const calculateSafeCanvasSize = (requestedWidth: number, requestedHeight: number) => {
+const calculateSafeCanvasSize = (
+  requestedWidth: number,
+  requestedHeight: number
+) => {
   try {
-    let safeWidth = Math.max(CANVAS_CONFIG.MIN_WIDTH, Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH));
-    let safeHeight = Math.max(CANVAS_CONFIG.MIN_HEIGHT, Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT));
+    let safeWidth = Math.max(
+      CANVAS_CONFIG.MIN_WIDTH,
+      Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH)
+    );
+    let safeHeight = Math.max(
+      CANVAS_CONFIG.MIN_HEIGHT,
+      Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT)
+    );
 
     const totalArea = safeWidth * safeHeight;
     if (totalArea > CANVAS_CONFIG.MAX_CANVAS_AREA) {
@@ -42,12 +54,17 @@ const calculateSafeCanvasSize = (requestedWidth: number, requestedHeight: number
     }
 
     safeWidth = isFinite(safeWidth) ? safeWidth : CANVAS_CONFIG.DEFAULT_WIDTH;
-    safeHeight = isFinite(safeHeight) ? safeHeight : CANVAS_CONFIG.DEFAULT_HEIGHT;
+    safeHeight = isFinite(safeHeight)
+      ? safeHeight
+      : CANVAS_CONFIG.DEFAULT_HEIGHT;
 
     return { width: safeWidth, height: safeHeight };
   } catch (error) {
     console.log('Error calculating canvas size, using defaults:', error);
-    return { width: CANVAS_CONFIG.DEFAULT_WIDTH, height: CANVAS_CONFIG.DEFAULT_HEIGHT };
+    return {
+      width: CANVAS_CONFIG.DEFAULT_WIDTH,
+      height: CANVAS_CONFIG.DEFAULT_HEIGHT,
+    };
   }
 };
 
@@ -62,20 +79,26 @@ const getSafeDevicePixelRatio = (): number => {
   }
 };
 
-function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }: SoulDensityProps) {
+function SoulDensity({
+  data,
+  isLoading,
+  userId,
+  newTwitterData,
+  loadingTwInfo,
+}: SoulDensityProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(() =>
-    calculateSafeCanvasSize(CANVAS_CONFIG.DEFAULT_WIDTH, CANVAS_CONFIG.DEFAULT_HEIGHT)
+    calculateSafeCanvasSize(
+      CANVAS_CONFIG.DEFAULT_WIDTH,
+      CANVAS_CONFIG.DEFAULT_HEIGHT
+    )
   );
 
-  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } = useDOMUserInfo(
-    userId,
-    newTwitterData,
-    loadingTwInfo
-  );
+  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } =
+    useDOMUserInfo(userId, newTwitterData, loadingTwInfo);
 
   // 生成五边形雷达图数据
   const radarData = useMemo(() => {
@@ -107,7 +130,7 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
           ability: t('kolInteraction'), // KOL互动
           value: safeNumber(data.kol_interaction, 50, 0, 100),
           description: t('kolInteractionInfo'), // 和其他KOL的互动和社交图谱
-        }
+        },
       ];
     } catch {
       return [];
@@ -119,7 +142,7 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
     if (!data) {
       return {
         primary: '#6b7280', // 默认灰色
-        secondary: 'rgba(107, 114, 128, 0.15)'
+        secondary: 'rgba(107, 114, 128, 0.15)',
       };
     }
     return generateScoreBasedColor(data.score);
@@ -136,9 +159,9 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
         <>
           {parts[0]}
           <a
-            href="https://x.com/xhunt_ai"
-            target="_blank"
-            rel="noopener noreferrer"
+            href='https://x.com/xhunt_ai'
+            target='_blank'
+            rel='noopener noreferrer'
             className={`transition-colors cursor-pointer`}
             style={{ color: personalizedColors.primary, opacity: 0.75 }}
             onClick={(e) => e.stopPropagation()}
@@ -169,13 +192,19 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
       }
 
       const devicePixelRatio = getSafeDevicePixelRatio();
-      const safeSize = calculateSafeCanvasSize(canvasSize.width, canvasSize.height);
+      const safeSize = calculateSafeCanvasSize(
+        canvasSize.width,
+        canvasSize.height
+      );
       const displayWidth = safeSize.width;
       const displayHeight = safeSize.height;
 
-      const canvasArea = displayWidth * displayHeight * devicePixelRatio * devicePixelRatio;
+      const canvasArea =
+        displayWidth * displayHeight * devicePixelRatio * devicePixelRatio;
       if (canvasArea > CANVAS_CONFIG.MAX_CANVAS_AREA * 4) {
-        console.log('Canvas area too large, skipping render to prevent memory overflow');
+        console.log(
+          'Canvas area too large, skipping render to prevent memory overflow'
+        );
         return;
       }
 
@@ -281,8 +310,14 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
 
             if (!isFinite(labelX) || !isFinite(labelY)) continue;
 
-            const labelText = safeString(radarData[i]?.ability, `Label${i + 1}`);
-            const displayText = labelText.length > 10 ? labelText.substring(0, 10) + '...' : labelText;
+            const labelText = safeString(
+              radarData[i]?.ability,
+              `Label${i + 1}`
+            );
+            const displayText =
+              labelText.length > 20
+                ? labelText.substring(0, 20) + '...'
+                : labelText;
 
             if (displayText && typeof displayText === 'string') {
               ctx.fillText(displayText, labelX, labelY);
@@ -311,14 +346,17 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
             // 动态计算分数位置，避免与标签重叠
             const minScoreRadius = 25; // 最小距离中心25px
             const maxScoreRadius = radius + 25; // 最大不超过标签内侧
-            const scoreRadius = Math.min(Math.max(dataRadius + 15, minScoreRadius), maxScoreRadius);
+            const scoreRadius = Math.min(
+              Math.max(dataRadius + 15, minScoreRadius),
+              maxScoreRadius
+            );
 
             const scoreX = centerX + Math.cos(angle) * scoreRadius;
             const scoreY = centerY + Math.sin(angle) * scoreRadius;
 
             if (!isFinite(scoreX) || !isFinite(scoreY)) continue;
 
-            const scoreText = value.toString();
+            const scoreText = value != null ? value.toString() : '0';
             if (scoreText && typeof scoreText === 'string') {
               ctx.fillText(scoreText, scoreX, scoreY);
             }
@@ -392,11 +430,12 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
       } catch {
         console.log('Failed to draw data points');
       }
-
     } catch (error) {
       console.log('Canvas rendering error:', error);
       if (error instanceof Error && error.message.includes('out of memory')) {
-        console.log('Canvas out of memory error detected, reducing canvas size');
+        console.log(
+          'Canvas out of memory error detected, reducing canvas size'
+        );
         const fallbackSize = calculateSafeCanvasSize(200, 150);
         setCanvasSize(fallbackSize);
       }
@@ -414,15 +453,15 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
 
   if (isLoading) {
     return (
-      <div className="p-3 flex flex-col items-center justify-center min-w-[360px] min-h-[240px] gap-2 theme-bg-secondary rounded-lg">
+      <div className='p-3 flex flex-col items-center justify-center min-w-[360px] min-h-[240px] gap-2 theme-bg-secondary rounded-lg'>
         <div
-          className="w-5 h-5 border-2 rounded-full animate-spin"
+          className='w-5 h-5 border-2 rounded-full animate-spin'
           style={{
             borderColor: `${personalizedColors.secondary}`,
-            borderTopColor: personalizedColors.primary
+            borderTopColor: personalizedColors.primary,
           }}
         />
-        <p className="text-xs theme-text-secondary">{t('loading')}</p>
+        <p className='text-xs theme-text-secondary'>{t('loading')}</p>
       </div>
     );
   }
@@ -432,16 +471,19 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
   }
 
   return (
-    <div className="px-3 pt-1 pb-3 min-w-[360px] theme-bg-secondary rounded-lg relative" data-theme={theme}>
+    <div
+      className='px-3 pt-1 pb-3 min-w-[360px] theme-bg-secondary rounded-lg relative'
+      data-theme={theme}
+    >
       {/* 用户信息头部 */}
-      <div className="flex items-center gap-3 pb-1 border-b theme-border">
+      <div className='flex items-center gap-3 pb-1 border-b theme-border'>
         {/* 头像区域 */}
-        <div className="relative">
+        <div className='relative'>
           {domUserInfoLoading ? (
-            <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse flex items-center justify-center">
-              <div className="w-5 h-5 text-gray-400">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            <div className='w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse flex items-center justify-center'>
+              <div className='w-5 h-5 text-gray-400'>
+                <svg viewBox='0 0 24 24' fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
                 </svg>
               </div>
             </div>
@@ -449,33 +491,35 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
             <img
               src={domUserInfo.avatar}
               alt={domUserInfo.name}
-              className="w-10 h-10 rounded-full border-2 theme-border"
+              className='w-10 h-10 rounded-full border-2 theme-border'
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 theme-border">
-              <span className="text-white font-medium text-sm">
-                {domUserInfo?.name ? domUserInfo.name.charAt(0).toUpperCase() : '?'}
+            <div className='w-10 h-10 rounded-full flex items-center justify-center border-2 theme-border'>
+              <span className='text-white font-medium text-sm'>
+                {domUserInfo?.name
+                  ? domUserInfo.name.charAt(0).toUpperCase()
+                  : '?'}
               </span>
             </div>
           )}
         </div>
 
         {/* 用户信息 */}
-        <div className="flex-1">
+        <div className='flex-1'>
           {domUserInfoLoading ? (
-            <div className="space-y-1">
-              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-20"></div>
-              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-16"></div>
+            <div className='space-y-1'>
+              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-20'></div>
+              <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-16'></div>
             </div>
           ) : (
             <>
-              <h3 className="text-sm font-medium theme-text-primary leading-tight">
+              <h3 className='text-sm font-medium theme-text-primary leading-tight'>
                 {domUserInfo?.name || 'Unknown User'}
               </h3>
-              <p className="text-xs theme-text-secondary leading-tight">
+              <p className='text-xs theme-text-secondary leading-tight'>
                 @{domUserInfo?.username || 'unknown'}
               </p>
             </>
@@ -483,27 +527,41 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
         </div>
 
         {/* 功能标题和分数 */}
-        <div className="text-right">
-          <h3 className="text-xs font-medium theme-text-primary">{t('soulIndex')}</h3>
-          <div className="flex items-center gap-1 justify-end">
-            <span className={`text-lg font-bold`} style={{
-              color: personalizedColors.primary
-            }}>{data.score}</span>
-            <span className="text-xs theme-text-secondary">{t('points')}</span>
+        <div className='text-right'>
+          <h3 className='text-xs font-medium theme-text-primary'>
+            {t('soulIndex')}
+          </h3>
+          <div className='flex items-center gap-1 justify-end'>
+            <span
+              className={`text-lg font-bold`}
+              style={{
+                color: personalizedColors.primary,
+              }}
+            >
+              {data.score}
+            </span>
+            <span className='text-xs theme-text-secondary'>{t('points')}</span>
           </div>
         </div>
       </div>
 
       {/* 五边形雷达图容器 */}
-      <div ref={containerRef} className="w-full h-[245px] flex justify-center items-center py-2 relative">
+      <div
+        ref={containerRef}
+        className='w-full h-[245px] flex justify-center items-center py-2 relative'
+      >
         <canvas
           ref={canvasRef}
-          style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
+          style={{
+            width: `${canvasSize.width}px`,
+            height: `${canvasSize.height}px`,
+          }}
         />
 
         {/* 维度文字悬浮提示 */}
         {radarData.map((item, index) => {
-          const angle = (index * (2 * Math.PI) / radarData.length) - Math.PI / 2;
+          const angle =
+            (index * (2 * Math.PI)) / radarData.length - Math.PI / 2;
           // 使用与Canvas绘制相同的半径计算逻辑
           const radius = Math.min(canvasSize.width, canvasSize.height) / 2 - 60;
           const labelRadius = radius + (index === 0 ? 22 : 40);
@@ -513,26 +571,29 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
           return (
             <div
               key={index}
-              className="absolute group"
+              className='absolute group'
               style={{
                 left: `${labelX}px`,
                 top: `${labelY}px`,
-                transform: 'translate(-50%, -50%)'
+                transform: 'translate(-50%, -50%)',
               }}
             >
-              <div className="relative cursor-help">
+              <div className='relative cursor-help'>
                 {/* 透明的悬浮区域，覆盖文字 */}
-                <div className="w-16 h-8 absolute -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2" />
+                <div className='w-16 h-8 absolute -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2' />
 
                 {/* 悬浮提示 */}
-                <div className="absolute whitespace-normal min-w-44 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20 theme-text-primary theme-border border max-w-[200px] text-center leading-relaxed">
-                  <div className="font-medium mb-1">{item.ability}</div>
-                  <div className="text-[10px] theme-text-secondary">
+                <div className='absolute whitespace-normal min-w-44 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20 theme-text-primary theme-border border max-w-[200px] text-center leading-relaxed'>
+                  <div className='font-medium mb-1'>{item.ability}</div>
+                  <div className='text-[10px] theme-text-secondary'>
                     {item.description || '维度说明'}
                   </div>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent" style={{
-                    borderTopColor: 'var(--bg-secondary)'
-                  }}></div>
+                  <div
+                    className='absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent'
+                    style={{
+                      borderTopColor: 'var(--bg-secondary)',
+                    }}
+                  ></div>
                 </div>
               </div>
             </div>
@@ -541,19 +602,19 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
       </div>
 
       {/* 分析原因区域 */}
-      {data.reason && (
-        <div className="pt-2 pb-2 border-t theme-border">
-          <div className="flex items-start gap-2">
+      {(data.reason || data.reason_en) && (
+        <div className='pt-2 pb-2 border-t theme-border'>
+          <div className='flex items-start gap-2'>
             <div
-              className="w-1 h-4 rounded-full flex-shrink-0 mt-0.5"
+              className='w-1 h-4 rounded-full flex-shrink-0 mt-0.5'
               style={{ backgroundColor: personalizedColors.primary }}
             />
-            <div className="flex-1">
-              <h4 className="text-xs font-medium theme-text-primary mb-1">
+            <div className='flex-1'>
+              <h4 className='text-xs font-medium theme-text-primary mb-1'>
                 {t('analysisReason')}
               </h4>
-              <p className="text-xs theme-text-secondary leading-relaxed">
-                {data.reason}
+              <p className='text-xs theme-text-secondary leading-relaxed'>
+                {lang === 'en' && data.reason_en ? data.reason_en : data.reason}
               </p>
             </div>
           </div>
@@ -561,7 +622,7 @@ function SoulDensity({ data, isLoading, userId, newTwitterData, loadingTwInfo }:
       )}
 
       {/* 右下角水印 */}
-      <div className="absolute bottom-1 right-3 text-[9px] z-50 theme-text-secondary opacity-60 leading-tight">
+      <div className='absolute bottom-1 right-3 text-[9px] z-50 theme-text-secondary opacity-60 leading-tight'>
         {watermarkContent}
       </div>
     </div>

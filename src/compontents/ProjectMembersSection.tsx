@@ -33,15 +33,19 @@ function OfficialTag({ text, theme }: { text: string; theme: string }) {
   const backgroundColor = generateMemberColor(text);
 
   return (
-    <span className="relative inline-block h-[14px] w-full">
+    <span className='relative inline-block h-[14px] w-full'>
       <span
-        className="inline-block items-center px-0.5 py-0.5 rounded text-[7px] font-medium whitespace-nowrap w-full overflow-hidden text-ellipsis text-center break-all"
+        className='inline-block items-center px-0.5 py-0.5 rounded text-[7px] font-medium whitespace-nowrap w-full overflow-hidden text-ellipsis text-center break-all'
         style={{
-          backgroundColor: theme === 'dark' ? `${backgroundColor}20` : `${backgroundColor}30`,
+          backgroundColor:
+            theme === 'dark' ? `${backgroundColor}20` : `${backgroundColor}30`,
           borderWidth: '0.5px',
           borderStyle: 'solid',
           borderColor: theme === 'dark' ? 'rgba(207,217,223,0.2)' : '#CFD9DF',
-          color: theme === 'dark' ? backgroundColor : `hsl(${backgroundColor.match(/\d+/)?.[0] || 0}, 70%, 35%)`,
+          color:
+            theme === 'dark'
+              ? backgroundColor
+              : `hsl(${backgroundColor?.match(/\d+/)?.[0] || 0}, 70%, 35%)`,
         }}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -52,9 +56,9 @@ function OfficialTag({ text, theme }: { text: string; theme: string }) {
 
       {/* 自定义 tooltip */}
       {showTooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 bg-gray-900 text-white text-[9px] rounded whitespace-nowrap z-50 pointer-events-none">
+        <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 bg-gray-900 text-white text-[9px] rounded whitespace-nowrap z-50 pointer-events-none'>
           {text}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-1 border-r-1 border-t-1 border-transparent border-t-gray-900"></div>
+          <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-1 border-r-1 border-t-1 border-transparent border-t-gray-900'></div>
         </div>
       )}
     </span>
@@ -64,7 +68,7 @@ function OfficialTag({ text, theme }: { text: string; theme: string }) {
 // 成员卡片组件
 function MemberCard({
   member,
-  theme
+  theme,
 }: {
   member: ProjectMember;
   theme: string;
@@ -73,38 +77,42 @@ function MemberCard({
   const { lang } = useI18n();
 
   // 获取官方标签 - 使用当前语言
-  const officialTags = officialTagsManager.getUserTags(member.handle, lang as 'zh' | 'en');
+  const officialTags = officialTagsManager.getUserTags(
+    member.handle,
+    lang as 'zh' | 'en'
+  );
   const displayTags = officialTags.slice(0, 2); // 最多显示2个标签
 
   return (
     <a
       href={`https://x.com/${member.handle}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block p-0.5 rounded theme-hover transition-all duration-200 hover:shadow-sm group relative"
+      target='_blank'
+      rel='noopener noreferrer'
+      className='block p-0.5 rounded theme-hover transition-all duration-200 hover:shadow-sm group relative'
       title={`${member.name} (@${member.handle})`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      <div className="flex flex-col items-center space-y-1 min-w-0">
+      <div className='flex flex-col items-center space-y-1 min-w-0'>
         {/* 头像 */}
         <div>
           <img
             src={member.image}
             alt={member.name}
-            className="w-8 h-8 rounded-full border theme-border flex-shrink-0 group-hover:ring-1 group-hover:ring-blue-400 transition-all object-cover"
+            className='w-8 h-8 rounded-full border theme-border flex-shrink-0 group-hover:ring-1 group-hover:ring-blue-400 transition-all object-cover'
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+              (e.target as HTMLImageElement).src =
+                'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
             }}
           />
         </div>
 
         {/* 用户信息 */}
-        <div className="flex flex-col items-center space-y-0.5 min-w-0 w-full">
+        <div className='flex flex-col items-center space-y-0.5 min-w-0 w-full'>
           {/* 用户名 - 限制一行显示，hover 显示完整内容 */}
-          <div className="relative w-full">
+          <div className='relative w-full'>
             <div
-              className="text-[10px] font-medium theme-text-primary leading-tight text-center w-full px-0.5 truncate"
+              className='text-[10px] font-medium theme-text-primary leading-tight text-center w-full px-0.5 truncate'
               title={member.name} // 浏览器原生 tooltip 作为备选
             >
               {member.name}
@@ -113,7 +121,7 @@ function MemberCard({
 
           {/* 官方标签 + level badge */}
           {(displayTags.length > 0 || member.level) && (
-            <div className="flex items-center gap-[2px] flex-wrap justify-center w-full mt-0.5">
+            <div className='flex items-center gap-[2px] flex-wrap justify-center w-full mt-0.5'>
               {displayTags.map((tag, index) => (
                 <OfficialTag key={index} text={tag} theme={theme} />
               ))}
@@ -127,16 +135,21 @@ function MemberCard({
 
       {/* Tooltip */}
       {showTooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 bg-gray-900 text-white text-[10px] rounded whitespace-nowrap z-50 pointer-events-none">
-          <div className="text-center">{member.name} (@{member.handle})</div>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-1 border-r-1 border-t-1 border-transparent border-t-gray-900"></div>
+        <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 bg-gray-900 text-white text-[10px] rounded whitespace-nowrap z-50 pointer-events-none'>
+          <div className='text-center'>
+            {member.name} (@{member.handle})
+          </div>
+          <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-1 border-r-1 border-t-1 border-transparent border-t-gray-900'></div>
         </div>
       )}
     </a>
   );
 }
 
-export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMembersSectionProps) {
+export function ProjectMembersSection({
+  data,
+  isHoverPanel = false,
+}: ProjectMembersSectionProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [memberRanks, setMemberRanks] = useState<Record<string, number>>({});
@@ -152,7 +165,7 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
     'investor/advisor',
     'contributor',
     'ex-member',
-    'alumni'
+    'alumni',
   ];
 
   // 动态获取所有成员组
@@ -160,12 +173,10 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
     if (!data) return [];
 
     // 按照固定顺序获取有效的成员组
-    const groups = FIXED_ORDER
-    .filter(key => {
+    const groups = FIXED_ORDER.filter((key) => {
       const members = data[key as keyof ProjectMemberData];
       return Array.isArray(members) && members.length > 0;
-    })
-    .map(key => {
+    }).map((key) => {
       const members = data[key as keyof ProjectMemberData];
 
       // 调用翻译函数
@@ -174,7 +185,7 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
       return {
         key,
         title: translatedTitle,
-        members: members as ProjectMember[]
+        members: members as ProjectMember[],
       };
     });
 
@@ -188,13 +199,16 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
 
   // 当memberGroups变化时，更新activeTab
   useEffect(() => {
-    if (memberGroups.length > 0 && !memberGroups.find(g => g.key === activeTab)) {
+    if (
+      memberGroups.length > 0 &&
+      !memberGroups.find((g) => g.key === activeTab)
+    ) {
       setActiveTab(memberGroups[0].key);
     }
   }, [memberGroups, activeTab]);
 
   // 获取当前激活分组的成员
-  const activeGroup = memberGroups.find(group => group.key === activeTab);
+  const activeGroup = memberGroups.find((group) => group.key === activeTab);
   const activeMembers = activeGroup?.members || [];
 
   // 获取成员排名
@@ -204,7 +218,7 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
     // 重置排序状态
     setRankingSorted(false);
 
-    const usernames = activeMembers.map(member => member.handle);
+    const usernames = activeMembers.map((member) => member.handle);
 
     // 清除之前的定时器
     if (loadingTimerRef.current) {
@@ -229,7 +243,7 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
     const fetchMemberRanks = async () => {
       try {
         const ranks = await rankService.getRanks(usernames);
-        setMemberRanks(prev => ({ ...prev, ...ranks }));
+        setMemberRanks((prev) => ({ ...prev, ...ranks }));
       } catch (error) {
         console.log('Failed to fetch member ranks:', error);
       } finally {
@@ -266,9 +280,10 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
     if (!isHoverPanel) return 'auto';
 
     // 计算所有分组中成员的最大数量，确保有足够的空间
-    const maxMembers = memberGroups.length > 0
-      ? Math.max(...memberGroups.map(group => group.members.length))
-      : 0;
+    const maxMembers =
+      memberGroups.length > 0
+        ? Math.max(...memberGroups.map((group) => group.members.length))
+        : 0;
     // 每行4个成员，计算需要的行数
     const rows = Math.ceil(maxMembers / 4);
     // 每行约44px高度，加上tab导航和padding的高度，增加一些缓冲空间
@@ -289,7 +304,10 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   }, [isHoverPanel]);
 
   // 计算总成员数
-  const totalMembers = memberGroups.reduce((total, group) => total + (group.members?.length || 0), 0);
+  const totalMembers = memberGroups.reduce(
+    (total, group) => total + (group.members?.length || 0),
+    0
+  );
 
   if (memberGroups.length === 0 || totalMembers === 0) {
     return null;
@@ -301,32 +319,40 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
   return (
     <div
       className={`theme-border ${isHoverPanel ? '' : 'border-b'}`}
-      style={isHoverPanel ? {
-        height: maxHeight,
-        minHeight: maxHeight,
-        width: fixedWidth,
-        minWidth: fixedWidth,
-        maxWidth: fixedWidth,
-        // backgroundColor: 'blue'
-      } : {}}
+      style={
+        isHoverPanel
+          ? {
+              height: maxHeight,
+              minHeight: maxHeight,
+              width: fixedWidth,
+              minWidth: fixedWidth,
+              maxWidth: fixedWidth,
+              // backgroundColor: 'blue'
+            }
+          : {}
+      }
     >
-      <div className="px-3 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-purple-400" />
-          <h2 className="font-bold text-sm theme-text-primary">{t('projectMembers')}</h2>
-          <span className="text-xs theme-text-secondary">({totalMembers})</span>
+      <div className='px-3 py-2 flex items-center justify-between'>
+        <div className='flex items-center gap-2'>
+          <Users className='w-4 h-4 text-purple-400' />
+          <h2 className='font-bold text-sm theme-text-primary'>
+            {t('projectMembers')}
+          </h2>
+          <span className='text-xs theme-text-secondary'>({totalMembers})</span>
           {isHoverPanel && (
-            <div className="flex items-center gap-1">
-              <Sparkles className="w-2.5 h-2.5 text-yellow-400" />
-              <span className="text-[10px] text-yellow-400">{t('aiGenerated')}</span>
+            <div className='flex items-center gap-1'>
+              <Sparkles className='w-2.5 h-2.5 text-yellow-400' />
+              <span className='text-[10px] text-yellow-400'>
+                {t('aiGenerated')}
+              </span>
             </div>
           )}
         </div>
       </div>
 
       {/* Tab 导航 */}
-      <div className="px-3 pb-1">
-        <div className="flex border-b theme-border overflow-x-auto">
+      <div className='px-3 pb-1'>
+        <div className='flex border-b theme-border overflow-x-auto'>
           {memberGroups.map((group) => (
             <button
               key={group.key}
@@ -345,19 +371,23 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
 
       {/* 当前分组的成员列表 */}
       <div
-        className="px-4 pb-2 relative overflow-hidden"
-        style={isHoverPanel ? {
-          height: 'auto',
-          width: fixedWidth,
-          minWidth: fixedWidth,
-          maxWidth: fixedWidth,
-          // backgroundColor: 'red'
-        } : {}}
+        className='px-4 pb-2 relative overflow-hidden'
+        style={
+          isHoverPanel
+            ? {
+                height: 'auto',
+                width: fixedWidth,
+                minWidth: fixedWidth,
+                maxWidth: fixedWidth,
+                // backgroundColor: 'red'
+              }
+            : {}
+        }
       >
         {(!rankingSorted || (showLoading && loadingRanks.size > 0)) && (
-          <div className="flex items-center justify-center py-1 mb-1">
-            <Loader2 className="w-3 h-3 animate-spin text-purple-400 mr-1" />
-            <span className="text-[10px] theme-text-secondary">
+          <div className='flex items-center justify-center py-1 mb-1'>
+            <Loader2 className='w-3 h-3 animate-spin text-purple-400 mr-1' />
+            <span className='text-[10px] theme-text-secondary'>
               {'Loading...'}
             </span>
           </div>
@@ -365,7 +395,7 @@ export function ProjectMembersSection({ data, isHoverPanel = false }: ProjectMem
 
         {rankingSorted && (
           <div
-            className="grid grid-cols-4 gap-2"
+            className='grid grid-cols-4 gap-2'
             style={isHoverPanel ? { width: '100%', minWidth: '100%' } : {}}
           >
             {displayMembers.map((member, index) => (

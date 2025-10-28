@@ -40,10 +40,10 @@ export function useLeaderElection() {
         // 用户交互后注册到leader列表
         registerPage();
       } catch (error) {
-        console.warn(
-          '[LeaderElection] Failed to activate audio context:',
-          error
-        );
+        // console.log(
+        //   '[LeaderElection] Failed to activate audio context:',
+        //   error
+        // );
       }
     };
 
@@ -100,7 +100,7 @@ export function useLeaderElection() {
         isCurrentLeader
       );
     } catch (error) {
-      console.warn('[Content] Failed to register page:', error);
+      console.log('[Content] Failed to register page:', error);
     }
   };
 
@@ -114,7 +114,7 @@ export function useLeaderElection() {
       localStorage.setItem(LEADER_LIST_KEY, JSON.stringify(updatedList));
       console.log('[Content] Unregistered page:', pageId);
     } catch (error) {
-      console.warn('[Content] Failed to unregister page:', error);
+      console.log('[Content] Failed to unregister page:', error);
     }
   };
 
@@ -151,7 +151,7 @@ export function useLeaderElection() {
         );
         localStorage.setItem(LEADER_LIST_KEY, JSON.stringify(updatedList));
       } catch (error) {
-        console.warn('[LeaderElection] Heartbeat failed:', error);
+        console.log('[LeaderElection] Heartbeat failed:', error);
       }
     }, 30 * 1000);
 

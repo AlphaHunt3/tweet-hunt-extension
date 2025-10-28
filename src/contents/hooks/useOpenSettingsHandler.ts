@@ -34,7 +34,7 @@ export function useOpenSettingsHandler() {
           } as any);
         } catch (e) {
           // 静默处理设置打开失败的错误
-          // console.warn('Failed to open settings:', e);
+          // console.log('Failed to open settings:', e);
         }
       }
     };

@@ -8,6 +8,7 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { navigationService } from '~/compontents/navigation/NavigationService';
 import { messageManager } from '~/utils/messageManager';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useReactiveSettings } from '~/utils/settingsManager.ts';
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
@@ -26,6 +27,8 @@ function _SideBarIcon() {
   const isExpanded = width > 72;
   const { lang } = useI18n();
   const langRef = useRef(lang);
+  const { isEnabled } = useReactiveSettings();
+  const showSidebarIcon = isEnabled('showSidebarIcon');
 
   // Update message manager language when user language changes
   useEffect(() => {
@@ -91,7 +94,7 @@ function _SideBarIcon() {
     };
   }, [shadowRoot]);
 
-  if (!shadowRoot) return null;
+  if (!shadowRoot || !showSidebarIcon) return null;
 
   return ReactDOM.createPortal(
     <div
