@@ -7,6 +7,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { navigationService } from './NavigationService';
+import { useDebounceFn } from 'ahooks';
 
 // Define route types
 export interface Route {
@@ -54,8 +55,17 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
 }) => {
   const [history, setHistory] = useState<string[]>([initialRoute]);
   const panelId = 'main-panel'; // Unique ID for this panel
+  const pendingPayloadRef = React.useRef<{
+    route: string;
+    props?: Record<string, any>;
+  } | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
 
   const currentRoute = history[history.length - 1];
+
+  // 检查浏览器是否支持 View Transition API
+  const supportsViewTransition =
+    typeof document !== 'undefined' && 'startViewTransition' in document;
 
   // Update history when initialRoute changes
   useEffect(() => {
@@ -66,29 +76,120 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
     (path: string) => {
       if (routes[path]) {
         // 仅当目标路由不是当前路由时再更新；并确保每个路由在历史中只保留一个实例
-        setHistory((prev) => {
-          const last = prev[prev.length - 1];
-          if (last === path) return prev;
-          const withoutTarget = prev.filter((p) => p !== path);
-          return [...withoutTarget, path];
-        });
+        const updateHistory = () => {
+          setHistory((prev) => {
+            const last = prev[prev.length - 1];
+            if (last === path) return prev;
+            const withoutTarget = prev.filter((p) => p !== path);
+            return [...withoutTarget, path];
+          });
+        };
+
+        if (supportsViewTransition) {
+          (document as any).startViewTransition(updateHistory);
+        } else {
+          updateHistory();
+        }
       } else {
         // 静默处理路由未找到的情况
         // console.log(`Route "${path}" not found`);
       }
     },
-    [routes]
+    [routes, supportsViewTransition]
   );
 
   const goBack = useCallback(() => {
     if (history.length > 1) {
-      setHistory((prev) => prev.slice(0, prev.length - 1));
+      const updateHistory = () => {
+        setHistory((prev) => prev.slice(0, prev.length - 1));
+      };
+
+      if (supportsViewTransition) {
+        (document as any).startViewTransition(updateHistory);
+      } else {
+        updateHistory();
+      }
     }
-  }, [history]);
+  }, [history, supportsViewTransition]);
+
+  // Handle pending payload: scroll and notify, then clear
+  const flushPendingPayload = useCallback(() => {
+    const payload = pendingPayloadRef.current;
+    if (payload && payload.route === currentRoute) {
+      try {
+        const props = payload.props || {};
+        const scrollToId = (props as any).scrollToId as string | undefined;
+        const scrollToSelector = (props as any).scrollToSelector as
+          | string
+          | undefined;
+        const container = contentRef.current;
+        let target: Element | null = null;
+        if (container) {
+          if (scrollToId) {
+            try {
+              target = container.querySelector(
+                `#${scrollToId.replace(/([^a-zA-Z0-9_\-])/g, '\\$1')}`
+              );
+            } catch {}
+          }
+          if (!target && scrollToSelector) {
+            try {
+              target = container.querySelector(scrollToSelector);
+            } catch {}
+          }
+        }
+        if (target && 'scrollIntoView' in target) {
+          try {
+            (target as any).scrollIntoView({
+              // behavior: 'smooth',
+              // block: 'start',
+            });
+          } catch {}
+        }
+        if (typeof (props as any).onArrive === 'function') {
+          try {
+            (props as any).onArrive();
+          } catch {}
+        }
+      } catch {}
+
+      try {
+        window.dispatchEvent(
+          new CustomEvent('xhunt:route-enter', { detail: payload })
+        );
+      } catch {}
+      pendingPayloadRef.current = null;
+    }
+  }, [currentRoute]);
+
+  // Debounced flush to wait for panel open/layout settle
+  const { run: debouncedFlushPendingPayload } = useDebounceFn(
+    () => {
+      flushPendingPayload();
+    },
+    { wait: 400, trailing: true, leading: !!contentRef.current }
+  );
 
   // Register this panel with the navigation service
   useEffect(() => {
-    navigationService.registerPanel(panelId, navigateTo);
+    // Wrap to capture props and then navigate
+    const navigateWithProps = (route: string, props?: Record<string, any>) => {
+      if (props) {
+        pendingPayloadRef.current = { route, props };
+      }
+      if (route === currentRoute) {
+        // 当前已在目标路由：延迟一帧处理，确保节点已挂载
+        try {
+          requestAnimationFrame(() => debouncedFlushPendingPayload());
+        } catch {
+          debouncedFlushPendingPayload();
+        }
+      } else {
+        navigateTo(route);
+      }
+    };
+
+    navigationService.registerPanel(panelId, navigateWithProps);
     try {
       window.dispatchEvent(
         new CustomEvent('xhunt:panel-registered', { detail: panelId })
@@ -99,6 +200,15 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
       navigationService.unregisterPanel(panelId);
     };
   }, [navigateTo]);
+
+  // Emit an event when entering a route with pending payload
+  useEffect(() => {
+    try {
+      requestAnimationFrame(() => debouncedFlushPendingPayload());
+    } catch {
+      debouncedFlushPendingPayload();
+    }
+  }, [currentRoute, debouncedFlushPendingPayload]);
 
   const value = {
     currentRoute,
@@ -114,7 +224,10 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   if (currentRouteConfig) {
     return (
       <NavigationContext.Provider value={value}>
-        <div className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden'>
+        <div
+          ref={contentRef}
+          className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden panel-route-content'
+        >
           {currentRouteConfig.component}
         </div>
       </NavigationContext.Provider>
@@ -126,7 +239,10 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   if (fallbackRoute) {
     return (
       <NavigationContext.Provider value={value}>
-        <div className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden'>
+        <div
+          ref={contentRef}
+          className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden panel-route-content'
+        >
           {fallbackRoute.component}
         </div>
       </NavigationContext.Provider>

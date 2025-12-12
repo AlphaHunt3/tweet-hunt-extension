@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Info, LogOut, MoreVertical } from 'lucide-react';
 import { userLogout } from '~contents/services/review.ts';
 import { useLockFn } from 'ahooks';
-import { UserInfo } from '~types/review.ts';
+import { UserInfo, StoredUserInfo } from '~types/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { windowGtag, openNewTab } from '~contents/utils';
+import { openNewTab } from '~contents/utils';
 import { clearAuthState } from '~contents/utils/auth.ts';
 import { Github } from 'lucide-react';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
+// import { ProPanel } from './ProPanel.tsx';
 
 function _UserAuthPanel({
   userInfo,
@@ -16,25 +17,22 @@ function _UserAuthPanel({
   userInfo: UserInfo | undefined | null;
 }) {
   const [showLogout, setShowLogout] = useState(false);
+  const [showProPanel, setShowProPanel] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
   const [, setToken] = useLocalStorage('@xhunt/token', '');
   // const [showPointsInfo, setShowPointsInfo] = useState(false);
-  const [user, setUser] = useLocalStorage<
-    | {
-        avatar: string;
-        displayName: string;
-        username: string;
-        id: string;
-      }
-    | null
-    | ''
-  >('@xhunt/user', null);
+  const [user, setUser] = useLocalStorage<StoredUserInfo | null | ''>(
+    '@xhunt/user',
+    null
+  );
   const { t } = useI18n();
+
+  // const isPro = userInfo?.isPro ?? false;
+  // const proExpiryTime = userInfo?.proExpiryTime;
   const logout = useLockFn(async () => {
-    windowGtag('event', 'loginOut');
     await userLogout();
     await clearAuthState();
-    await setToken('');
-    await setUser('');
     // 刷新当前页面
     setTimeout(() => {
       window.location.reload();
@@ -43,13 +41,30 @@ function _UserAuthPanel({
 
   const redirectToLogin = useLockFn(async () => {
     try {
-      // windowGtag('event', 'login');
       const ret = await getTwitterAuthUrl();
       if (ret?.url) {
         openNewTab(ret.url);
       }
     } catch (e) {}
   });
+
+  // const handleInviteCodeSubmit = useLockFn(async () => {
+  //   if (!inviteCode.trim()) return;
+  //   setIsSubmittingInvite(true);
+  //   try {
+  //     // TODO: 调用邀请码开通API
+  //     // await activateProWithInviteCode(inviteCode);
+  //     console.log('Submitting invite code:', inviteCode);
+  //     // 成功后刷新用户信息
+  //     setTimeout(() => {
+  //       setIsSubmittingInvite(false);
+  //       setInviteCode('');
+  //       window.location.reload();
+  //     }, 1000);
+  //   } catch (e) {
+  //     setIsSubmittingInvite(false);
+  //   }
+  // });
 
   // 未登录视图：底部显示图标 + 登录按钮
   if (!user || typeof user !== 'object' || !user?.username) {
@@ -108,8 +123,30 @@ function _UserAuthPanel({
   }
 
   return (
-    <div className='sticky bottom-0 theme-bg-secondary backdrop-blur-sm theme-border border-t'>
-      <div className='p-2 flex items-center justify-between relative'>
+    <div
+      className='sticky bottom-0 theme-bg-secondary backdrop-blur-sm theme-border border-t'
+      onMouseEnter={() => {
+        if (!showLogout) {
+          setShowProPanel(true);
+          setShowLogout(false);
+        }
+      }}
+      onMouseLeave={() => {
+        setShowProPanel(false);
+      }}
+    >
+      {/* Pro 金色装饰 */}
+      {/* {isPro && ( */}
+      {/* <div className='absolute inset-0 pointer-events-none overflow-hidden rounded-t-lg'> */}
+      {/* 顶部左侧金色光晕 */}
+      {/* <div className='absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-amber-500/20 via-yellow-400/15 to-transparent dark:from-amber-500/15 dark:via-yellow-400/10 blur-sm' /> */}
+      {/* 顶部右侧金色线条 */}
+      {/* <div className='absolute top-0 right-0 w-20 h-px bg-gradient-to-l from-amber-500/60 via-yellow-400/40 to-transparent dark:from-amber-400/50 dark:via-yellow-300/30' /> */}
+      {/* 左侧底部金色装饰点 */}
+      {/* <div className='absolute bottom-2 left-2 w-1 h-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 dark:from-amber-400 dark:to-yellow-300 shadow-sm shadow-amber-500/50' /> */}
+      {/* </div> */}
+      {/* )} */}
+      <div className='p-2 flex items-center justify-between relative z-10'>
         <div className='flex items-center gap-2'>
           <div className='relative'>
             <XIcon className='w-3.5 h-3.5 text-[#1d9bf0]' />
@@ -117,40 +154,34 @@ function _UserAuthPanel({
           </div>
           <Avatar src={user.avatar} alt={user.displayName} size={24} />
           <div className='flex flex-col'>
-            <span className='text-xs font-medium leading-tight theme-text-primary'>
-              {user.displayName}
-            </span>
+            <div className='flex items-center gap-1.5'>
+              <span className='text-xs font-medium leading-tight theme-text-primary'>
+                {user.displayName}
+              </span>
+              {/* {isPro && (
+                <span
+                  onClick={() => {
+                    setShowProPanel(true);
+                    setShowLogout(false);
+                  }}
+                  className='cursor-pointer -translate-y-0.5 inline-flex items-center px-0.5 py-0.5 rounded text-[8px] font-bold leading-none bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 dark:from-amber-600 dark:via-yellow-500 dark:to-amber-600 text-amber-900 dark:text-amber-100 border border-amber-300/60 dark:border-amber-500/40'
+                >
+                  {t('proBadge')}
+                </span>
+              )} */}
+            </div>
             <span className='text-[10px] theme-text-secondary leading-tight'>
               @{user.username}
-              {/*{userInfo && userInfo?.username === userInfo.username &&*/}
-              {/*  <div className="inline-flex items-center gap-1 rounded px-1.5 py-0.5">*/}
-              {/*    <span className="text-[10px] font-medium text-blue-400">{userInfo?.xPoints || 0} {t('xPoints')}</span>*/}
-              {/*    <button*/}
-              {/*      className="relative"*/}
-              {/*      onMouseEnter={() => setShowPointsInfo(true)}*/}
-              {/*      onMouseLeave={() => setShowPointsInfo(false)}*/}
-              {/*    >*/}
-              {/*      <Info className="w-3 h-3 text-gray-500" />*/}
-              {/*      {showPointsInfo && (*/}
-              {/*        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 theme-bg-secondary rounded-lg shadow-lg text-[10px] leading-relaxed">*/}
-              {/*          <div className="font-medium mb-1 theme-text-primary">{t('xPointsRules')}</div>*/}
-              {/*          <div className="space-y-0.5 theme-text-secondary">*/}
-              {/*            <div>{t('xPointsRank1')}</div>*/}
-              {/*            <div>{t('xPointsRank2')}</div>*/}
-              {/*            <div>{t('xPointsRank3')}</div>*/}
-              {/*            <div>{t('xPointsRank4')}</div>*/}
-              {/*            <div>{t('xPointsRank5')}</div>*/}
-              {/*            <div>{t('xPointsRank6')}</div>*/}
-              {/*          </div>*/}
-              {/*        </div>*/}
-              {/*      )}*/}
-              {/*    </button>*/}
-              {/*  </div>}*/}
             </span>
           </div>
         </div>
         <button
-          onClick={() => setShowLogout(!showLogout)}
+          onClick={() => {
+            setShowLogout(!showLogout);
+            if (!showLogout) {
+              setShowProPanel(false);
+            }
+          }}
           className='p-1.5 theme-hover rounded-full transition-colors'
         >
           <MoreVertical className='w-3.5 h-3.5 theme-text-secondary' />
@@ -158,7 +189,7 @@ function _UserAuthPanel({
 
         {showLogout && (
           <>
-            <div className='absolute bottom-full right-0 mb-1 w-32 theme-bg-secondary rounded-lg shadow-lg theme-border overflow-hidden'>
+            <div className='absolute bottom-full right-0 mb-1 w-32 theme-bg-secondary rounded-lg shadow-lg theme-border overflow-hidden z-20'>
               <button
                 onClick={() => {
                   setShowLogout(false);
@@ -170,13 +201,26 @@ function _UserAuthPanel({
                 {t('logout')}
               </button>
             </div>
-            {/*<button*/}
-            {/*  className="fixed inset-0 z-10"*/}
-            {/*  onClick={() => setShowLogout(false)}*/}
-            {/*/>*/}
           </>
         )}
       </div>
+
+      {/* Pro Panel */}
+      {/* {showProPanel && (
+        <div className='absolute bottom-full left-0 right-0 z-[9999]'>
+          <ProPanel
+            isPro={isPro}
+            proExpiryTime={proExpiryTime}
+            isLegacyPro={userInfo?.isLegacyPro}
+            inviteCode={inviteCode}
+            setInviteCode={setInviteCode}
+            isSubmittingInvite={isSubmittingInvite}
+            onInviteCodeSubmit={handleInviteCodeSubmit}
+            show={showProPanel}
+            showBenefits={true}
+          />
+        </div>
+      )} */}
     </div>
   );
 }

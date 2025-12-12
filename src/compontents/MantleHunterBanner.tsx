@@ -1,4 +1,5 @@
-import { MantleHunterBanner } from './MantleHunter/MantleHunterBanner';
+import { HunterCampaignBanner } from './HunterCampaign/HunterCampaignBanner';
 
-export { MantleHunterBanner };
-export default MantleHunterBanner;
+// 向后兼容：导出为 MantleHunterBanner
+export { HunterCampaignBanner as MantleHunterBanner };
+export default HunterCampaignBanner;

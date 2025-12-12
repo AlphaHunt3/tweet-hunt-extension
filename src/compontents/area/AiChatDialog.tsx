@@ -116,7 +116,9 @@ export function AiChatDialog() {
   const MIN_INPUT_LENGTH = 1; // 最小输入字数
 
   // 使用 useRef 来避免闭包问题
-  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 注意：可能存储 setTimeout 或 requestAnimationFrame 的返回值
+  const typingTimerRef = useRef<number | null>(null);
+  const isAnimationFrameRef = useRef<boolean>(false); // 标记当前是否是 requestAnimationFrame
   const typingIndexRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const targetContentRef = useRef<string>('');
@@ -172,13 +174,16 @@ export function AiChatDialog() {
       setDisplayedContent(newContent);
       typingIndexRef.current = currentIndex + charsToType;
 
-      typingTimerRef.current = setTimeout(typeNextChar, typingSpeed);
+      typingTimerRef.current = window.setTimeout(typeNextChar, typingSpeed);
+      isAnimationFrameRef.current = false; // setTimeout
     } else {
       // 已打到当前目标末尾
       if (isStreamingRef.current) {
         // 仍在流式接收，短暂等待新内容再尝试
         console.log('Waiting for more content...');
-        typingTimerRef.current = setTimeout(typeNextChar, 16); // 减少等待时间，更快响应新内容
+        // 使用 requestAnimationFrame 替代 setTimeout(16ms)，与浏览器渲染周期同步
+        typingTimerRef.current = window.requestAnimationFrame(typeNextChar);
+        isAnimationFrameRef.current = true; // requestAnimationFrame
       } else {
         // 流结束且已打完
         console.log('Typing finished');
@@ -191,10 +196,15 @@ export function AiChatDialog() {
   // 打字效果函数 - 动态速度调整
   const startTypingEffect = useCallback(
     (startIndex: number = 0) => {
-      // 清理之前的定时器
+      // 清理之前的定时器（统一处理 setTimeout 和 requestAnimationFrame）
       if (typingTimerRef.current) {
-        clearTimeout(typingTimerRef.current);
+        if (isAnimationFrameRef.current) {
+          window.cancelAnimationFrame(typingTimerRef.current);
+        } else {
+          clearTimeout(typingTimerRef.current);
+        }
         typingTimerRef.current = null;
+        isAnimationFrameRef.current = false;
       }
 
       setIsTyping(true);
@@ -219,8 +229,13 @@ export function AiChatDialog() {
   // 停止打字效果
   const stopTypingEffect = useCallback(() => {
     if (typingTimerRef.current) {
-      clearTimeout(typingTimerRef.current);
+      if (isAnimationFrameRef.current) {
+        window.cancelAnimationFrame(typingTimerRef.current);
+      } else {
+        clearTimeout(typingTimerRef.current);
+      }
       typingTimerRef.current = null;
+      isAnimationFrameRef.current = false;
     }
     setIsTyping(false);
     // 立即显示完整内容
@@ -343,8 +358,13 @@ export function AiChatDialog() {
     }
 
     if (typingTimerRef.current) {
-      clearTimeout(typingTimerRef.current);
+      if (isAnimationFrameRef.current) {
+        window.cancelAnimationFrame(typingTimerRef.current);
+      } else {
+        clearTimeout(typingTimerRef.current);
+      }
       typingTimerRef.current = null;
+      isAnimationFrameRef.current = false;
     }
 
     containerRef.current?.hide();
@@ -527,8 +547,13 @@ export function AiChatDialog() {
 
         // 停止打字效果
         if (typingTimerRef.current) {
-          clearTimeout(typingTimerRef.current);
+          if (isAnimationFrameRef.current) {
+            window.cancelAnimationFrame(typingTimerRef.current);
+          } else {
+            clearTimeout(typingTimerRef.current);
+          }
           typingTimerRef.current = null;
+          isAnimationFrameRef.current = false;
         }
         setIsTyping(false);
 
@@ -562,8 +587,13 @@ export function AiChatDialog() {
       setIsStreaming(false);
       setIsTyping(false);
       if (typingTimerRef.current) {
-        clearTimeout(typingTimerRef.current);
+        if (isAnimationFrameRef.current) {
+          window.cancelAnimationFrame(typingTimerRef.current);
+        } else {
+          clearTimeout(typingTimerRef.current);
+        }
         typingTimerRef.current = null;
+        isAnimationFrameRef.current = false;
       }
     }
   };
@@ -593,8 +623,13 @@ export function AiChatDialog() {
 
     // 停止打字效果
     if (typingTimerRef.current) {
-      clearTimeout(typingTimerRef.current);
+      if (isAnimationFrameRef.current) {
+        window.cancelAnimationFrame(typingTimerRef.current);
+      } else {
+        clearTimeout(typingTimerRef.current);
+      }
       typingTimerRef.current = null;
+      isAnimationFrameRef.current = false;
     }
 
     if (responseTimerRef.current) {

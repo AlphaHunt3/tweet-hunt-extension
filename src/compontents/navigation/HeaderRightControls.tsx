@@ -3,20 +3,29 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { Bell, GripVertical, CircleX } from 'lucide-react';
 import { useNavigation } from '~/compontents/navigation/PanelNavigator';
 import { messageManager } from '~/utils/messageManager';
+import { usePanelContext } from './PanelContext';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 interface HeaderRightControlsProps {
   onOpenSettings?: () => void;
   onOpenMessages?: () => void;
   onClose?: () => void;
+  onMinimize?: () => void;
 }
 
 export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   onOpenSettings,
   onOpenMessages,
   onClose,
+  onMinimize,
 }) => {
   const { t } = useI18n();
   const { navigateTo } = useNavigation();
+  const { onMinimize: contextOnMinimize } = usePanelContext();
+  const [floatingPanelMode] = useLocalStorage<'default' | 'persistent'>(
+    '@xhunt/floatingPanelMode',
+    'default'
+  );
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   // const [isCheckingMessages, setIsCheckingMessages] = useState(true);
@@ -107,8 +116,21 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
         <GripVertical className='w-4 h-4 theme-text-secondary' />
       </div>
 
-      {/* Close Button */}
-      {onClose && (
+      {/* Minimize Button - 仅在常驻模式下显示 */}
+      {floatingPanelMode === 'persistent' &&
+        (onMinimize || contextOnMinimize) && (
+          <button
+            onClick={onMinimize || contextOnMinimize}
+            className='p-1.5 rounded-full theme-hover transition-colors cursor-pointer'
+            title='Minimize panel'
+            aria-label='Minimize panel'
+          >
+            <CircleX className='w-4 h-4 theme-text-secondary' />
+          </button>
+        )}
+
+      {/* Close Button - 仅在默认模式下显示 */}
+      {floatingPanelMode === 'default' && onClose && (
         <button
           className='p-1.5 rounded-full theme-hover transition-colors cursor-pointer'
           onClick={onClose}

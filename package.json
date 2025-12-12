@@ -1,27 +1,32 @@
 {
   "name": "xhunt",
   "displayName": "XHunt – Your Crypto Co-pilot on X",
-  "version": "0.1.11",
+  "version": "0.2.02",
   "description": "Your Crypto Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
   "scripts": {
-    "dev": "node script/dev-with-fix.js",
-    "dev-original": "plasmo dev --env=.env.pro",
+    "dev": "plasmo dev --env=.env.pro",
     "dev-test": "plasmo dev --env=.env.dev",
-    "build": "node script/build-with-fix.js",
-    "build-original": "NODE_ENV=production plasmo build --env=.env.pro",
+    "build": "NODE_ENV=production plasmo build --env=.env.pro",
     "build:analyze": "NODE_ENV=production ANALYZE=true plasmo build --env=.env.pro",
     "build:dev": "NODE_ENV=development plasmo build --env=.env.dev",
     "package": "plasmo package",
-    "translate-ranks": "node script/translate_ranks.js",
-    "fix-manifest": "node script/fix-manifest.js"
+    "translate-ranks": "node script/translate_ranks.js"
+  },
+  "manifest": {
+    "permissions": [
+      "idle",
+      "scripting",
+      "storage"
+    ]
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
     "@plasmohq/messaging": "^0.6.0",
     "@plasmohq/storage": "^1.9.0",
     "@types/d3-cloud": "^1.2.9",
+    "@types/qrcode": "^1.5.6",
     "ahooks": "^3.7.8",
     "axios": "^1.10.0",
     "d3": "^7.8.5",
@@ -30,6 +35,7 @@
     "lucide-react": "^0.476.0",
     "numeral": "^2.0.6",
     "plasmo": "^0.84.0",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-draggable": "^4.4.6",

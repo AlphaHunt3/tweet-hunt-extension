@@ -11,6 +11,11 @@ import {
 } from '~utils/notificationEvents';
 import { TopTabNavigator } from './TopTabNavigator';
 import { useCrossPageSettings } from '~utils/settingsManager';
+import { HunterCampaignBanner } from './HunterCampaign/HunterCampaignBanner';
+import { getActiveCampaignForUserAsync } from './HunterCampaign/campaignConfigs';
+import { configManager } from '~utils/configManager';
+import { LoginRequired } from './LoginRequired';
+import { ProRequired } from './ProRequired';
 
 export interface TwitterPersonalRightSidebarProps {
   userId: string;
@@ -73,12 +78,26 @@ export function TwitterPersonalRightSidebar({
     }
   }, [topTabs, activeTopTab]);
 
-  // // 是否显示 Mantle Hunter 活动（独立控制，且仅在 Mantle_Official 主页显示）
-  // const shouldShowMantleHunterBase =
-  //   configManager.shouldShowMantleHunterProgram();
-  // const canShowMantleHunter =
-  //   shouldShowMantleHunterBase &&
-  //   String(userId || '').toLowerCase() === 'mantle_official';
+  // 根据 userId 获取应该显示的活动配置（逻辑封装在 campaignConfigs.ts 中）
+  const [activeHunterCampaignConfig, setActiveHunterCampaignConfig] = useState(
+    null as ReturnType<() => any>
+  );
+  useEffect(() => {
+    let mounted = true;
+    const uid = userId || '';
+    if (!uid) {
+      setActiveHunterCampaignConfig(null as any);
+      return;
+    }
+    getActiveCampaignForUserAsync(uid)
+      .then((cfg) => {
+        if (mounted) setActiveHunterCampaignConfig(cfg as any);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
 
   // 监听实时通知变化，用于红点显示
   useEffect(() => {
@@ -145,15 +164,19 @@ export function TwitterPersonalRightSidebar({
         borderColor: 'var(--border-color)',
       }}
     >
-      {/* Campaign Banner at the very top - 独立控制
-      {canShowMantleHunter && (
+      {/* Campaign Banner at the very top - 独立控制 */}
+      {activeHunterCampaignConfig && isEnabled('showHunterCampaign') && (
         <div className='px-3 pt-3'>
-          <MantleHunterBanner
+          <HunterCampaignBanner
             unregisteredMode='collapsed'
-            showMantleHunterComponents={true}
+            showMantleHunterComponents={
+              activeHunterCampaignConfig.showExtraComponents
+            }
+            campaignConfig={activeHunterCampaignConfig}
+            defaultExpanded={false}
           />
         </div>
-      )} */}
+      )}
 
       {/* 顶层标签页 - 只有在有多个标签页时才显示 */}
       {topTabs.length > 1 && (
@@ -165,17 +188,29 @@ export function TwitterPersonalRightSidebar({
       )}
 
       {/* 内容区域 */}
-      <div className={topTabs.length > 1 ? 'pt-2' : ''}>
-        {activeTopTab === 'analysis' ? (
-          <PersonalAnalysisPanel
-            userId={userId}
-            newTwitterData={newTwitterData}
-            loadingTwInfo={loadingTwInfo}
-          />
-        ) : (
-          <RealTimeSubscription ref={realTimeSubscriptionRef} />
-        )}
-      </div>
+      {Boolean(topTabs.length) && (
+        <div
+          className={`${
+            topTabs.length > 1 ? 'pt-2' : ''
+          } personal-sidebar-content`}
+        >
+          {activeTopTab === 'analysis' ? (
+            <LoginRequired showInCenter={true}>
+              <PersonalAnalysisPanel
+                userId={userId}
+                newTwitterData={newTwitterData}
+                loadingTwInfo={loadingTwInfo}
+              />
+            </LoginRequired>
+          ) : (
+            <LoginRequired showInCenter={true}>
+              <ProRequired enableAnimation={false} showExtraTitle={true}>
+                <RealTimeSubscription ref={realTimeSubscriptionRef} />
+              </ProRequired>
+            </LoginRequired>
+          )}
+        </div>
+      )}
     </div>
   );
 }

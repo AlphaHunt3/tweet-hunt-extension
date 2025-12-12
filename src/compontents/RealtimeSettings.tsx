@@ -33,22 +33,26 @@ export const RealtimeSettings: React.FC<RealtimeSettingsProps> = ({
   // 模拟显示通知
   const simulateNotification = async () => {
     try {
-      requestAnimationFrame(() => {
-        const mockNotification = {
-          type: 'REALTIME_FEED_UPDATE',
-          dataType: activeSubTab,
-          summary:
-            activeSubTab === 'bnb'
-              ? t('testBnbNotification')
-              : activeSubTab === 'gossip'
-              ? t('testGossipNotification')
-              : t('testListingNotification'),
-          isFirstLoad: false,
-          timestamp: Date.now(),
-        };
-        chrome.storage.local.set({
-          'xhunt:realtime_notification': mockNotification,
-        });
+      const mockNotification = {
+        type: 'REALTIME_FEED_UPDATE',
+        dataType: activeSubTab,
+        summary:
+          activeSubTab === 'bnb'
+            ? t('testBnbNotification')
+            : activeSubTab === 'gossip'
+            ? t('testGossipNotification')
+            : t('testListingNotification'),
+        isFirstLoad: false,
+        timestamp: Date.now(),
+      };
+
+      await new Promise<void>((resolve) => {
+        chrome.storage.local.set(
+          { 'xhunt:realtime_notification': mockNotification },
+          () => {
+            resolve();
+          }
+        );
       });
     } catch (error) {
       console.log('Failed to trigger notification:', error);
@@ -80,8 +84,12 @@ export const RealtimeSettings: React.FC<RealtimeSettingsProps> = ({
               await updateSettings(activeSubTab, 'showNotification', isChecked);
 
               // 如果勾选了通知，模拟显示通知
+              // 延迟一点时间确保 settings state 已经更新
               if (isChecked) {
-                await simulateNotification();
+                // 使用 setTimeout 确保 React state 更新完成后再触发通知
+                setTimeout(async () => {
+                  await simulateNotification();
+                }, 50);
               }
             }}
             className='w-3 h-3 rounded border theme-border'

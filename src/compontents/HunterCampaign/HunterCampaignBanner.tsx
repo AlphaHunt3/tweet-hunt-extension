@@ -11,30 +11,30 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
-import { rankService } from '~/utils/rankService';
 import { cleanErrorMessage } from '~/utils/dataValidation';
-import {
-  getWalletNonce,
-  verifyWalletSignature,
-  getMantleRegistrationMe,
-  postMantleRegister,
-  getTwitterAuthUrl,
-} from '~contents/services/api.ts';
-import { openNewTab, windowGtag } from '~contents/utils';
-import { configManager } from '~utils/configManager';
+import { getTwitterAuthUrl } from '~contents/services/api.ts';
+import { openNewTab } from '~contents/utils';
 import { ActivityHeader } from './ActivityHeader';
-import { MantleHunterCaptain } from './MantleHunterCaptain';
-import { MantleLeaderboard } from './MantleLeaderboard';
+import { HunterCampaignCaptain } from './HunterCampaignCaptain';
+import { CampaignLeaderboard } from './CampaignLeaderboard';
 import { RegisteredContent } from './RegisteredContent';
 import { UnregisteredContent } from './UnregisteredContent';
 import { XLogo } from './XLogo';
-import type { Task, MantleHunterBannerProps } from './types';
+import type {
+  Task,
+  HunterCampaignBannerProps,
+  HunterCampaignTaskDefinition,
+} from './types';
+import { updateUserInfo } from '~contents/services/review.ts';
+import { StoredUserInfo } from '~types/review.ts';
 
-export function MantleHunterBanner({
+export function HunterCampaignBanner({
   className = '',
   unregisteredMode = 'expanded',
   showMantleHunterComponents = false,
-}: MantleHunterBannerProps) {
+  campaignConfig,
+  defaultExpanded: forceDefaultExpanded,
+}: HunterCampaignBannerProps) {
   // =========================================
   // 1) Core hooks & global utilities
   // =========================================
@@ -43,6 +43,8 @@ export function MantleHunterBanner({
   const [showHotTrending] = useLocalStorage('@settings/showHotTrending', true);
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;
+
+  if (!campaignConfig) return null;
 
   // =========================================
   // 2) Local component state
@@ -68,32 +70,36 @@ export function MantleHunterBanner({
     workshare: { rank?: number | null };
   }>({ mindshare: {}, workshare: {} });
   // null 表示尚未手动操作，遵循默认展开逻辑；true/false 表示用户已手动切换（持久化）
+  // 基于 campaignKey 生成唯一的存储键，确保每个活动的展开状态独立存储
+  const expandedStorageKey =
+    campaignConfig.expandedStorageKey ||
+    `@xhunt/${campaignConfig.campaignKey}HunterExpanded`;
   const [isExpandedManual, setIsExpandedManual] = useLocalStorage<
     boolean | null
-  >('@xhunt/mantleHunterExpanded', null);
+  >(expandedStorageKey, null);
+  const taskStorageBase = campaignConfig.taskStorageKey || '@xhunt/mantleTasks';
+  const showExtraSections =
+    showMantleHunterComponents ?? Boolean(campaignConfig.showExtraComponents);
 
   // Per-user task progress storage
-  const [xhuntUser] = useLocalStorage<{ id: string } | null>(
+  const [xhuntUser, setXhuntUser] = useLocalStorage<StoredUserInfo | null>(
     '@xhunt/user',
     null
   );
   const tasksKey = useMemo(() => {
     if (!xhuntUser || typeof xhuntUser !== 'object' || !xhuntUser.id) return '';
-    return `@xhunt/mantleTasks:${xhuntUser.id}`;
-  }, [xhuntUser]);
-  const [taskProgress, setTaskProgress] = useLocalStorage<{
-    'follow-mantle'?: boolean;
-    'follow-xhunt'?: boolean;
-    'follow-minibridge'?: boolean;
-    'join-telegram'?: boolean;
-  }>(tasksKey || '@xhunt/mantleTasks:guest', {});
+    return `${taskStorageBase}:${xhuntUser.id}`;
+  }, [xhuntUser, taskStorageBase]);
+  const [taskProgress, setTaskProgress] = useLocalStorage<
+    Record<string, boolean>
+  >(tasksKey || `${taskStorageBase}:guest`, {});
 
   // Migrate guest progress to per-user key once user info is available
   useEffect(() => {
     if (!tasksKey) return;
     (async () => {
       try {
-        const guestKey = '@xhunt/mantleTasks:guest';
+        const guestKey = `${taskStorageBase}:guest`;
         const guestProgress = await localStorageInstance.get(guestKey);
         if (guestProgress && typeof guestProgress === 'object') {
           await localStorageInstance.set(tasksKey, guestProgress);
@@ -101,7 +107,7 @@ export function MantleHunterBanner({
         }
       } catch {}
     })();
-  }, [tasksKey]);
+  }, [tasksKey, taskStorageBase]);
 
   // =========================================
   // 3) Config-driven navigation (guide link)
@@ -109,12 +115,12 @@ export function MantleHunterBanner({
   // 官方指南链接点击时动态获取（无需校验）
   const handleOpenGuide = useCallback(() => {
     try {
-      const url = configManager.getMantleHunterProgramGuide();
+      const url = campaignConfig.links.getGuideUrl();
       openNewTab(url || '#');
     } catch (e) {
       // openNewTab('#');
     }
-  }, []);
+  }, [campaignConfig]);
 
   // =========================================
   // 4) Clipboard helpers
@@ -140,6 +146,41 @@ export function MantleHunterBanner({
       openNewTab(url);
     },
     []
+  );
+
+  const createTaskFromDefinition = useCallback(
+    (
+      taskDef: HunterCampaignTaskDefinition,
+      progress?: Record<string, boolean>
+    ): Task => {
+      let icon: React.ReactNode;
+      if (taskDef.type === 'twitter') {
+        icon = <XLogo className='w-4 h-4' />;
+      } else if (taskDef.type === 'telegram') {
+        icon = <MessageCircle className='w-4 h-4' />;
+      } else {
+        icon = <MessageCircle className='w-4 h-4' />;
+      }
+
+      return {
+        id: taskDef.id,
+        title: taskDef.title,
+        icon,
+        completed: Boolean(progress?.[taskDef.id]),
+        action: () => {
+          try {
+            if (taskDef.autoComplete) {
+              setTaskProgress((prev) => ({
+                ...(prev || {}),
+                [taskDef.id]: true,
+              }));
+            }
+          } catch {}
+          openTaskAndCompleteOnReturn(taskDef.id, taskDef.url);
+        },
+      };
+    },
+    [openTaskAndCompleteOnReturn, setTaskProgress]
   );
 
   // =========================================
@@ -222,90 +263,32 @@ export function MantleHunterBanner({
   // =========================================
   // 7) Task list & derived states
   // =========================================
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const initialProgress = taskProgress || {};
-    return [
-      {
-        id: 'follow-mantle',
-        title: t('followMantle'),
-        icon: <XLogo className='w-4 h-4' />,
-        completed: Boolean((initialProgress as any)['follow-mantle']),
-        action: () =>
-          openTaskAndCompleteOnReturn(
-            'follow-mantle',
-            'https://x.com/Mantle_Official'
-          ),
-      },
-      {
-        id: 'follow-xhunt',
-        title: t('followXHunt'),
-        icon: <XLogo className='w-4 h-4' />,
-        completed: Boolean((initialProgress as any)['follow-xhunt']),
-        action: () =>
-          openTaskAndCompleteOnReturn('follow-xhunt', 'https://x.com/xhunt_ai'),
-      },
-      {
-        id: 'follow-minibridge',
-        title: t('followMiniBridge'),
-        icon: <XLogo className='w-4 h-4' />,
-        completed: Boolean((initialProgress as any)['follow-minibridge']),
-        action: () =>
-          openTaskAndCompleteOnReturn(
-            'follow-minibridge',
-            'https://x.com/Chaineye_tools'
-          ),
-      },
-      {
-        id: 'follow-biteye',
-        title: t('followBiteye'),
-        icon: <XLogo className='w-4 h-4' />,
-        completed: Boolean((initialProgress as any)['follow-biteye']),
-        action: () =>
-          openTaskAndCompleteOnReturn(
-            'follow-biteye',
-            'https://x.com/BiteyeCN'
-          ),
-      },
-      {
-        id: 'join-telegram',
-        title: t('mantleHunterTaskJoinTelegram'),
-        icon: <MessageCircle className='w-4 h-4' />,
-        completed: Boolean((initialProgress as any)['join-telegram']),
-        action: () => {
-          try {
-            setTaskProgress((prev) => ({
-              ...(prev || {}),
-              'join-telegram': true,
-            }));
-          } catch {}
-          openTaskAndCompleteOnReturn('join-telegram', 'https://t.me/xhunt_ai');
-        },
-      },
-    ];
-  });
+  const [tasks, setTasks] = useState<Task[]>(() =>
+    campaignConfig.tasks.map((taskDef) =>
+      createTaskFromDefinition(taskDef, taskProgress || {})
+    )
+  );
 
-  // Hydrate UI task completion from stored progress
   useEffect(() => {
-    try {
-      if (!taskProgress) return;
-      setTasks((prev) =>
-        prev.map((task) => ({
-          ...task,
-          completed: Boolean((taskProgress as any)[task.id]),
-        }))
-      );
-    } catch {}
-  }, [taskProgress]);
+    setTasks(
+      campaignConfig.tasks.map((taskDef) =>
+        createTaskFromDefinition(taskDef, taskProgress || {})
+      )
+    );
+  }, [campaignConfig, taskProgress, createTaskFromDefinition]);
 
   const allRequiredTasksCompleted =
     tasks.every((task) => task.completed) && !!evmAddress;
 
   // 计算默认展开状态：
-  // - 已报名：默认展开
-  // - 未报名：由 unregisteredMode 决定
-  const defaultExpanded = isRegisteredState
-    ? true
-    : unregisteredMode !== 'collapsed';
+  // - 如果提供了 forceDefaultExpanded，直接使用它
+  // - 否则：已报名默认展开，未报名由 unregisteredMode 决定
+  const defaultExpanded =
+    forceDefaultExpanded !== undefined
+      ? forceDefaultExpanded
+      : isRegisteredState
+      ? true
+      : unregisteredMode !== 'collapsed';
 
   // 内容可见性：若用户手动切换，则以手动为准；否则使用默认
   const effectiveExpanded =
@@ -316,9 +299,10 @@ export function MantleHunterBanner({
   // 8) Data fetching (registration info)
   // =========================================
   const { loading: regLoading, refresh: refreshRegistration } = useRequest(
-    () => getMantleRegistrationMe(xhuntUser?.id || ''),
+    () => campaignConfig.api.fetchRegistration(xhuntUser?.id || ''),
     {
       manual: true, // 设置为手动触发，不自动执行
+      refreshDeps: [campaignConfig],
       onSuccess: (ret) => {
         const registered = !!ret?.registered;
         setIsRegisteredState(registered);
@@ -329,6 +313,7 @@ export function MantleHunterBanner({
         if (registered) {
           const reg: any = (ret as any).registration || {};
           setInviteCodeState(reg?.xHuntUser?.inviteCode || '');
+          setEvmAddress(reg?.evmAddress || '');
 
           // 处理 hunterData 中的排名信息
           const hunterData = ret.hunterData || {};
@@ -368,7 +353,6 @@ export function MantleHunterBanner({
               localStorageInstance.remove(tasksKey);
             }
           } catch {}
-          // setTasks((prev) => prev.map((t) => ({ ...t, completed: true })));
         }
       },
     }
@@ -379,7 +363,32 @@ export function MantleHunterBanner({
     if (xhuntUser?.id) {
       refreshRegistration();
     }
-  }, [xhuntUser?.id, refreshRegistration]);
+  }, [xhuntUser?.id, refreshRegistration, campaignConfig]);
+
+  // Prefill EVM address from saved Settings (user profile) if available
+  useEffect(() => {
+    let canceled = false;
+    // console.log('useEffect: fetchEvm', isLoggedIn);
+    const fetchEvm = async () => {
+      try {
+        if (!isLoggedIn) return;
+        if (evmAddress && evmAddress.trim().length > 0) return;
+        const info = await updateUserInfo();
+        // console.log('fetchEvm', info);
+        if (info && !canceled) {
+          // updateUserInfo 已经统一同步到 @xhunt/user，这里不需要再同步
+          const addr = (info as any)?.evmAddresses?.[0];
+          if (addr && !canceled) {
+            setEvmAddress(addr);
+          }
+        }
+      } catch {}
+    };
+    fetchEvm();
+    return () => {
+      canceled = true;
+    };
+  }, [isLoggedIn]);
 
   // =========================================
   // 9) Submit handlers & navigation
@@ -389,7 +398,7 @@ export function MantleHunterBanner({
     setIsSubmitting(true);
     setRegistrationError(''); // 清空之前的错误
     try {
-      const res = await postMantleRegister({
+      const res = await campaignConfig.api.submitRegistration({
         invitedByCode: userInviteCode || null,
         evmAddress: evmAddress || null,
         registrationUrl: window.location.href,
@@ -418,18 +427,18 @@ export function MantleHunterBanner({
     allRequiredTasksCompleted,
     userInviteCode,
     evmAddress,
+    campaignConfig,
     refreshRegistration,
     tasksKey,
   ]);
 
   // 已报名时跳转到活动主链接
   const handleGoToActive = useCallback(() => {
-    const url = configManager.getMantleHunterProgramActiveURL();
+    const url = campaignConfig.links.getActiveUrl();
     openNewTab(url || '#');
-  }, []);
+  }, [campaignConfig]);
 
   const redirectToLogin = useLockFn(async () => {
-    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);
@@ -452,6 +461,25 @@ export function MantleHunterBanner({
           isExpandedManual={isExpandedManual}
           setIsExpandedManual={setIsExpandedManual}
           handleOpenGuide={handleOpenGuide}
+          shortTitle={
+            campaignConfig.copy?.shortTitleText
+              ? campaignConfig.copy.shortTitleText
+              : campaignConfig.copy?.shortTitleKey
+              ? t(campaignConfig.copy.shortTitleKey)
+              : campaignConfig.displayName
+          }
+          fullTitle={
+            campaignConfig.copy?.activityTitleText
+              ? campaignConfig.copy.activityTitleText
+              : campaignConfig.copy?.activityTitleKey
+              ? t(campaignConfig.copy.activityTitleKey)
+              : campaignConfig.displayName
+          }
+          emoji={campaignConfig.copy?.emoji}
+          logos={campaignConfig.logos}
+          registeredDescription={campaignConfig.copy?.registeredDescription}
+          unregisteredDescription={campaignConfig.copy?.unregisteredDescription}
+          isContentVisible={isContentVisible}
         />
 
         {/* 内容区域 */}
@@ -466,9 +494,12 @@ export function MantleHunterBanner({
               inviteCodeState={inviteCodeState}
               invitedCountState={invitedCountState}
               hunterDataState={hunterDataState}
-              showMantleHunterComponents={showMantleHunterComponents}
+              evmAddress={evmAddress}
+              showMantleHunterComponents={showExtraSections}
+              activeUrl={campaignConfig.links.getActiveUrl()}
               handleCopyInviteCode={handleCopyInviteCode}
               handleOpenGuide={handleOpenGuide}
+              campaignConfig={campaignConfig}
             />
           ) : (
             /* 未注册状态 */
@@ -491,28 +522,32 @@ export function MantleHunterBanner({
               handleOpenGuide={handleOpenGuide}
               formatEvmAddress={formatEvmAddress}
               clearRegistrationError={clearRegistrationError}
+              campaignConfig={campaignConfig}
             />
           ))}
 
         {/* Mantle Hunter Captain 组件 - 仅在Mantle官方账号页面显示 */}
-        {showMantleHunterComponents && (
-          <MantleHunterCaptain totalRegistrations={totalRegistrations} />
+        {showExtraSections && (
+          <HunterCampaignCaptain
+            totalRegistrations={totalRegistrations}
+            campaignConfig={campaignConfig}
+          />
         )}
 
         {/* 榜单组件 - 仅在Mantle官方账号页面显示 */}
-        {showMantleHunterComponents && (
+        {showExtraSections && (
           <div className='mt-3'>
-            <MantleLeaderboard />
+            <CampaignLeaderboard campaignConfig={campaignConfig} />
           </div>
         )}
 
-        {/* 底部分隔线 */}
+        {/* 底部分隔线
         {showHotTrending && (
           <div className='h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent' />
-        )}
+        )} */}
       </div>
     </div>
   );
 }
 
-export default MantleHunterBanner;
+export default HunterCampaignBanner;

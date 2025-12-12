@@ -18,6 +18,13 @@ const generateTokenColor = (pricePct24H: number): string => {
   }
 };
 
+// 格式化价格显示（只显示>=0.1的价格，保留两位小数）
+const formatPrice = (price: number | undefined): string => {
+  if (price === undefined || price === null || price < 0.1) return '';
+  // 保留两位小数，带千位分隔符
+  return `$${price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+};
+
 // 获取排名边框颜色和奖牌
 const getRankingStyle = (index: number) => {
   switch (index) {
@@ -589,13 +596,28 @@ export function TokenTreemapVisualization({
         !isSmallCell(d as TokenTreemapNode)
     );
 
-    // 次小区域：头像下方显示代币名
+    // 次小区域：头像下方显示代币名（如果空间足够）
     subSmallCells
-      .append('text')
-      .attr('x', (d) => {
+      .filter((d) => {
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cy = r + 12;
+        const nameFontSize = Math.max(
+          8,
+          Math.min(12, Math.min(width / 10, height / 6))
+        );
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        // 检查名字是否会超出边界（留出4px边距）
+        return nameBaseline <= height - 4;
+      })
+      .append('text')
+      .attr('x', (d) => {
+        const width = d.x1 - d.x0;
+        const area = width * (d.y1 - d.y0);
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
         const cx = r + 12;
         return cx;
@@ -606,12 +628,14 @@ export function TokenTreemapVisualization({
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
         const cy = r + 12;
-        const fontSize = Math.max(
+        const nameFontSize = Math.max(
           8,
           Math.min(12, Math.min(width / 10, height / 6))
         );
-        const spacing = 6;
-        return Math.min(height - 4, cy + r + spacing + fontSize * 0.9);
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        return nameBaseline;
       })
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'alphabetic')
@@ -641,37 +665,172 @@ export function TokenTreemapVisualization({
         );
       });
 
-    // 次小区域：名字下方显示百分比
+    // 次小区域：名字下方显示价格（第一行，与头像左边缘对齐）
     subSmallCells
-      .append('text')
-      .attr('x', (d) => {
+      .filter((d) => {
+        // 先检查是否有价格数据
+        if (
+          d.data.price === undefined ||
+          d.data.price === null ||
+          d.data.price < 1
+        ) {
+          return false;
+        }
+        // 计算位置，检查是否会超出边界
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
-        const cx = r + 12;
-        return cx;
+        const cy = r + 12;
+        const nameFontSize = Math.max(
+          8,
+          Math.min(12, Math.min(width / 10, height / 6))
+        );
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        const priceFontSize = Math.max(
+          8,
+          Math.min(11, Math.min(width / 11, height / 7))
+        );
+        const priceSpacing = 5;
+        // nameBaseline 已经是名字的底部（alphabetic baseline），所以价格基线 = 名字底部 + 间距
+        const priceBaseline = nameBaseline + priceSpacing + priceFontSize;
+        // 检查价格是否会超出边界（留出4px边距）
+        return priceBaseline <= height - 4;
       })
+      .append('text')
+      .attr('x', 12)
       .attr('y', (d) => {
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
         const cy = r + 12;
-        const nameFont = Math.max(
+        const nameFontSize = Math.max(
           8,
           Math.min(12, Math.min(width / 10, height / 6))
         );
-        const pctFont = Math.max(
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        const priceFontSize = Math.max(
           8,
-          Math.min(12, Math.min(width / 10, height / 6))
+          Math.min(11, Math.min(width / 11, height / 7))
         );
-        const spacing = 6; // name 与 icon 的间距
-        const spacingBelow = 2; // 百分比与名字的间距
-        const nameY = Math.min(height - 4, cy + r + spacing + nameFont * 0.9);
-        return Math.min(height - 4, nameY + spacingBelow + pctFont * 0.9);
+        const priceSpacing = 5;
+        // nameBaseline 已经是名字的底部，价格基线 = 名字底部 + 间距 + 字体大小
+        const priceBaseline = nameBaseline + priceSpacing + priceFontSize;
+        return priceBaseline;
       })
-      .attr('text-anchor', 'middle')
+      .attr('text-anchor', 'start')
+      .attr('dominant-baseline', 'alphabetic')
+      .attr('font-size', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        return Math.max(8, Math.min(11, Math.min(width / 11, height / 7)));
+      })
+      .attr('font-weight', '600')
+      .attr('fill', '#fbbf24')
+      .attr('stroke', 'rgba(0, 0, 0, 0.6)')
+      .attr('stroke-width', 1.2)
+      .style('paint-order', 'stroke')
+      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+      .text((d) => formatPrice(d.data.price));
+
+    // 次小区域：价格下方显示涨跌幅（第二行，与头像左边缘对齐）
+    subSmallCells
+      .filter((d) => {
+        // 计算位置，检查是否会超出边界
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        const area = width * height;
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cy = r + 12;
+        const nameFontSize = Math.max(
+          8,
+          Math.min(12, Math.min(width / 10, height / 6))
+        );
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        const hasPrice =
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1;
+
+        let pctBaseline: number;
+        if (hasPrice) {
+          const priceFontSize = Math.max(
+            8,
+            Math.min(11, Math.min(width / 11, height / 7))
+          );
+          const priceSpacing = 5;
+          const priceBaseline = nameBaseline + priceSpacing + priceFontSize;
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 4;
+          // priceBaseline 已经是价格的底部，涨跌幅基线 = 价格底部 + 间距 + 字体大小
+          pctBaseline = priceBaseline + pctSpacing + pctFontSize;
+        } else {
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 5;
+          pctBaseline = nameBaseline + pctSpacing + pctFontSize;
+        }
+        // 检查涨跌幅是否会超出边界（留出4px边距）
+        return pctBaseline <= height - 4;
+      })
+      .append('text')
+      .attr('x', 12)
+      .attr('y', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        const area = width * height;
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cy = r + 12;
+        const nameFontSize = Math.max(
+          8,
+          Math.min(12, Math.min(width / 10, height / 6))
+        );
+        const avatarBottom = cy + r;
+        const nameSpacing = 6;
+        const nameBaseline = avatarBottom + nameSpacing + nameFontSize;
+        const hasPrice =
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1;
+
+        if (hasPrice) {
+          const priceFontSize = Math.max(
+            8,
+            Math.min(11, Math.min(width / 11, height / 7))
+          );
+          const priceSpacing = 5;
+          const priceBaseline = nameBaseline + priceSpacing + priceFontSize;
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 4;
+          // priceBaseline 已经是价格的底部，涨跌幅基线 = 价格底部 + 间距 + 字体大小
+          const pctBaseline = priceBaseline + pctSpacing + pctFontSize;
+          return pctBaseline;
+        } else {
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 5;
+          const pctBaseline = nameBaseline + pctSpacing + pctFontSize;
+          return pctBaseline;
+        }
+      })
+      .attr('text-anchor', 'start')
       .attr('dominant-baseline', 'alphabetic')
       .attr('font-size', (d) => {
         const width = d.x1 - d.x0;
@@ -690,24 +849,43 @@ export function TokenTreemapVisualization({
         return `${sign}${pct.toFixed(1)}%`;
       });
 
-    // 小区域：头像右侧显示代币名
+    // 小区域：头像右侧显示代币名（如果宽度足够）
     smallCells
-      .append('text')
-      .attr('x', (d) => {
+      .filter((d) => {
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
-        const cx = r + 12; // 头像中心x
+        const cx = r + 12;
         const spacing = 6;
-        return cx + r + spacing; // 头像右侧留白
+        const nameX = cx + r + spacing;
+        const nameFontSize = Math.max(
+          8,
+          Math.min(12, Math.min(width / 10, height / 6))
+        );
+        // 估算名字宽度（假设每个字符宽度约为字体大小的0.6倍）
+        const symbol = d.data.symbol;
+        const nameText =
+          symbol.length > 6 ? symbol.substring(0, 6) + '...' : symbol;
+        const estimatedNameWidth = nameText.length * nameFontSize * 0.6;
+        // 检查名字是否会超出边界（留出4px边距）
+        return nameX + estimatedNameWidth <= width - 4;
+      })
+      .append('text')
+      .attr('x', (d) => {
+        const width = d.x1 - d.x0;
+        const area = width * (d.y1 - d.y0);
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cx = r + 12;
+        const spacing = 6;
+        return cx + r + spacing;
       })
       .attr('y', (d) => {
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
-        const cy = r + 12; // 头像中心y
+        const cy = r + 12;
         return cy;
       })
       .attr('dominant-baseline', 'middle')
@@ -739,35 +917,142 @@ export function TokenTreemapVisualization({
         );
       });
 
-    // 小区域：名字下方显示百分比（与名字同列，位于右侧）
+    // 小区域：头像下方显示价格（第一行，与头像左边缘对齐）
     smallCells
-      .append('text')
-      .attr('x', (d) => {
+      .filter((d) => {
+        // 先检查是否有价格数据
+        if (
+          d.data.price === undefined ||
+          d.data.price === null ||
+          d.data.price < 1
+        ) {
+          return false;
+        }
+        // 计算位置，检查是否会超出边界
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
-        const cx = r + 12; // 头像中心x
-        const spacing = 6;
-        return cx + r + spacing; // 与名字对齐
+        const cy = r + 12;
+        const avatarBottom = cy + r;
+        const priceFontSize = Math.max(
+          8,
+          Math.min(11, Math.min(width / 11, height / 7))
+        );
+        const priceSpacing = 5;
+        const priceBaseline = avatarBottom + priceSpacing + priceFontSize;
+        // 检查价格是否会超出边界（留出4px边距）
+        return priceBaseline <= height - 4;
       })
+      .append('text')
+      .attr('x', 12)
       .attr('y', (d) => {
         const width = d.x1 - d.x0;
         const height = d.y1 - d.y0;
         const area = width * height;
         const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
-        const cy = r + 12; // 头像中心y
-        const nameFont = Math.max(
+        const cy = r + 12;
+        const avatarBottom = cy + r;
+        const priceFontSize = Math.max(
           8,
-          Math.min(12, Math.min(width / 10, height / 6))
+          Math.min(11, Math.min(width / 11, height / 7))
         );
-        const pctFont = Math.max(
-          8,
-          Math.min(12, Math.min(width / 10, height / 6))
-        );
-        const spacingBelow = 2; // 百分比与名字的间距
-        const yBase = cy + Math.max(6, nameFont * 0.9);
-        return Math.min(height - 4, yBase + spacingBelow + pctFont * 0.7);
+        const priceSpacing = 5;
+        const priceBaseline = avatarBottom + priceSpacing + priceFontSize;
+        return priceBaseline;
+      })
+      .attr('text-anchor', 'start')
+      .attr('dominant-baseline', 'alphabetic')
+      .attr('font-size', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        return Math.max(8, Math.min(11, Math.min(width / 11, height / 7)));
+      })
+      .attr('font-weight', '600')
+      .attr('fill', '#fbbf24')
+      .attr('stroke', 'rgba(0, 0, 0, 0.6)')
+      .attr('stroke-width', 1.2)
+      .style('paint-order', 'stroke')
+      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+      .text((d) => formatPrice(d.data.price));
+
+    // 小区域：价格下方显示涨跌幅（第二行，与头像左边缘对齐）
+    smallCells
+      .filter((d) => {
+        // 计算位置，检查是否会超出边界
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        const area = width * height;
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cy = r + 12;
+        const avatarBottom = cy + r;
+        const hasPrice =
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1;
+
+        let pctBaseline: number;
+        if (hasPrice) {
+          const priceFontSize = Math.max(
+            8,
+            Math.min(11, Math.min(width / 11, height / 7))
+          );
+          const priceSpacing = 5;
+          const priceBaseline = avatarBottom + priceSpacing + priceFontSize;
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 4;
+          pctBaseline = priceBaseline + pctSpacing + pctFontSize;
+        } else {
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 5;
+          pctBaseline = avatarBottom + pctSpacing + pctFontSize;
+        }
+        // 检查涨跌幅是否会超出边界（留出4px边距）
+        return pctBaseline <= height - 4;
+      })
+      .append('text')
+      .attr('x', 12)
+      .attr('y', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        const area = width * height;
+        const r = Math.max(10, Math.min(20, Math.sqrt(area) / 8));
+        const cy = r + 12;
+        const avatarBottom = cy + r;
+        const hasPrice =
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1;
+
+        if (hasPrice) {
+          const priceFontSize = Math.max(
+            8,
+            Math.min(11, Math.min(width / 11, height / 7))
+          );
+          const priceSpacing = 5;
+          const priceBaseline = avatarBottom + priceSpacing + priceFontSize;
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 4;
+          const pctBaseline = priceBaseline + pctSpacing + pctFontSize;
+          return pctBaseline;
+        } else {
+          const pctFontSize = Math.max(
+            8,
+            Math.min(12, Math.min(width / 10, height / 6))
+          );
+          const pctSpacing = 5;
+          const pctBaseline = avatarBottom + pctSpacing + pctFontSize;
+          return pctBaseline;
+        }
       })
       .attr('text-anchor', 'start')
       .attr('dominant-baseline', 'alphabetic')
@@ -788,11 +1073,11 @@ export function TokenTreemapVisualization({
         return `${sign}${pct.toFixed(1)}%`;
       });
 
-    // 大区域：左下角显示代币名和涨跌幅
+    // 大区域：左下角显示代币名、价格和涨跌幅
     largeCells
       .append('text')
       .attr('x', 8)
-      .attr('y', (d) => d.y1 - d.y0 - 32)
+      .attr('y', (d) => d.y1 - d.y0 - 50)
       .attr('text-anchor', 'start')
       .attr('font-size', (d) => {
         const width = d.x1 - d.x0;
@@ -820,10 +1105,49 @@ export function TokenTreemapVisualization({
         );
       });
 
+    // 大区域：名字下方显示价格（第一行）
+    largeCells
+      .filter(
+        (d) =>
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1
+      )
+      .append('text')
+      .attr('x', 8)
+      .attr('y', (d) => d.y1 - d.y0 - 32)
+      .attr('text-anchor', 'start')
+      .attr('font-size', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        return Math.max(9, Math.min(13, Math.min(width / 11, height / 7)));
+      })
+      .attr('font-weight', '600')
+      .attr('fill', '#fbbf24')
+      .attr('stroke', 'rgba(0, 0, 0, 0.6)')
+      .attr('stroke-width', 1.2)
+      .style('paint-order', 'stroke')
+      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+      .text((d) => formatPrice(d.data.price));
+
+    // 大区域：价格下方显示涨跌幅（第二行）
     largeCells
       .append('text')
       .attr('x', 8)
-      .attr('y', (d) => d.y1 - d.y0 - 16)
+      .attr('y', (d) => {
+        const width = d.x1 - d.x0;
+        const height = d.y1 - d.y0;
+        const baseY = d.y1 - d.y0 - 32;
+        const fontSize = Math.max(
+          9,
+          Math.min(13, Math.min(width / 11, height / 7))
+        );
+        const hasPrice =
+          d.data.price !== undefined &&
+          d.data.price !== null &&
+          d.data.price >= 0.1;
+        return hasPrice ? baseY + fontSize * 1.2 : d.y1 - d.y0 - 16;
+      })
       .attr('text-anchor', 'start')
       .attr('font-size', (d) => {
         const width = d.x1 - d.x0;
@@ -833,7 +1157,6 @@ export function TokenTreemapVisualization({
       .attr('font-weight', 'bold')
       .attr('fill', (d) => {
         const pct = d.data.pricePct24H;
-        // deeper, higher-contrast shades
         return pct >= 0 ? '#22c55e' : '#ef4444';
       })
       .attr('stroke', 'rgba(0, 0, 0, 0.55)')

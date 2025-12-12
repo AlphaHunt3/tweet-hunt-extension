@@ -7,7 +7,7 @@ import { Sparkles } from 'lucide-react';
 import { AI_CHAT_EVENT } from './AiChatDialog.tsx';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
-import { openNewTab, windowGtag } from '~contents/utils';
+import { openNewTab } from '~contents/utils';
 import { useLockFn } from 'ahooks';
 
 function _ProfileFollowButtonArea(mainData: MainData) {
@@ -23,7 +23,6 @@ function _ProfileFollowButtonArea(mainData: MainData) {
   const isLoggedIn = !!token;
 
   const redirectToLogin = useLockFn(async () => {
-    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);

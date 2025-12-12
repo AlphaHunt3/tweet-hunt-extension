@@ -10,7 +10,7 @@ import { useLockFn } from 'ahooks';
 import { fetchAiContent, getTwitterAuthUrl } from '~contents/services/api';
 import { AiContentResponse } from '~types';
 import { AI_ANALYSIS_EVENT, AiAnalysisDetail } from './AiAnalysisTips.tsx';
-import { openNewTab, windowGtag } from '~contents/utils';
+import { openNewTab } from '~contents/utils';
 import { useReactiveSettings } from '~/utils/settingsManager.ts';
 
 interface TweetDetailButtonProps {
@@ -49,6 +49,7 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
   } | null>(null);
   const [buttonRadius, setButtonRadius] = useState<number | null>(null);
   const [hasProgressStarted, setHasProgressStarted] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const updateButtonSize = () => {
     if (!buttonRef.current) return;
@@ -166,7 +167,6 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
   });
 
   const redirectToLogin = useLockFn(async () => {
-    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);
@@ -181,6 +181,28 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
     setHasProgressStarted(false);
     stage2StartRef.current = null;
   }, [tweetId]);
+
+  // 监听 AI 分析面板的打开/关闭状态，保持按钮宽度稳定
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<AiAnalysisDetail>;
+      if (customEvent.detail) {
+        if (
+          customEvent.detail.element === buttonRef.current &&
+          customEvent.detail.type === 'success'
+        ) {
+          setIsPanelOpen(true);
+        } else if (customEvent.detail.element !== buttonRef.current) {
+          // 如果事件来自其他按钮，关闭当前面板状态
+          setIsPanelOpen(false);
+        }
+      }
+    };
+    window.addEventListener(AI_ANALYSIS_EVENT, handler);
+    return () => {
+      window.removeEventListener(AI_ANALYSIS_EVENT, handler);
+    };
+  }, []);
 
   // Observe button size to draw SVG border accurately
   useEffect(() => {
@@ -409,7 +431,8 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
         onClick={handleButtonClick}
         onMouseEnter={handleMouseEnter}
         disabled={isLoading}
-        className={`relative flex items-center justify-center px-3 py-2 rounded-full font-medium text-sm transition-all duration-200 cursor-pointer min-h-8 min-w-[60px] text-white mr-3 shadow-sm hover:opacity-90 ${
+        aria-label={getButtonText()}
+        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] text-white mr-3 shadow-sm hover:opacity-90 overflow-hidden ${
           isLoading && hasProgressStarted
             ? 'bg-slate-500'
             : 'bg-gradient-to-r from-blue-500 to-purple-500'
@@ -450,12 +473,31 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
           style={{ zIndex: 3 }}
         ></span> */}
         <span
-          className='relative'
+          className='relative flex items-center'
           style={{
             zIndex: 4,
           }}
         >
-          {getButtonText()}
+          <svg
+            className='h-4 w-4 text-white'
+            viewBox='0 0 1024 1024'
+            xmlns='http://www.w3.org/2000/svg'
+            aria-hidden='true'
+          >
+            <path
+              d='M511.488 672.768h74.752L527.36 351.744H446.976l-174.08 320.512h74.24l36.352-73.728h116.736v0.512l11.264 73.728z m-103.424-126.464l56.32-112.128c4.608-8.704 7.68-17.92 10.24-27.136h2.048c-1.024 11.776-1.024 20.992 0 28.16l16.896 111.104H408.064zM682.496 351.744l-56.32 320.512h68.096l56.832-320.512zM1015.296 382.976c-8.704-33.28-36.352-55.808-68.096-59.904-74.24-171.008-243.712-285.184-435.2-285.184C294.912 37.376 105.984 184.32 52.224 394.24c-5.12 18.944 6.656 38.912 25.6 43.52 18.944 5.12 38.912-6.656 43.52-25.6 46.08-178.688 206.336-303.104 390.656-303.104 160.768 0 303.104 94.72 367.616 237.056-18.944 19.456-28.16 48.128-20.48 76.8C870.4 465.92 914.432 492.032 957.44 481.28c43.008-11.264 69.12-55.296 57.856-98.304zM945.664 586.24c-18.944-5.12-38.912 6.656-43.52 25.6-45.568 178.176-206.336 302.592-390.144 302.592-160.768 0-303.104-94.72-367.616-237.056 18.944-19.456 28.16-48.128 20.48-76.8-11.264-43.008-55.296-69.12-98.304-58.368-43.008 11.264-69.12 55.296-58.368 98.304 8.704 33.28 36.352 55.808 68.096 59.904 74.24 171.008 243.712 285.184 435.2 285.184 217.088 0 406.016-146.432 459.776-356.352 5.632-18.432-6.144-37.888-25.6-43.008z'
+              fill='currentColor'
+            />
+          </svg>
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+              isPanelOpen
+                ? 'ml-2 min-w-0 max-w-[120px] opacity-100'
+                : 'ml-0 min-w-0 max-w-0 opacity-0 group-hover:ml-2 group-hover:max-w-[120px] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[120px] group-focus-visible:opacity-100'
+            }`}
+          >
+            {getButtonText()}
+          </span>
         </span>
         {isLoading && hasProgressStarted ? (
           <span

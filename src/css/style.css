@@ -260,3 +260,149 @@ div[data-theme='dark'] {
   font-weight: 600;
   font-style: normal;
 }
+
+/* Hide scrollbar for tabs and other horizontal scroll areas */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* ✨ View Transition API 样式 - 用于 tab 切换动画 */
+@supports (view-transition-name: none) {
+  /* 通用的淡入淡出动画 keyframes */
+  @keyframes view-transition-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes view-transition-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Tabs 组件 - 底部指示器的 View Transition 样式 */
+  .tab-indicator {
+    view-transition-name: active-tab-indicator;
+  }
+
+  ::view-transition-group(active-tab-indicator) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(active-tab-indicator) {
+    animation: 0.2s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out;
+  }
+
+  ::view-transition-new(active-tab-indicator) {
+    animation: 0.2s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in;
+  }
+
+  /* TopTabNavigator 组件 - 渐变背景指示器的 View Transition 样式 */
+  .top-tab-indicator {
+    view-transition-name: top-tab-active-indicator;
+  }
+
+  ::view-transition-group(top-tab-active-indicator) {
+    animation-duration: 0.35s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(top-tab-active-indicator) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out;
+  }
+
+  ::view-transition-new(top-tab-active-indicator) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in;
+  }
+
+  /* PanelNavigator 组件 - 页面切换的 View Transition 样式 */
+  .panel-route-content {
+    view-transition-name: panel-route-content;
+  }
+
+  ::view-transition-group(panel-route-content) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(panel-route-content) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-out-left;
+  }
+
+  ::view-transition-new(panel-route-content) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-in-right;
+  }
+
+  @keyframes slide-out-left {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-20px);
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(20px);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* HotProjectsKOLs 组件 - 内容切换的 View Transition 样式 */
+  .hot-content-transition {
+    view-transition-name: hot-content-transition;
+  }
+
+  ::view-transition-group(hot-content-transition) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    /* 平滑处理高度变化 */
+    contain: layout;
+  }
+
+  ::view-transition-old(hot-content-transition) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out;
+  }
+
+  ::view-transition-new(hot-content-transition) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in;
+  }
+
+  /* TwitterPersonalRightSidebar 组件 - 内容切换的 View Transition 样式 */
+  .personal-sidebar-content {
+    view-transition-name: personal-sidebar-content;
+  }
+
+  ::view-transition-group(personal-sidebar-content) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(personal-sidebar-content) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-out-left;
+  }
+
+  ::view-transition-new(personal-sidebar-content) {
+    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-in-right;
+  }
+}

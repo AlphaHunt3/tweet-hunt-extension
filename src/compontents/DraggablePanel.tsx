@@ -36,7 +36,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
     const [savedPosition, setSavedPosition, { isLoading }] = useLocalStorage(
       `@panel-position/${storageKey}`,
       {
-        rightOffset: 16, // 距离右边的距离
+        rightOffset: 30, // 距离右边的距离
         y: 50,
       }
     );
@@ -54,7 +54,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
             // 计算距离右边的距离
             const rightOffset = window.innerWidth - newPosition.x - width;
             setSavedPosition({
-              rightOffset: Math.max(16, rightOffset), // 确保最小距离
+              rightOffset: Math.max(30, rightOffset), // 确保最小距离
               y: newPosition.y,
             });
           },
@@ -78,7 +78,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
     // 🎯 智能边界检测和位置调整
     const adjustPositionForBoundaries = (targetX: number, targetY: number) => {
       const minX = 16;
-      const maxX = window.innerWidth - width - 16;
+      const maxX = window.innerWidth - width - 30;
       const minY = 16;
       const maxY = window.innerHeight - 100;
 
@@ -120,7 +120,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
           adjustedPosition.y !== savedPosition.y
         ) {
           setSavedPosition({
-            rightOffset: Math.max(16, newRightOffset),
+            rightOffset: Math.max(30, newRightOffset),
             y: adjustedPosition.y,
           });
         }
@@ -143,45 +143,33 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
       debouncedSavePosition(boundedPosition);
     };
 
-    // 窗口大小变化时调整位置 - 保持右侧距离不变，但确保不超出边界
+    // Use refs to store latest values to avoid stale closures and infinite loops
+    const positionRef = useRef(position);
+    const savedPositionRef = useRef(savedPosition);
+    const widthRef = useRef(width);
+
+    // Update refs when values change (without logging to avoid console spam)
     useEffect(() => {
-      if (!position) return; // 位置还未初始化时不处理
-
-      const handleResize = () => {
-        // 根据当前保存的右侧距离重新计算 x 坐标
-        const targetX = calculateXFromRightOffset(savedPosition.rightOffset);
-        const targetY = position.y;
-
-        // 🎯 应用智能边界检测
-        const adjustedPosition = adjustPositionForBoundaries(targetX, targetY);
-
-        // 更新位置
-        setPosition(adjustedPosition);
-
-        // 如果位置被边界限制了，需要更新保存的右侧距离
-        const actualRightOffset =
-          window.innerWidth - adjustedPosition.x - width;
-        if (
-          Math.abs(actualRightOffset - savedPosition.rightOffset) > 1 ||
-          adjustedPosition.y !== savedPosition.y
-        ) {
-          setSavedPosition({
-            rightOffset: Math.max(16, actualRightOffset),
-            y: adjustedPosition.y,
-          });
-        }
-      };
-
-      handleResize(); // Call once on mount
-    }, [width, position, savedPosition, setSavedPosition]);
+      positionRef.current = position;
+      savedPositionRef.current = savedPosition;
+      widthRef.current = width;
+    }, [position, savedPosition, width]);
 
     // Use global resize listener (shared across all components)
+    // Only re-subscribe when width changes, not when position or savedPosition changes
+    // to avoid infinite loops (position and savedPosition are updated in the callback)
     useGlobalResize(() => {
-      if (!position) return;
+      const currentPosition = positionRef.current;
+      const currentSavedPosition = savedPositionRef.current;
+      const currentWidth = widthRef.current;
+
+      if (!currentPosition) return;
 
       // 根据当前保存的右侧距离重新计算 x 坐标
-      const targetX = calculateXFromRightOffset(savedPosition.rightOffset);
-      const targetY = position.y;
+      const targetX = calculateXFromRightOffset(
+        currentSavedPosition.rightOffset
+      );
+      const targetY = currentPosition.y;
 
       // 🎯 应用智能边界检测
       const adjustedPosition = adjustPositionForBoundaries(targetX, targetY);
@@ -190,17 +178,18 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
       setPosition(adjustedPosition);
 
       // 如果位置被边界限制了，需要更新保存的右侧距离
-      const actualRightOffset = window.innerWidth - adjustedPosition.x - width;
+      const actualRightOffset =
+        window.innerWidth - adjustedPosition.x - currentWidth;
       if (
-        Math.abs(actualRightOffset - savedPosition.rightOffset) > 1 ||
-        adjustedPosition.y !== savedPosition.y
+        Math.abs(actualRightOffset - currentSavedPosition.rightOffset) > 1 ||
+        adjustedPosition.y !== currentSavedPosition.y
       ) {
         setSavedPosition({
-          rightOffset: Math.max(16, actualRightOffset),
+          rightOffset: Math.max(30, actualRightOffset),
           y: adjustedPosition.y,
         });
       }
-    }, [width, position, savedPosition]);
+    }, [width]);
 
     // 监听外部位置重置事件（必须在任何早退 return 之前声明，保持 Hook 顺序一致）
     useEffect(() => {
@@ -215,7 +204,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
           const payload = custom?.detail || {};
           // 仅处理当前 storageKey 的重置请求
           if (payload.storageKey && payload.storageKey !== storageKey) return;
-          const nextRightOffset = Math.max(16, payload.rightOffset ?? 16);
+          const nextRightOffset = Math.max(30, payload.rightOffset ?? 30);
           const nextY = payload.y ?? 50;
           // 写入存储
           setSavedPosition({ rightOffset: nextRightOffset, y: nextY });
@@ -239,7 +228,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
     const dragBounds = {
       top: 16,
       left: 16,
-      right: window.innerWidth - width - 16,
+      right: window.innerWidth - width - 30,
       bottom: window.innerHeight - 100,
     };
 

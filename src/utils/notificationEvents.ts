@@ -31,7 +31,7 @@ class NotificationEventManager {
       try {
         listener(event);
       } catch (error) {
-        console.warn('Error in notification event listener:', error);
+        console.log('Error in notification event listener:', error);
       }
     });
   }

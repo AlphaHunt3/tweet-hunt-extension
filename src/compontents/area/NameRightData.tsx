@@ -27,6 +27,8 @@ import { getSoulInfo } from '~contents/services/api.ts';
 import { useRequest } from 'ahooks';
 import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
+import { ProRequired } from '~compontents/ProRequired';
+import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
 
 function _NameRightData({
   newTwitterData,
@@ -35,7 +37,7 @@ function _NameRightData({
   loadingTwInfo,
   loadingDel,
   error,
-  userId,
+  userId: _,
   rootData,
   loadingRootData,
   renameInfo,
@@ -55,12 +57,19 @@ function _NameRightData({
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
 
+  const {
+    twitterId,
+    handler: userId,
+    loading: isLoadingHtml,
+  } = usePlacementTrackingDomUserInfo();
+
   // 获取灵魂浓度数据
   const { data: soulData, loading: loadingSoulData } = useRequest<
     SoulDensityData | undefined,
     []
-  >(() => getSoulInfo(userId), {
-    refreshDeps: [userId],
+  >(() => getSoulInfo(String(twitterId)), {
+    refreshDeps: [twitterId],
+    ready: Boolean(twitterId),
   });
 
   const mbti = useMemo(() => {
@@ -330,11 +339,13 @@ function _NameRightData({
             label={t('delInfo')}
             value={`(${deletedTweets?.length || 0})`}
             hoverContent={
-              <DeletedTweetsSection
-                isHoverPanel={true}
-                deletedTweets={deletedTweets}
-                loadingDel={loadingDel}
-              />
+              <ProRequired enableAnimation={false} showExtraTitle={true}>
+                <DeletedTweetsSection
+                  isHoverPanel={true}
+                  deletedTweets={deletedTweets}
+                  loadingDel={loadingDel}
+                />
+              </ProRequired>
             }
             valueClassName='text-red-400'
           />

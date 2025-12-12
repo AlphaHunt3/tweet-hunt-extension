@@ -1,9 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { PanelHeader } from '~/compontents/navigation/PanelNavigator';
-import { GripVertical, CircleX, Loader2 } from 'lucide-react';
+import {
+  GripVertical,
+  CircleX,
+  Loader2,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { InAppMessages } from '~/compontents/InAppMessages.tsx';
 import { messageManager } from '~/utils/messageManager';
+import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
+import { useNavigation } from '~/compontents/navigation/PanelNavigator';
 
 interface MessagesPageProps {
   showBackButton?: boolean;
@@ -19,6 +26,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
   const { t } = useI18n();
   const { lang } = useI18n();
   const langRef = useRef(lang);
+  const { navigateTo } = useNavigation();
 
   // Update message manager language when user language changes
   useEffect(() => {
@@ -35,22 +43,17 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
 
   // Right content for header
   const headerRightContent = (
-    <div className='flex items-center gap-1'>
-      {/* Drag Handle */}
-      <div className='tw-hunt-drag-handle p-1.5 rounded-full theme-hover cursor-grab active:cursor-grabbing'>
-        <GripVertical className='w-4 h-4 theme-text-secondary' />
-      </div>
-
-      {/* Close Button */}
-      {onClose && (
-        <button
-          className='p-1.5 rounded-full theme-hover transition-colors cursor-pointer'
-          onClick={onClose}
-        >
-          <CircleX className='w-4 h-4 theme-text-secondary' />
-        </button>
-      )}
-    </div>
+    <HeaderRightControls
+      onOpenSettings={() => {
+        navigateTo('/settings');
+      }}
+      onClose={onClose}
+      onOpenMessages={() => {
+        requestAnimationFrame(() => {
+          messageManager.markAllAsRead();
+        });
+      }}
+    />
   );
 
   return (

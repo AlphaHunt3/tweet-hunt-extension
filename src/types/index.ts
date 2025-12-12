@@ -115,6 +115,7 @@ export interface KolData {
     topKolFollowers?: KolFollower[];
     kolRank?: number;
     kolRank20W?: number;
+    kolGlobalRank?: number;
     isCn: boolean;
     isProject: boolean;
     kolCnRank?: number;
@@ -130,6 +131,11 @@ export interface KolData {
       day30: number | null;
     };
     kolRankChange: {
+      day1: number | null;
+      day7: number | null;
+      day30: number | null;
+    };
+    kolGlobalRankChange?: {
       day1: number | null;
       day7: number | null;
       day30: number | null;
@@ -399,6 +405,15 @@ export interface TwitterUser {
 export interface FollowRelationData {
   followed_action: FollowAction[];
   following_action: FollowAction[];
+  unfollowing_action?: FollowAction[];
+  twitter_users: {
+    [key: string]: TwitterUser;
+  };
+}
+
+export interface UnfollowRelationData {
+  unfollowing_action: FollowAction[];
+  unfollowed_action: FollowAction[];
   twitter_users: {
     [key: string]: TwitterUser;
   };
@@ -465,24 +480,28 @@ export interface SoulDensityData {
   name: string;
   profile_analysis: number;
   reason: string;
+  reason_en: string;
   score: number;
   xhunt_analysis: number;
 }
 
 // AI内容分析相关类型
 export interface AiAnalysisResult {
-  ai_probability: string;
-  reason_en: string;
-  reason_zh: string;
-}
-
-export interface AiContentData {
-  [key: string]: AiAnalysisResult;
+  ai_generation_probability: string; // AI生成概率：低/中/高
+  explanation_cn: string; // 中文解释
+  explanation_en: string; // 英文解释
+  information_value: string; // 信息价值：低/中/高
+  credibility: string; // 可信度：低/中/高
+  promotional_tendency: string; // 推广倾向：低/中/高
 }
 
 export interface AiContentResponse {
-  code: number;
-  data: AiContentData;
+  ai_generation_probability: string;
+  credibility: string;
+  explanation_cn: string;
+  explanation_en: string;
+  information_value: string;
+  promotional_tendency: string;
 }
 
 // AI聊天相关类型
@@ -502,4 +521,101 @@ export interface ChatRequest {
   handle: string;
   history: ChatMessage[];
   message: ChatMessage[];
+}
+
+// window.__INITIAL_STATE__ 当前用户对象类型（精简为项目使用字段 + 常见字段）
+export interface TwitterInitialStateCurrentUser {
+  default_profile: boolean;
+  default_profile_image: boolean;
+  description: string;
+  entities: {
+    description: {
+      urls: Array<any>;
+    };
+  };
+  fast_followers_count: number;
+  favourites_count: number;
+  followers_count: number;
+  friends_count: number;
+  has_custom_timelines: boolean;
+  is_translator: boolean;
+  listed_count: number;
+  media_count: number;
+  needs_phone_verification: boolean;
+  normal_followers_count: number;
+  pinned_tweet_ids_str: string[];
+  possibly_sensitive: boolean;
+  profile_interstitial_type: string;
+  statuses_count: number;
+  translator_type: string;
+  want_retweets: boolean;
+  withheld_in_countries: string[];
+  name: string;
+  screen_name: string;
+  id_str: string;
+  is_profile_translatable: boolean;
+  profile_image_shape: string;
+  creator_subscriptions_count: number;
+  location: string;
+  is_blue_verified: boolean;
+  tipjar_settings: Record<string, unknown>;
+  verified: boolean;
+  protected: boolean;
+  profile_image_url_https: string;
+  can_dm: boolean;
+  can_media_tag: boolean;
+  follow_request_sent: boolean;
+  blocked_by: boolean;
+  blocking: boolean;
+  following: boolean;
+  muting: boolean;
+  birthdate?: {
+    day: number;
+    month: number;
+    year: number;
+    visibility: string;
+    year_visibility: string;
+  };
+  has_graduated_access: boolean;
+  created_at: string;
+  parody_commentary_fan_label: string;
+}
+
+// 粉丝与KOL互动排名接口响应
+export interface FanByHandleResponse {
+  fan_rank: number | null;
+  is_quote?: boolean | null;
+  is_reply?: boolean | null;
+  is_retweet?: boolean | null;
+  kol_handle?: string;
+  kol_tweet_id?: string | null;
+  link?: string | null;
+  name?: string;
+  point: number | null;
+  profile_image_url?: string;
+  user_id?: string;
+  user_tweet_id?: string | null;
+  username_raw?: string;
+}
+
+// 私信类型定义
+export interface PrivateMessageItem {
+  id: string | number;
+  title: string;
+  content: string; // 富文本HTML
+  displayAt?: string | number | null;
+  sentAt?: string | number | null;
+  isRead?: boolean;
+  campaignId?: string | number | null;
+  sender?: any;
+  receiver?: any;
+  isOutgoing?: boolean;
+}
+
+export interface PrivateMessagesResponse {
+  success: boolean;
+  data?: {
+    messages: PrivateMessageItem[];
+    pagination?: any;
+  };
 }

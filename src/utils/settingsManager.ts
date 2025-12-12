@@ -1,6 +1,8 @@
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { localStorageInstance } from '~storage/index.ts';
+import { configManager } from '~utils/configManager.ts';
 import { useState, useEffect } from 'react';
+import { getCurrentUsername } from '~contents/utils/helpers.ts';
 
 // 设置配置
 export const settingsConfig = {
@@ -9,11 +11,17 @@ export const settingsConfig = {
     { key: 'showSidebarIcon', label: 'showSidebarIcon' },
     { key: 'showAvatarRank', label: 'showAvatarRank' },
     { key: 'showTokenAnalysis', label: 'showTokenAnalysis' },
+    { key: 'showTweetAIAnalysis', label: 'showTweetAIAnalysis' },
     { key: 'showSearchPanel', label: 'showProfileChanges' },
     { key: 'showHotTrending', label: 'showHotTrending' },
+    { key: 'showHunterCampaign', label: 'showHunterCampaign' },
     { key: 'showNotes', label: 'showNotes' },
     { key: 'showOfficialTags', label: 'showOfficialTags' },
     { key: 'showRealtimeSubscription', label: 'showRealtimeSubscription' },
+    { key: 'showEngageToEarn', label: 'showEngageToEarn' },
+    { key: 'enableBnbFeeds', label: 'enableBnbFeeds' },
+    { key: 'enableGossip', label: 'enableGossip' },
+    { key: 'enableListing', label: 'enableListing' },
   ],
   nameRight: [
     { key: 'showProjectMembers', label: 'showProjectMembers' },
@@ -47,11 +55,17 @@ const ALL_SETTING_KEYS = [
   'showSidebarIcon',
   'showAvatarRank',
   'showTokenAnalysis',
+  'showTweetAIAnalysis',
   'showSearchPanel',
   'showHotTrending',
+  'showHunterCampaign',
   'showNotes',
   'showOfficialTags',
   'showRealtimeSubscription',
+  'showEngageToEarn',
+  'enableBnbFeeds',
+  'enableGossip',
+  'enableListing',
   'showProjectMembers',
   'showInvestors',
   'showPortfolio',
@@ -123,7 +137,7 @@ export class SettingsManager {
         const value = await localStorageInstance.get(`@settings/${key}`);
         this.settings.set(key, typeof value === 'boolean' ? value : true);
       } catch (error) {
-        console.warn(`Failed to load setting ${key}:`, error);
+        console.log(`Failed to load setting ${key}:`, error);
         this.settings.set(key, true);
       }
     }
@@ -175,7 +189,7 @@ export const useAllSettings = () => {
         const value = await localStorageInstance.get(`@settings/${key}`);
         newSettings.set(key, typeof value === 'boolean' ? value : true);
       } catch (error) {
-        console.warn(`Failed to load setting ${key}:`, error);
+        console.log(`Failed to load setting ${key}:`, error);
         newSettings.set(key, true);
       }
     }
@@ -237,7 +251,7 @@ export const useReactiveSettings = () => {
           const value = await localStorageInstance.get(`@settings/${key}`);
           newSettings.set(key, value !== null ? value : true);
         } catch (error) {
-          console.warn(`Failed to load setting ${key}:`, error);
+          console.log(`Failed to load setting ${key}:`, error);
           newSettings.set(key, true);
         }
       }
@@ -283,8 +297,14 @@ export const useReactiveSettings = () => {
 // 跨页面设置同步Hook - 用于popup和content script之间的通信
 export const useCrossPageSettings = () => {
   const [settings, setSettings] = useState<Map<string, boolean>>(new Map());
+  const [currentUsername, setCurrentUsername] = useState<string>('');
 
   useEffect(() => {
+    // 初始化当前用户名
+    getCurrentUsername()
+      .then((name) => setCurrentUsername(name || ''))
+      .catch(() => setCurrentUsername(''));
+
     const loadSettings = async () => {
       const newSettings = new Map();
 
@@ -293,7 +313,7 @@ export const useCrossPageSettings = () => {
           const value = await localStorageInstance.get(`@settings/${key}`);
           newSettings.set(key, value !== null ? value : true);
         } catch (error) {
-          console.warn(`Failed to load setting ${key}:`, error);
+          console.log(`Failed to load setting ${key}:`, error);
           newSettings.set(key, true);
         }
       }
@@ -314,6 +334,9 @@ export const useCrossPageSettings = () => {
         newSettings.set(data.key, data.value);
         return newSettings;
       });
+      getCurrentUsername()
+        .then((name) => setCurrentUsername(name || ''))
+        .catch(() => setCurrentUsername(''));
     };
 
     // 初始加载
@@ -331,6 +354,16 @@ export const useCrossPageSettings = () => {
   }, []);
 
   const isEnabled = (settingKey: string): boolean => {
+    const { testConfig } = configManager.getConfig();
+    const features = testConfig?.features || [];
+    const testers = testConfig?.testers || [];
+    if (features.includes(settingKey)) {
+      const isTester = currentUsername
+        ? testers.includes(currentUsername)
+        : false;
+      if (!isTester) return false;
+    }
+
     return settings.get(settingKey) ?? true;
   };
 

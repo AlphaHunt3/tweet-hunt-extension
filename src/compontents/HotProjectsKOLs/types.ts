@@ -1,6 +1,8 @@
 export interface HotItem {
   id: string;
   share: number;
+  summary_cn?: string;
+  summary_en?: string;
   twitter: {
     ai: {
       classification: 'project' | 'person';
@@ -10,8 +12,8 @@ export interface HotItem {
     feature: {
       narrative: {
         en: string;
-        cn: string
-      }
+        cn: string;
+      };
     };
     profile: {
       profile_image_url: string;
@@ -36,13 +38,15 @@ export interface HotToken {
   image: string;
   mentionCount: number;
   name: string;
+  price?: number;
   pricePct24H: number;
   share: number;
   symbol: string;
   token_raw: string;
 }
 
-export interface TokenTreemapNode extends d3.HierarchyRectangularNode<HotToken> {
+export interface TokenTreemapNode
+  extends d3.HierarchyRectangularNode<HotToken> {
   data: HotToken;
 }
 
@@ -86,6 +90,7 @@ export interface HotDiscussion {
   };
 }
 
-export interface DiscussionTreemapNode extends d3.HierarchyRectangularNode<HotDiscussion> {
+export interface DiscussionTreemapNode
+  extends d3.HierarchyRectangularNode<HotDiscussion> {
   data: HotDiscussion;
 }

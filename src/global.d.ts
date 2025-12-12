@@ -1,6 +1,13 @@
 // 新增全局类型声明文件
 
+/// <reference types="react" />
+
 declare module 'data-text:~/css/*' {
+  const content: string;
+  export default content;
+}
+
+declare module 'url:~/assets/*' {
   const content: string;
   export default content;
 }
@@ -29,6 +36,7 @@ declare interface Window {
 interface Chrome {
   storage: any;
   runtime: {
+    connect(arg0: { name: string }): any;
     sendMessage: any;
     onMessage: {
       addListener: (

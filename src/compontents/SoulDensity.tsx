@@ -3,7 +3,7 @@ import { User, FileText, BarChart3, Users, Trophy, Info } from 'lucide-react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { SoulDensityData, NewTwitterUserData } from '~types';
-import { useDOMUserInfo } from '~utils/domUserExtractor.ts';
+import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
 import { safeNumber, safeString } from '~utils/dataValidation.ts';
 import { generateScoreBasedColor } from '~utils/colorGenerator.ts';
 import {
@@ -97,8 +97,25 @@ function SoulDensity({
     )
   );
 
-  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } =
-    useDOMUserInfo(userId, newTwitterData, loadingTwInfo);
+  const {
+    handler: hookUsername,
+    displayName: hookName,
+    avatar: hookAvatar,
+    loading: hookLoading,
+  } = usePlacementTrackingDomUserInfo();
+  const domUserInfo = useMemo(
+    () =>
+      hookUsername
+        ? {
+            username: hookUsername,
+            name: hookName,
+            avatar: hookAvatar,
+            source: 'data-testid' as const,
+          }
+        : null,
+    [hookUsername, hookName, hookAvatar]
+  );
+  const domUserInfoLoading = hookLoading;
 
   // 生成五边形雷达图数据
   const radarData = useMemo(() => {

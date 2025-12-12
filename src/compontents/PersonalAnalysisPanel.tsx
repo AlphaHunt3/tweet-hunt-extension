@@ -6,18 +6,25 @@ import { useRequest } from 'ahooks';
 import {
   fetchFollowRelation,
   fetchHistoricalTweets,
+  fetchFansRank,
+  fetchUnfollowRelation,
 } from '~contents/services/api.ts';
-import { useDOMUserInfo } from '~/utils/domUserExtractor';
+import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
 import { Tabs } from '~/compontents/Tabs.tsx';
 import { FollowRelationPanel } from '~/compontents/FollowRelationPanel.tsx';
+import { UnfollowInfoPanel } from '~/compontents/UnfollowInfoPanel.tsx';
 import { ProfileChangesPanel } from '~compontents/ProfileChangesPanel.tsx';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
+import { InteractionRankPanel } from '~/compontents/InteractionRankPanel.tsx';
 import { FollowRelationData } from '~types';
 import { localStorageInstance } from '~storage/index.ts';
-import { navigationService } from '~/compontents/navigation/NavigationService';
 import { useCrossPageSettings } from '~utils/settingsManager';
+import { CloseConfirmDialog } from './CloseConfirmDialog';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
 import useWaitForElement from '~contents/hooks/useWaitForElement';
+import { ProRequired } from './ProRequired';
+import { StoredUserInfo } from '~types/review.ts';
+import { isLegacyUserActive } from '~/utils/legacyUserCheck.ts';
 
 export interface PersonalAnalysisPanelProps {
   userId: string;
@@ -36,14 +43,50 @@ export function PersonalAnalysisPanel({
   const { t } = useI18n();
   const currentUrl = useCurrentUrl();
   const { isEnabled } = useCrossPageSettings();
+  const [user] = useLocalStorage<StoredUserInfo | null | ''>(
+    '@xhunt/user',
+    null
+  );
+  const userObj = user && typeof user === 'object' ? user : null;
+  const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
+  const isLegacyUser = isLegacyUserActive(currentUsername);
+  // const isPro = (userObj?.isPro ?? false) || isLegacyUser;
   const [activeTab, setActiveTab] = useState<
-    'follows' | 'followers' | 'profile' | 'deletedTweets'
+    | 'follows'
+    | 'followers'
+    | 'unfollowing'
+    | 'profile'
+    | 'deletedTweets'
+    | 'interactionRank'
   >('follows');
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
+  const [interactionRankDays, setInteractionRankDays] = useState<'7' | '30'>(
+    '7'
+  );
+  // Track if we've ever had interaction rank data to prevent tab from disappearing during loading
+  const [hasInteractionRankData, setHasInteractionRankData] = useState(false);
 
-  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } =
-    useDOMUserInfo(userId, newTwitterData, loadingTwInfo);
+  const {
+    handler: hookUsername,
+    displayName: hookName,
+    avatar: hookAvatar,
+    loading: hookLoading,
+    twitterId,
+  } = usePlacementTrackingDomUserInfo();
+  const domUserInfo = useMemo(
+    () =>
+      hookUsername
+        ? {
+            username: hookUsername,
+            name: hookName,
+            avatar: hookAvatar,
+            source: 'data-testid' as const,
+          }
+        : null,
+    [hookUsername, hookName, hookAvatar]
+  );
+  const domUserInfoLoading = hookLoading;
 
   const emptyStateDom = useWaitForElement("div[data-testid='emptyState']", [
     currentUrl,
@@ -60,24 +103,71 @@ export function PersonalAnalysisPanel({
   const { data: followRelationData } = useRequest<
     FollowRelationData | undefined,
     []
-  >(() => fetchFollowRelation(userId), {
-    refreshDeps: [userId],
+  >(() => fetchFollowRelation(twitterId), {
+    refreshDeps: [twitterId],
     debounceWait: 300,
   });
+
+  // Fetch unfollow relation data
+  const { data: unfollowRelationData } = useRequest(
+    () =>
+      twitterId
+        ? fetchUnfollowRelation(twitterId, 30, 0)
+        : Promise.resolve(undefined),
+    {
+      ready: !!twitterId,
+      refreshDeps: [twitterId],
+      debounceWait: 300,
+    }
+  );
 
   // Fetch historical tweets when tab is active
   const { data: historicalTweets, loading: loadingHistoricalTweets } =
     useRequest(
       () =>
-        domUserInfo?.username
-          ? fetchHistoricalTweets(domUserInfo.username, 20, 0)
+        twitterId
+          ? fetchHistoricalTweets(twitterId, 20, 0)
           : Promise.resolve(undefined),
       {
-        ready: activeTab === 'deletedTweets' && !!domUserInfo?.username,
-        refreshDeps: [activeTab, domUserInfo?.username],
+        ready: activeTab === 'deletedTweets' && !!twitterId,
+        refreshDeps: [activeTab, twitterId],
         debounceWait: 300,
       }
     );
+
+  // Fetch interaction rank data - always fetch to check if data exists (for tab visibility)
+  // Use 7 days for initial check, then use interactionRankDays when tab is active
+  const daysToFetch =
+    activeTab === 'interactionRank' ? interactionRankDays : '7';
+  const { data: interactionRankData, loading: loadingInteractionRank } =
+    useRequest(
+      () =>
+        twitterId
+          ? fetchFansRank(twitterId, daysToFetch)
+          : Promise.resolve(undefined),
+      {
+        ready: !!twitterId,
+        refreshDeps: [twitterId, daysToFetch],
+        debounceWait: 300,
+      }
+    );
+
+  // Reset hasInteractionRankData and interactionRankDays when username changes
+  useEffect(() => {
+    setHasInteractionRankData(false);
+    setInteractionRankDays('7');
+  }, [domUserInfo?.username]);
+
+  // Track if we've ever had interaction rank data
+  useEffect(() => {
+    if (
+      interactionRankData &&
+      Array.isArray(interactionRankData) &&
+      interactionRankData.length > 0
+    ) {
+      setHasInteractionRankData(true);
+    }
+  }, [interactionRankData]);
 
   // Add user profile info to historical tweets
   const enrichedHistoricalTweets = useMemo(() => {
@@ -98,6 +188,9 @@ export function PersonalAnalysisPanel({
   // Calculate counts
   const followsCount = followRelationData?.following_action?.length || 0;
   const followersCount = followRelationData?.followed_action?.length || 0;
+  const unfollowingCount =
+    (unfollowRelationData?.unfollowing_action?.length || 0) +
+    (unfollowRelationData?.unfollowed_action?.length || 0);
 
   // Calculate profile changes count
   const profileChangesCount = (() => {
@@ -109,29 +202,64 @@ export function PersonalAnalysisPanel({
     ).length;
   })();
 
+  // Merge data for unfollow panel consumption
+  const mergedUnfollowData = useMemo(() => {
+    if (!followRelationData && !unfollowRelationData) return undefined;
+    return {
+      followed_action: followRelationData?.followed_action || [],
+      following_action: followRelationData?.following_action || [],
+      unfollowing_action: unfollowRelationData?.unfollowing_action || [],
+      unfollowed_action: unfollowRelationData?.unfollowed_action || [],
+      twitter_users: {
+        ...(followRelationData?.twitter_users || {}),
+        ...(unfollowRelationData?.twitter_users || {}),
+      },
+    };
+  }, [followRelationData, unfollowRelationData]);
+
   // Handle tab change with UI fix
   const handleTabChange = (id: string) => {
-    setActiveTab(id as 'follows' | 'followers' | 'profile' | 'deletedTweets');
-
-    // Add a small delay before triggering the scroll
-    setTimeout(() => {
-      // Scroll down 1px and then back up to trigger UI fixes
-      window.scrollBy(0, 1);
-      setTimeout(() => {
-        window.scrollBy(0, -1);
-      }, 10);
-    }, 100);
+    setActiveTab(
+      id as
+        | 'follows'
+        | 'followers'
+        | 'unfollowing'
+        | 'profile'
+        | 'deletedTweets'
+        | 'interactionRank'
+    );
   };
 
   const tabs = useMemo(() => {
-    const baseTabs = [
+    const baseTabs: Array<{
+      id: string;
+      label: string;
+      badge?: string;
+      tooltip?: string;
+    }> = [
       { id: 'follows', label: `${t('recentFollows')} (${followsCount})` },
       { id: 'followers', label: `${t('recentFollowers')} (${followersCount})` },
-      {
-        id: 'profile',
-        label: `${t('profileChanges')} (${profileChangesCount})`,
-      },
     ];
+
+    // Add "取关信息" tab only when data exists, and place it before profile
+    if (unfollowingCount > 0) {
+      baseTabs.push({
+        id: 'unfollowing',
+        label: `${t('unfollowInfo')} (${unfollowingCount})`,
+        tooltip: t('unfollowInfoTooltip'),
+        badge: t('betaBadge'),
+      });
+    }
+
+    baseTabs.push({
+      id: 'profile',
+      label: `${t('profileChanges')} (${profileChangesCount})`,
+    });
+
+    // Add "互动榜" tab if we have data or have ever had data (to prevent tab from disappearing during loading)
+    if (hasInteractionRankData) {
+      baseTabs.push({ id: 'interactionRank', label: t('interactionRank') });
+    }
 
     // Add "历史删帖" tab if emptyStateDom exists
     if (emptyStateDom) {
@@ -142,7 +270,24 @@ export function PersonalAnalysisPanel({
     }
 
     return baseTabs;
-  }, [t, followsCount, followersCount, profileChangesCount, emptyStateDom]);
+  }, [
+    t,
+    followsCount,
+    followersCount,
+    unfollowingCount,
+    profileChangesCount,
+    emptyStateDom,
+    interactionRankData,
+    hasInteractionRankData,
+  ]);
+
+  // If current active tab is not in the tabs list (e.g., interactionRank or deletedTweets removed due to no data), switch to follows tab
+  useEffect(() => {
+    const currentTabExists = tabs.some((tab) => tab.id === activeTab);
+    if (!currentTabExists && activeTab !== 'follows') {
+      setActiveTab('follows');
+    }
+  }, [tabs, activeTab]);
 
   // 检查用户分析是否启用
   if (!isEnabled('showSearchPanel')) {
@@ -230,6 +375,7 @@ export function PersonalAnalysisPanel({
             userId={userId}
             type='following'
             followRelationData={followRelationData}
+            isPro={true}
           />
         )}
 
@@ -238,83 +384,71 @@ export function PersonalAnalysisPanel({
             userId={userId}
             type='followers'
             followRelationData={followRelationData}
+            isPro={true}
+          />
+        )}
+
+        {activeTab === 'unfollowing' && (
+          <UnfollowInfoPanel
+            userId={userId}
+            followRelationData={mergedUnfollowData}
+            isPro={true}
           />
         )}
 
         {activeTab === 'profile' && (
-          <ProfileChangesPanel
-            userId={userId}
-            profileHistoryData={newTwitterData}
-          />
+          <ProRequired
+            showInCenter={true}
+            enableAnimation={false}
+            showExtraTitle={true}
+          >
+            <ProfileChangesPanel
+              userId={userId}
+              profileHistoryData={newTwitterData}
+            />
+          </ProRequired>
         )}
 
         {activeTab === 'deletedTweets' && (
-          <DeletedTweetsSection
-            deletedTweets={enrichedHistoricalTweets}
-            loadingDel={loadingHistoricalTweets}
-            isHoverPanel={true}
+          <ProRequired
+            showInCenter={true}
+            enableAnimation={false}
+            showExtraTitle={true}
+          >
+            <DeletedTweetsSection
+              deletedTweets={enrichedHistoricalTweets}
+              loadingDel={loadingHistoricalTweets}
+              isHoverPanel={true}
+            />
+          </ProRequired>
+        )}
+
+        {activeTab === 'interactionRank' && (
+          <InteractionRankPanel
+            userId={userId}
+            username={domUserInfo?.username}
+            interactionRankData={interactionRankData}
+            loading={loadingInteractionRank}
+            selectedDays={interactionRankDays}
+            onDaysChange={setInteractionRankDays}
           />
         )}
       </div>
 
       {/* 关闭确认弹框 */}
-      {showCloseConfirm && (
-        <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
-          <div
-            className='absolute inset-0 z-[999001] theme-bg-secondary'
-            style={{ opacity: 0.8 }}
-            onClick={() => setShowCloseConfirm(false)}
-          />
-          <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-4'>
-            <div className='text-sm leading-5'>
-              {t('confirmCloseTrendingPrefix')}{' '}
-              <button
-                type='button'
-                className='underline text-blue-400 hover:text-blue-300'
-                onClick={() => {
-                  try {
-                    const openEvt = new CustomEvent('xhunt:open-panel');
-                    window.dispatchEvent(openEvt);
-                  } catch {}
-                  try {
-                    setTimeout(() => {
-                      navigationService.navigateTo('main-panel', '/settings');
-                    }, 100);
-                  } catch {}
-                }}
-              >
-                {t('settingsTitle')}
-              </button>{' '}
-              {t('confirmCloseTrendingSuffix')}
-            </div>
-            <div className='mt-3 flex justify-end gap-2'>
-              <button
-                type='button'
-                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
-                onClick={() => setShowCloseConfirm(false)}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type='button'
-                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
-                onClick={async () => {
-                  setIsHidden(true);
-                  setShowCloseConfirm(false);
-                  try {
-                    await localStorageInstance.set(
-                      '@settings/showSearchPanel',
-                      false
-                    );
-                  } catch {}
-                }}
-              >
-                {t('save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CloseConfirmDialog
+        isOpen={showCloseConfirm}
+        onClose={() => setShowCloseConfirm(false)}
+        onConfirm={async () => {
+          setIsHidden(true);
+          setShowCloseConfirm(false);
+          try {
+            await localStorageInstance.set('@settings/showSearchPanel', false);
+          } catch {}
+        }}
+        prefixKey='confirmCloseTrendingPrefix'
+        suffixKey='confirmCloseTrendingSuffix'
+      />
     </div>
   );
 }

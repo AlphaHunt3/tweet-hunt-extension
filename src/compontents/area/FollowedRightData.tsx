@@ -190,9 +190,10 @@ function _FollowedRightData({
 }: MainData) {
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
+    siblingsXPath:
+      ".//*[ (contains(., 'Following') and contains(., 'Followers')) or (contains(., '正在关注') and contains(., '关注者')) or (contains(., '個跟隨中') and contains(., '位跟隨者')) or (contains(., 'フォロワー') and contains(., 'フォロー中')) ]",
     styleText: cssText,
     useSiblings: true,
-    targetFilter: targetFilter,
   });
   const { t, lang } = useI18n();
 
@@ -407,20 +408,6 @@ function _FollowedRightData({
     shadowRoot
   );
 }
-
-const targetFilter = (el: any) => {
-  return (
-    (el.tagName.toLowerCase() === 'div' &&
-      el.textContent.includes('Following') &&
-      el.textContent.includes('Followers')) ||
-    (el.textContent.includes('正在关注') &&
-      el.textContent.includes('关注者')) ||
-    (el.textContent.includes('個跟隨中') &&
-      el.textContent.includes('位跟隨者')) ||
-    (el.textContent.includes('フォロワー') &&
-      el.textContent.includes('フォロー中'))
-  );
-};
 
 function formatUpperCase(num: number) {
   return numeral(Number(num))

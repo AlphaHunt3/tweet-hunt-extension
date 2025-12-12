@@ -9,6 +9,11 @@ const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
   }
 };
 
+export interface TestConfig {
+  features: string[];
+  testers: string[];
+}
+
 export interface XHuntConfig {
   errorsReport: number; // 每日错误上报限制
   delayedReport: number; // 每日延迟上报限制
@@ -17,6 +22,12 @@ export interface XHuntConfig {
   mantleHunterProgram: boolean; // 是否显示 Mantle Hunter 活动
   mantleHunterProgramGuide?: string; // 官方指南链接（无需校验）
   mantleHunterProgramActiveURL?: string; // 活动主链接（无需校验）
+  bybitHunterProgram?: boolean;
+  bybitHunterProgramGuide?: string;
+  bybitHunterProgramActiveURL?: string;
+  realTimeSubscriptionSSE?: boolean; // 是否启用实时订阅的 SSE 功能
+  // 🆕 简易灰度策略配置
+  testConfig?: TestConfig;
 }
 
 export interface DailyLimits {
@@ -35,6 +46,14 @@ class ConfigManager {
     mantleHunterProgram: false,
     mantleHunterProgramGuide: '',
     mantleHunterProgramActiveURL: '',
+    bybitHunterProgram: false,
+    bybitHunterProgramGuide: '',
+    bybitHunterProgramActiveURL: '',
+    realTimeSubscriptionSSE: true,
+    testConfig: {
+      features: [],
+      testers: [],
+    },
   };
   private configFetched: boolean = false;
   private isInitialized: boolean = false;
@@ -350,6 +369,7 @@ class ConfigManager {
 
   // 检查是否显示 Mantle Hunter 活动
   public shouldShowMantleHunterProgram(): boolean {
+    // return false; //暂时不展示
     const config = this.getConfig();
     return config.mantleHunterProgram;
   }
@@ -364,6 +384,21 @@ class ConfigManager {
   public getMantleHunterProgramActiveURL(): string {
     const config = this.getConfig();
     return (config as any).mantleHunterProgramActiveURL || '';
+  }
+
+  public shouldShowBybitHunterProgram(): boolean {
+    const config = this.getConfig();
+    return Boolean((config as any).bybitHunterProgram);
+  }
+
+  public getBybitHunterProgramGuide(): string {
+    const config = this.getConfig();
+    return (config as any).bybitHunterProgramGuide || '';
+  }
+
+  public getBybitHunterProgramActiveURL(): string {
+    const config = this.getConfig();
+    return (config as any).bybitHunterProgramActiveURL || '';
   }
 
   // 增加错误上报计数

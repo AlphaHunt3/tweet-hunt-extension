@@ -7,13 +7,14 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
-import { openNewTab, windowGtag } from '~contents/utils';
+import { openNewTab } from '~contents/utils';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
-import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { FloatingContainer, FloatingContainerRef } from './FloatingContainer';
 import { officialTagsManager } from '~/utils/officialTagsManager.ts';
 import { ReviewStats } from '~types/review.ts';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
+import useCurrentUrl from '~contents/hooks/useCurrentUrl';
+import useWaitForElement from '~contents/hooks/useWaitForElement';
 
 interface NotesSectionProps {
   userId: string;
@@ -83,6 +84,13 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
 
   useInterceptShortcuts(currentInputRef, isComposingRef);
 
+  // 检测是否为个人主页（存在“编辑个人资料”按钮）
+  const currentUrl = useCurrentUrl();
+  const editProfileButtonEl = useWaitForElement(
+    'main a[data-testid="editProfileButton"]',
+    [currentUrl]
+  );
+
   // 获取官方标签 - 使用当前语言
   useEffect(() => {
     let mounted = true;
@@ -134,7 +142,6 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
   });
 
   const onLoginClick = useLockFn(async () => {
-    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);
@@ -238,8 +245,8 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
           </div>
         ) : null}
 
-        {/* 备注区域 - 受设置控制 */}
-        {isEnabled('showNotes') ? (
+        {/* 备注区域 - 受设置控制；在个人主页（有编辑按钮）时隐藏 */}
+        {isEnabled('showNotes') && !editProfileButtonEl ? (
           <div className='flex items-center'>
             {loadingNote ? (
               // 加载状态
@@ -373,15 +380,6 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
                 data-theme={theme}
                 className='w-[260px] theme-bg-secondary rounded-lg p-4 space-y-4'
               >
-                <div className='w-full theme-bg-tertiary rounded-lg overflow-hidden'>
-                  <ErrorBoundary>
-                    <TokenWordCloud
-                      tokens={[]}
-                      height={120}
-                      emptyTips={t('noReviews')}
-                    />
-                  </ErrorBoundary>
-                </div>
                 <button
                   onClick={onLoginClick}
                   className='w-full py-2.5 theme-text-primary bg-[#1d9bf0] hover:bg-[#1a8cd8] rounded-full transition-colors flex items-center justify-center gap-2 text-sm'

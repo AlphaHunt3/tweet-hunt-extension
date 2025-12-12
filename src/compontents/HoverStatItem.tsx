@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDebounceFn } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { LoginRequired } from './LoginRequired';
 
 interface StatItemProps {
   label: string;
@@ -198,7 +199,7 @@ export function HoverStatItem({
           }}
         >
           <div className='z-10 theme-bg-secondary theme-text-primary rounded-lg shadow-lg theme-border border p-1 -translate-y-2 max-h-[400px] overflow-y-auto custom-scrollbar'>
-            {hoverContent}
+            <LoginRequired>{hoverContent}</LoginRequired>
           </div>
           <div
             className='inline-block absolute left-1/2 -translate-x-1/2 -bottom-[11px] w-0 h-0'

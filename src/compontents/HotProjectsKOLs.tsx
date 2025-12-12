@@ -19,8 +19,9 @@ import { TokenTreemapVisualization } from './HotProjectsKOLs/TokenTreemapVisuali
 import { TrendingListVisualization } from './HotProjectsKOLs/TrendingListVisualization';
 import { HotItem, HotToken, HotDiscussion } from './HotProjectsKOLs/types';
 import { localStorageInstance } from '~storage/index.ts';
-import { navigationService } from '~/compontents/navigation/NavigationService';
 import { useCrossPageSettings } from '~utils/settingsManager';
+import { Tabs } from './Tabs';
+import { CloseConfirmDialog } from './CloseConfirmDialog';
 
 export interface HotProjectsKOLsProps {
   className?: string;
@@ -128,23 +129,30 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
     }
   };
 
+  // 检查浏览器是否支持 View Transition API
+  const supportsViewTransition =
+    typeof document !== 'undefined' && 'startViewTransition' in document;
+
   // 处理tab切换
   const handleTabChange = (
     newType: 'project' | 'person' | 'token' | 'discussion' | 'following'
   ) => {
     if (newType === activeType) return;
 
-    setIsTransitioning(true);
-
-    // 使用requestAnimationFrame确保状态更新在下一帧
-    requestAnimationFrame(() => {
+    const updateActiveType = () => {
       setActiveType(newType);
+    };
 
-      // 短暂延迟后移除过渡状态
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, 100);
-    });
+    if (supportsViewTransition) {
+      (document as any).startViewTransition(() => {
+        updateActiveType();
+      });
+    } else {
+      // 使用requestAnimationFrame确保状态更新在下一帧
+      requestAnimationFrame(() => {
+        updateActiveType();
+      });
+    }
   };
 
   // 处理数据
@@ -315,7 +323,7 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
               type='button'
               aria-label='Close Hot Trending'
               title='Close'
-              className='p-1.5 rounded-md theme-hover border theme-border theme-text-primary'
+              className='p-1.5 rounded-md theme-hover theme-text-primary'
               onClick={() => setShowCloseConfirm(true)}
             >
               <X className='w-4 h-4' />
@@ -323,35 +331,19 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
           </div>
         </div>
 
-        {/* Tab导航 - 使用与SearchBottomPanel一致的样式 */}
-        <div className='flex border-b theme-border'>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeType === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 relative group ${
-                  isActive
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'theme-text-secondary hover:theme-text-primary'
-                }`}
-                onClick={() => handleTabChange(tab.id as any)}
-                title={getTabDescription(tab.id)}
-              >
-                <Icon className='w-4 h-4' />
-                {tab.label}
-
-                {/* Hover tooltip */}
-                <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-[10px] theme-bg-secondary theme-text-primary rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 shadow-lg theme-border border'>
-                  {getTabDescription(tab.id)}
-                  <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[var(--border-color)]'></div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {/* Tab导航 - 统一使用 Tabs 组件 */}
+        <Tabs
+          tabs={tabs.map((tab) => ({
+            id: tab.id,
+            label: tab.label,
+            icon: tab.icon,
+            tooltip: getTabDescription(tab.id),
+          }))}
+          activeTab={activeType}
+          onChange={(id) => handleTabChange(id as any)}
+          zhMaxRow={4}
+          enMaxRow={2}
+        />
 
         {/* 激活Tab的说明文字
         <div className="px-3 py-1.5 text-xs theme-text-secondary bg-blue-400/5 border-b theme-border">
@@ -361,15 +353,12 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
 
       {/* Content区域 */}
       <div className='flex-1 p-4 overflow-y-auto overflow-x-hidden max-h-[430px] custom-scrollbar'>
-        {currentLoading || isTransitioning ? (
-          <div className='flex items-center justify-center h-full'>
+        {currentLoading ? (
+          <div className='flex items-center justify-center h-full min-h-[400px]'>
             <div className='w-6 h-6 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin'></div>
           </div>
         ) : hasData ? (
-          <div
-            className='w-full h-full transition-opacity duration-200'
-            style={{ opacity: isTransitioning ? 0 : 1 }}
-          >
+          <div className='w-full h-full hot-content-transition min-h-[400px]'>
             {activeType === 'token' ? (
               <TokenTreemapVisualization
                 items={hotTokens}
@@ -402,63 +391,19 @@ export function HotProjectsKOLs({ className = '' }: HotProjectsKOLsProps) {
       </div>
 
       {/* 关闭确认弹框（放在最外层容器末尾，避免被头部层覆盖） */}
-      {showCloseConfirm && (
-        <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
-          <div
-            className='absolute inset-0 z-[999001] theme-bg-secondary'
-            style={{ opacity: 0.8 }}
-            onClick={() => setShowCloseConfirm(false)}
-          />
-          <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-4'>
-            <div className='text-sm leading-5'>
-              {t('confirmCloseTrendingPrefix')}{' '}
-              <button
-                type='button'
-                className='underline text-blue-400 hover:text-blue-300'
-                onClick={() => {
-                  try {
-                    const openEvt = new CustomEvent('xhunt:open-panel');
-                    window.dispatchEvent(openEvt);
-                  } catch {}
-                  try {
-                    setTimeout(() => {
-                      navigationService.navigateTo('main-panel', '/settings');
-                    }, 100);
-                  } catch {}
-                }}
-              >
-                {t('settingsTitle')}
-              </button>{' '}
-              {t('confirmCloseTrendingSuffix')}
-            </div>
-            <div className='mt-3 flex justify-end gap-2'>
-              <button
-                type='button'
-                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
-                onClick={() => setShowCloseConfirm(false)}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type='button'
-                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
-                onClick={async () => {
-                  setIsHidden(true);
-                  setShowCloseConfirm(false);
-                  try {
-                    await localStorageInstance.set(
-                      '@settings/showHotTrending',
-                      false
-                    );
-                  } catch {}
-                }}
-              >
-                {t('save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CloseConfirmDialog
+        isOpen={showCloseConfirm}
+        onClose={() => setShowCloseConfirm(false)}
+        onConfirm={async () => {
+          setIsHidden(true);
+          setShowCloseConfirm(false);
+          try {
+            await localStorageInstance.set('@settings/showHotTrending', false);
+          } catch {}
+        }}
+        prefixKey='confirmCloseTrendingPrefix'
+        suffixKey='confirmCloseTrendingSuffix'
+      />
     </div>
   );
 }

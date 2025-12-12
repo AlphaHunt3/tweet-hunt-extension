@@ -4,13 +4,14 @@ import { ReviewStats, UserInfo } from '~types/review.ts';
 import { Avatar } from '~/compontents/UserAuthPanel.tsx';
 import { ReviewSection } from '~/compontents/ReviewSection.tsx';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
-import { openNewTab, windowGtag } from '~contents/utils';
+import { openNewTab } from '~contents/utils';
 import { useDebounceEffect, useLockFn } from 'ahooks';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { FloatingContainer, FloatingContainerRef } from './FloatingContainer';
+import { navigationService } from '~/compontents/navigation/NavigationService';
 
 interface ReviewHeaderProps {
   stats: ReviewStats | undefined | null;
@@ -33,7 +34,7 @@ function _ReviewHeader({
   handler,
   refreshAsyncReviewInfo,
   refreshAsyncUserInfo,
-  loadingReviewInfo
+  loadingReviewInfo,
 }: ReviewHeaderProps) {
   const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const [token] = useLocalStorage('@xhunt/token', '');
@@ -47,140 +48,232 @@ function _ReviewHeader({
   const moreTagCount = (stats?.tagCloud?.length || 0) - maxTgaShow;
   const isShowMoreTag = moreTagCount > 0;
 
-  const [user] = useLocalStorage<{
-    avatar: string;
-    displayName: string;
-    username: string;
-    id: string;
-    twitterId: string;
-  } | null | ''>('@xhunt/user', null);
+  const [user] = useLocalStorage<
+    | {
+        avatar: string;
+        displayName: string;
+        username: string;
+        id: string;
+        twitterId: string;
+      }
+    | null
+    | ''
+  >('@xhunt/user', null);
 
   const isCurrentUser = useMemo(() => {
     if (user) {
-      return String(user.username).toLowerCase() === String(handler).toLowerCase()
+      return (
+        String(user.username).toLowerCase() === String(handler).toLowerCase()
+      );
     }
     return false;
   }, [user, handler]);
 
-
-  useDebounceEffect(() => {
-    if (!loadingReviewInfo && handler) {
-      setPreHandler(handler);
+  useDebounceEffect(
+    () => {
+      if (!loadingReviewInfo && handler) {
+        setPreHandler(handler);
+      }
+    },
+    [loadingReviewInfo, handler],
+    {
+      wait: 100,
+      maxWait: 300,
+      leading: true,
     }
-  }, [loadingReviewInfo, handler], {
-    wait: 100,
-    maxWait: 300,
-    leading: true
-  });
+  );
 
   if (preHandler !== handler) {
-    return <div style={{
-      display: 'contents'
-    }} key={`${handler}-review-none`} />;
+    return (
+      <div
+        style={{
+          display: 'contents',
+        }}
+        key={`${handler}-review-none`}
+      />
+    );
   }
 
   return (
-    <div style={{
-      display: 'contents'
-    }} key={`${handler}-review`} data-user-handler={handler}>
-      {!stats || !stats.realTotalReviews ?
-        <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <Star className="w-5 h-5 theme-text-secondary flex-shrink-0" />
-                <span className="text-lg font-semibold theme-text-secondary flex-shrink-0">{reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}</span>
+    <div
+      style={{
+        display: 'contents',
+      }}
+      key={`${handler}-review`}
+      data-user-handler={handler}
+    >
+      {!stats || !stats.realTotalReviews ? (
+        <div
+          data-theme={theme}
+          className='min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg'
+        >
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-1.5 flex-shrink-0'>
+                <Star className='w-5 h-5 theme-text-secondary flex-shrink-0' />
+                <span className='text-lg font-semibold theme-text-secondary flex-shrink-0'>
+                  {reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}
+                </span>
               </div>
               {/*<span className={`theme-text-secondary pr-2 ${stats?.currentUserReview?.note ? 'text-xs' : 'text-sm'}`}>*/}
               {/*  {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}*/}
               {/*</span>*/}
             </div>
-            {!isCurrentUser &&
-							<div className="ml-auto flex-shrink-0">
-								<button
-									ref={targetRef}
-									onClick={() => {
-                    containerRef.current?.toggle()
+            {!isCurrentUser && (
+              <div className='ml-auto flex-shrink-0'>
+                <button
+                  ref={targetRef}
+                  onClick={() => {
+                    containerRef.current?.toggle();
                   }}
-									className="text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors"
-								>
-                  {stats?.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
-								</button>
-							</div>
-            }
+                  className='text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors'
+                >
+                  {stats?.currentUserReview && isLoggedIn
+                    ? t('modifyReview')
+                    : t('submitReview')}
+                </button>
+              </div>
+            )}
           </div>
-        </div> : <>
-          <div data-theme={theme} className="min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg">
-            <div className="flex items-center gap-3">
-              {Boolean(stats.averageRating) && <div className="flex items-center gap-1.5">
-	              <Star className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`} />
-	              <span className={`text-lg font-semibold ${getRatingColor(stats.averageRating)}`}>
-                  {Number(stats.averageRating).toFixed(1)}
+        </div>
+      ) : (
+        <>
+          <div
+            data-theme={theme}
+            className='min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg'
+          >
+            <div className='flex items-center gap-3'>
+              {Boolean(stats.averageRating) && (
+                <div className='flex items-center gap-1.5'>
+                  <Star
+                    className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`}
+                  />
+                  <span
+                    className={`text-lg font-semibold ${getRatingColor(
+                      stats.averageRating
+                    )}`}
+                  >
+                    {Number(stats.averageRating).toFixed(1)}
+                  </span>
+                </div>
+              )}
+              <div className='flex items-center gap-2'>
+                <span
+                  className={`text-sm theme-text-secondary ${
+                    (reviewOnlyKol
+                      ? stats.realTotalReviews || 0
+                      : stats.totalReviews || 0) > 0
+                      ? 'cursor-pointer hover:underline hover:decoration-dashed'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    const hasData = reviewOnlyKol
+                      ? (stats.realTotalReviews || 0) > 0
+                      : (stats.totalReviews || 0) > 0;
+                    if (!hasData) return;
+                    try {
+                      const event = new CustomEvent('xhunt:open-panel');
+                      window.dispatchEvent(event);
+                    } catch {}
+                    try {
+                      const navigate = () =>
+                        navigationService.navigateTo('main-panel', '/home', {
+                          scrollToId: 'panel-scroll-comments',
+                        });
+                      const onRegistered = () => {
+                        try {
+                          navigate();
+                        } catch {}
+                      };
+                      navigate();
+                      window.addEventListener(
+                        'xhunt:panel-registered',
+                        onRegistered as any,
+                        { once: true } as any
+                      );
+                    } catch {}
+                  }}
+                >
+                  (
+                  {reviewOnlyKol
+                    ? `${stats.realTotalReviews || 0} ${t('reviews')} ${
+                        stats.realTotalReviews > stats.totalReviews
+                          ? `, ${stats.totalReviews || 0} ${t('reviews2')}`
+                          : ''
+                      }`
+                    : `${stats.totalReviews || 0} ${t('reviews')}`}
+                  )
                 </span>
-              </div>}
-              <div className="flex items-center gap-2">
-                <span className="text-sm theme-text-secondary">
-                  ({reviewOnlyKol ? `${stats.realTotalReviews || 0} ${t('reviews')} ${stats.realTotalReviews > stats.totalReviews ? `, ${stats.totalReviews || 0} ${t('reviews2')}` : ''}` : `${stats.totalReviews || 0} ${t('reviews')}`})
-                </span>
-                <div className="flex -space-x-2">
+                <div className='flex -space-x-2'>
                   {stats.topReviewers.map((reviewer, index) => (
                     <div
                       key={`${reviewer.name}${index}`}
-                      className="relative group"
+                      className='relative group'
                     >
                       <ErrorBoundary>
                         <Avatar
                           src={reviewer.avatar}
                           alt={reviewer.name}
                           size={24}
-                          className="border-2 theme-border transition-transform group-hover:scale-110 group-hover:z-10"
+                          className='border-2 theme-border transition-transform group-hover:scale-110 group-hover:z-10'
                         />
                       </ErrorBoundary>
-                      <div className="theme-text-primary absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 theme-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20">
+                      <div className='theme-text-primary absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 theme-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20'>
                         {reviewer.name}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              {!isCurrentUser && <div className="ml-auto">
-								<button
-									ref={targetRef}
-									onClick={() => {
-                    containerRef.current?.toggle()
-                  }}
-									className={`text-sm transition-colors font-medium ${
-                    stats.currentUserReview ? 'text-[#7dc9d9c7] hover:text-[#369cb2]' :
-                      'text-[#1d9bf0] hover:text-[#1a8cd8]'
-                  }`}
-								>
-                  {stats.currentUserReview && isLoggedIn ? t('modifyReview') : t('submitReview')}
-								</button>
-							</div>}
+              {!isCurrentUser && (
+                <div className='ml-auto'>
+                  <button
+                    ref={targetRef}
+                    onClick={() => {
+                      containerRef.current?.toggle();
+                    }}
+                    className={`text-sm transition-colors font-medium ${
+                      stats.currentUserReview
+                        ? 'text-[#7dc9d9c7] hover:text-[#369cb2]'
+                        : 'text-[#1d9bf0] hover:text-[#1a8cd8]'
+                    }`}
+                  >
+                    {stats.currentUserReview && isLoggedIn
+                      ? t('modifyReview')
+                      : t('submitReview')}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className='flex flex-wrap gap-1.5 mt-2'>
               {stats.tagCloud.slice(0, maxTgaShow).map((tag, index) => (
                 <span
                   key={`${tag.text}${index}`}
-                  className="cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary hover:bg-[#1d9bf0]/20 transition-colors"
+                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary hover:bg-[#1d9bf0]/20 transition-colors'
                 >
                   {tag.text}{' '}
-                  <span style={{
-                    opacity: 0.9,
-                    fontWeight: 800,
-                    fontStyle: 'italic'
-                  }}>x{tag.value}</span>
+                  <span
+                    style={{
+                      opacity: 0.9,
+                      fontWeight: 800,
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    x{tag.value}
+                  </span>
                 </span>
               ))}
-              {isShowMoreTag && <span
-								key={`more-tag`}
-								style={{
-                  opacity: 0.8,
-                }}
-								className="cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary transition-colors"
-							>
-                +{moreTagCount}个标签
-              </span>}
+              {isShowMoreTag && (
+                <span
+                  key={`more-tag`}
+                  style={{
+                    opacity: 0.8,
+                  }}
+                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary transition-colors'
+                >
+                  +{moreTagCount}个标签
+                </span>
+              )}
               {/*{isLoggedIn && stats.currentUserReview?.note && (*/}
               {/*  <span key={'__my-note'} className="mt-0.5 ml-0.5 text-xs theme-text-secondary inline-block overflow-ellipsis">*/}
               {/*    备注：{stats.currentUserReview.note}*/}
@@ -188,7 +281,8 @@ function _ReviewHeader({
               {/*)}*/}
             </div>
           </div>
-        </>}
+        </>
+      )}
       <ErrorBoundary>
         <FloatingContainer
           ref={containerRef}
@@ -196,8 +290,8 @@ function _ReviewHeader({
           offsetX={-220}
           // offsetY={isLoggedIn ? -300 : -200}
           offsetY={isLoggedIn ? -200 : -200}
-          maxWidth="380px"
-          maxHeight="500px"
+          maxWidth='380px'
+          maxHeight='500px'
         >
           <ReviewTooltip
             stats={stats}
@@ -230,12 +324,11 @@ function _ReviewTooltip({
   toggle,
   handler,
   refreshAsyncReviewInfo,
-  refreshAsyncUserInfo
+  refreshAsyncUserInfo,
 }: ReviewTooltipProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
   const onBtnClick = useLockFn(async () => {
-    windowGtag('event', 'login');
     const ret = await getTwitterAuthUrl();
     if (ret?.url) {
       openNewTab(ret.url);
@@ -244,20 +337,27 @@ function _ReviewTooltip({
   });
 
   return (
-    <div data-theme={theme} className="w-[380px] theme-bg-secondary rounded-lg p-3 space-y-4">
+    <div
+      data-theme={theme}
+      className='w-[380px] theme-bg-secondary rounded-lg p-3 space-y-4'
+    >
       {!isLoggedIn ? (
         <>
-          <div className="w-full theme-bg-tertiary rounded-lg overflow-hidden">
+          <div className='w-full theme-bg-tertiary rounded-lg overflow-hidden'>
             <ErrorBoundary>
-              <TokenWordCloud tokens={stats ? stats.tagCloud : []} height={120} emptyTips={t('noReviews')} />
+              <TokenWordCloud
+                tokens={stats ? stats.tagCloud : []}
+                height={120}
+                emptyTips={t('noReviews')}
+              />
             </ErrorBoundary>
           </div>
           <button
             onClick={onBtnClick}
-            className="w-full py-2 theme-text-primary bg-[#1d9bf0] hover:bg-[#1a8cd8] rounded-full transition-colors flex items-center justify-center gap-2 text-sm"
+            className='w-full py-2 theme-text-primary bg-[#1d9bf0] hover:bg-[#1a8cd8] rounded-full transition-colors flex items-center justify-center gap-2 text-sm'
           >
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            <svg viewBox='0 0 24 24' className='w-4 h-4 fill-current'>
+              <path d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' />
             </svg>
             {t('loginRequired')}
           </button>

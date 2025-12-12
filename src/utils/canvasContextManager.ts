@@ -3,6 +3,8 @@
  * 用于防止WebGL上下文过多的问题
  */
 
+import { subscribeToMutation } from '~/contents/hooks/useGlobalMutationObserver';
+
 interface CanvasContext {
   canvas: HTMLCanvasElement;
   context:
@@ -13,6 +15,7 @@ interface CanvasContext {
   type: '2d' | 'webgl' | 'webgl2';
   isActive: boolean;
   lastUsed: number;
+  unsubscribe?: () => void; // 存储取消订阅函数
 }
 
 class CanvasContextManager {
@@ -94,7 +97,7 @@ class CanvasContextManager {
           | WebGL2RenderingContext;
       }
     } catch (error) {
-      console.warn('Failed to get canvas context:', error);
+      console.log('Failed to get canvas context:', error);
     }
 
     return null;
@@ -111,6 +114,12 @@ class CanvasContextManager {
     const context = this.contexts.get(contextId);
 
     if (context) {
+      // 取消 MutationObserver 订阅
+      if (context.unsubscribe) {
+        context.unsubscribe();
+        context.unsubscribe = undefined;
+      }
+
       context.isActive = false;
       context.lastUsed = Date.now();
 
@@ -129,7 +138,7 @@ class CanvasContextManager {
           // 释放渲染缓冲区
           gl.bindRenderbuffer(gl.RENDERBUFFER, null);
         } catch (error) {
-          console.warn('Failed to release WebGL resources:', error);
+          console.log('Failed to release WebGL resources:', error);
         }
       }
     }
@@ -181,6 +190,11 @@ class CanvasContextManager {
 
       if (force || !context.isActive || Date.now() - context.lastUsed > 30000) {
         // 30秒超时
+        // 取消订阅（如果存在）
+        if (context.unsubscribe) {
+          context.unsubscribe();
+          context.unsubscribe = undefined;
+        }
         this.releaseContext(context.canvas, context.type);
         this.contexts.delete(id);
       }
@@ -188,34 +202,57 @@ class CanvasContextManager {
   }
 
   /**
-   * 监听Canvas的移除事件
+   * 监听Canvas的移除事件（使用全局 MutationObserver）
    */
   private observeCanvasRemoval(
     canvas: HTMLCanvasElement,
     contextId: string
   ): void {
-    // 使用MutationObserver监听Canvas的移除
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.removedNodes.forEach((node) => {
-          if (
-            node === canvas ||
-            (node.nodeType === Node.ELEMENT_NODE &&
-              (node as Element).contains?.(canvas))
-          ) {
-            this.releaseContext(canvas);
-            observer.disconnect();
+    // 使用全局 MutationObserver 监听 Canvas 的移除
+    // 注意：全局观察器观察 document.body，但会捕获所有子元素的变化
+    const unsubscribe = subscribeToMutation(
+      (mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList') {
+            for (const node of Array.from(mutation.removedNodes)) {
+              if (
+                node === canvas ||
+                (node.nodeType === Node.ELEMENT_NODE &&
+                  (node as Element).contains?.(canvas))
+              ) {
+                // Canvas 被移除，释放上下文
+                // 从 contexts 中找到对应的 context 并释放
+                const context = this.contexts.get(contextId);
+                if (context) {
+                  // 取消订阅
+                  if (context.unsubscribe) {
+                    context.unsubscribe();
+                    context.unsubscribe = undefined;
+                  }
+                  // 释放上下文
+                  this.releaseContext(canvas, context.type);
+                }
+                return; // 找到后退出
+              }
+            }
           }
-        });
-      });
-    });
-
-    // 监听父节点的变化
-    if (canvas.parentNode) {
-      observer.observe(canvas.parentNode, {
+        }
+      },
+      {
         childList: true,
         subtree: true,
-      });
+      },
+      {
+        // 使用 filter 只处理 childList 类型的 mutations
+        filter: (mutation) => mutation.type === 'childList',
+        debugName: `canvasContextManager-${contextId.slice(-8)}`,
+      }
+    );
+
+    // 存储取消订阅函数到 context 中
+    const context = this.contexts.get(contextId);
+    if (context) {
+      context.unsubscribe = unsubscribe;
     }
   }
 

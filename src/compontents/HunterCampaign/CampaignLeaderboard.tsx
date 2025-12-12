@@ -6,20 +6,24 @@ import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
 import { formatRank } from '~js/utils.ts';
 import { rankService } from '~/utils/rankService';
-import { getHotTweets, getMantleLeaderboard } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
-import { configManager } from '~utils/configManager';
-import { type LeaderboardItem } from './types';
+import { type LeaderboardItem, HunterCampaignConfig } from './types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-export function MantleLeaderboard() {
+interface CampaignLeaderboardProps {
+  campaignConfig: HunterCampaignConfig;
+}
+
+export function CampaignLeaderboard({
+  campaignConfig,
+}: CampaignLeaderboardProps) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<
-    'mindshare' | 'workshare' | 'hotTweets'
-  >('mindshare');
+  const [activeTab, setActiveTab] = useState<'mindshare' | 'hotTweets'>(
+    'mindshare'
+  );
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [showAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
@@ -73,26 +77,34 @@ export function MantleLeaderboard() {
   };
   // 获取热门推文数据
   const { data: hotTweetsData, loading: hotTweetsLoading } = useRequest(
-    () => getHotTweets('mantle'),
+    () =>
+      campaignConfig.api.fetchHotTweets
+        ? campaignConfig.api.fetchHotTweets()
+        : Promise.resolve(undefined),
     {
       manual: false,
       debounceWait: 300,
+      refreshDeps: [campaignConfig],
     }
   );
 
   // 获取排行榜数据
   const { data: leaderboardData, loading: leaderboardLoading } = useRequest(
-    getMantleLeaderboard,
+    () =>
+      campaignConfig.api.fetchLeaderboard
+        ? campaignConfig.api.fetchLeaderboard()
+        : Promise.resolve(undefined),
     {
       manual: false,
       debounceWait: 300,
+      refreshDeps: [campaignConfig],
     }
   );
 
   // 转换API数据为组件需要的格式，只展示前10条
   const mindshareData = useMemo(() => {
     if (!leaderboardData?.mindshare) return [];
-    return leaderboardData.mindshare.slice(0, 10).map((item) => ({
+    return leaderboardData.mindshare.slice(0, 10).map((item: any) => ({
       rank: item.rank,
       username: item.username,
       displayName: item.name,
@@ -103,35 +115,19 @@ export function MantleLeaderboard() {
     }));
   }, [leaderboardData?.mindshare]);
 
-  const workshareData = useMemo(() => {
-    if (!leaderboardData?.workshare) return [];
-    return leaderboardData.workshare.slice(0, 10).map((item) => ({
-      rank: item.rank,
-      username: item.username,
-      displayName: item.name,
-      avatar: item.image,
-      share: item.share || 0,
-      change: undefined, // API中没有change字段
-      isVerified: false, // API中没有isVerified字段，默认为false
-    }));
-  }, [leaderboardData?.workshare]);
+  // 已移除 Workshare 展示
 
   // 获取头像排名（xhunt rank）- 只获取当前活跃tab的前10名用户排名
   useEffect(() => {
     if (!showAvatarRank) return;
 
-    // 根据当前活跃的tab，只获取对应数据的用户排名
-    let usernames: string[] = [];
-    if (activeTab === 'mindshare') {
-      usernames = mindshareData
-        .map((i) => i.username)
-        .filter(Boolean) as string[];
-    } else if (activeTab === 'workshare') {
-      usernames = workshareData
-        .map((i) => i.username)
-        .filter(Boolean) as string[];
-    }
-    // hotTweets tab 不需要获取用户排名
+    // 仅在 mindshare 标签下获取用户排名；hotTweets 不需要
+    const usernames: string[] =
+      activeTab === 'mindshare'
+        ? (mindshareData
+            .map((i: LeaderboardItem) => i.username)
+            .filter(Boolean) as string[])
+        : [];
 
     if (usernames.length === 0) return;
 
@@ -146,15 +142,19 @@ export function MantleLeaderboard() {
     return () => {
       removeCallback();
     };
-  }, [activeTab, mindshareData, workshareData, showAvatarRank]);
+  }, [activeTab, mindshareData, showAvatarRank]);
 
   const handleViewMore = () => {
-    const url = configManager.getMantleHunterProgramActiveURL();
+    // campaignConfig.links.getActiveUrl() 会根据活动类型（Mantle/Bybit）
+    // 调用对应的 configManager 方法获取活动链接
+    // 定义位置：campaignConfigs.ts 中的 links.getActiveUrl
+    const url = campaignConfig.links.getActiveUrl();
     openNewTab(url || '#');
   };
 
   // 格式化数字
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return '0';
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -350,16 +350,7 @@ export function MantleLeaderboard() {
         >
           {t('mantleHunterTabMindshare')}
         </button>
-        <button
-          onClick={() => setActiveTab('workshare')}
-          className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
-            activeTab === 'workshare'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'theme-text-secondary hover:theme-text-primary'
-          }`}
-        >
-          {t('mantleHunterTabWorkshare')}
-        </button>
+        {/* 已移除 Workshare 标签 */}
         <button
           onClick={() => setActiveTab('hotTweets')}
           className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
@@ -390,20 +381,7 @@ export function MantleLeaderboard() {
                   </span>
                 </div>
               ))}
-            {activeTab === 'workshare' &&
-              (leaderboardLoading ? (
-                <div className='flex items-center justify-center py-4'>
-                  <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
-                </div>
-              ) : workshareData.length > 0 ? (
-                workshareData.map(renderLeaderboardItem)
-              ) : (
-                <div className='flex items-center justify-center py-4 theme-text-secondary'>
-                  <span className='text-xs'>
-                    {t('mantleHunterNoLeaderboard')}
-                  </span>
-                </div>
-              ))}
+            {/* 已移除 Workshare 内容 */}
             {activeTab === 'hotTweets' &&
               (hotTweetsLoading ? (
                 <div className='flex items-center justify-center py-4'>

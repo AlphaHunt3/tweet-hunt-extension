@@ -4,7 +4,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { generatePersonalizedColor } from '~/utils/colorGenerator.ts';
 import { safeNumber, safeString } from '~/utils/dataValidation.ts';
 import { MultiFieldItem, NewTwitterUserData } from '~types';
-import { useDOMUserInfo } from '~utils/domUserExtractor.ts';
+import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
 import {
   getCanvasContext,
   releaseCanvasContext,
@@ -273,9 +273,25 @@ function KolAbilityRadar({
       CANVAS_CONFIG.DEFAULT_HEIGHT
     )
   );
-  // const { userInfo: domUserInfo, isLoading: domUserInfoLoading } = useDOMUserInfo(userId);
-  const { userInfo: domUserInfo, isLoading: domUserInfoLoading } =
-    useDOMUserInfo(userId, newTwitterData, loadingTwInfo);
+  const {
+    handler: hookUsername,
+    displayName: hookName,
+    avatar: hookAvatar,
+    loading: hookLoading,
+  } = usePlacementTrackingDomUserInfo();
+  const domUserInfo = useMemo(
+    () =>
+      hookUsername
+        ? {
+            username: hookUsername,
+            name: hookName,
+            avatar: hookAvatar,
+            source: 'data-testid' as const,
+          }
+        : null,
+    [hookUsername, hookName, hookAvatar]
+  );
+  const domUserInfoLoading = hookLoading;
 
   // 从 abilities 中提取能力名称用于生成个性化颜色
   const abilityNames = useMemo(() => {

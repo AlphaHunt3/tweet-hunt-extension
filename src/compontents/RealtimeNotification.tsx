@@ -4,9 +4,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { useI18n } from '~contents/hooks/i18n';
 import { useLocalStorage } from '~storage/useLocalStorage';
-import { useRealtimeSettings } from '~contents/hooks/useRealtimeSettings';
+import {
+  useRealtimeSettings,
+  RealtimeSettings,
+} from '~contents/hooks/useRealtimeSettings';
 import { useLeader } from '~contents/contexts/LeaderContext';
 import { useCrossPageSettings } from '~utils/settingsManager';
+import { StoredUserInfo } from '~types/review.ts';
 import { PLAY_CONFIGURED_SOUND_EVENT } from '~compontents/area/SoundPlayer';
 import {
   notificationEventManager,
@@ -44,11 +48,23 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
   offset = { x: 0, y: 0 },
 }) => {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const [token] = useLocalStorage('@xhunt/token', '');
   const { t } = useI18n();
-  const { settings, isLoading } = useRealtimeSettings();
+  const { settings } = useRealtimeSettings();
   const { isLeader } = useLeader();
   const { isEnabled } = useCrossPageSettings();
   const currentUrl = useCurrentUrl();
+
+  // // 从 localStorage 读取用户信息以检查 Pro 状态
+  // const [user] = useLocalStorage<StoredUserInfo | null | ''>(
+  //   '@xhunt/user',
+  //   null
+  // );
+
+  // TODO: 暂时测试用，后续需要改为实际的登录状态
+  const isLoggedIn = true;
+  // const userObj = user && typeof user === 'object' ? user : null;
+  const isPro = true;
   // 稳定保存 getTargetElement 的引用，避免父组件每次渲染导致回调身份变化
   const getTargetElementRef = useRef<typeof getTargetElement>(getTargetElement);
   useEffect(() => {
@@ -66,7 +82,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
 
   // 监听 storage 变化
   useEffect(() => {
-    const handleStorageChange = (changes: { [key: string]: any }) => {
+    const handleStorageChange = async (changes: { [key: string]: any }) => {
       if (changes['xhunt:realtime_notification']?.newValue) {
         const message: NotificationData =
           changes['xhunt:realtime_notification'].newValue;
@@ -90,11 +106,36 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
             return; // 如果数据类型被禁用，直接返回
           }
 
-          // 检查用户设置
-          const userSettings = settings[dataType];
+          // 检查用户设置 - 从 storage 直接读取最新值，避免 state 更新延迟问题
+          let userSettings = settings[dataType];
 
-          // 播放声音：需要是 leader 且用户配置了声音
-          if (isLeader && userSettings.playSound) {
+          // 如果 settings 还没有更新，尝试从 storage 直接读取
+          if (!userSettings || !userSettings.showNotification) {
+            try {
+              const storedSettings = await new Promise<RealtimeSettings | null>(
+                (resolve) => {
+                  chrome.storage.local.get(
+                    ['xhunt:realtime_settings'],
+                    (result: { [key: string]: any }) => {
+                      resolve(result?.['xhunt:realtime_settings'] || null);
+                    }
+                  );
+                }
+              );
+              if (storedSettings?.[dataType]) {
+                userSettings = storedSettings[dataType];
+              }
+            } catch (error) {
+              // 如果读取失败，使用当前的 settings
+            }
+          }
+
+          if (!userSettings) {
+            return;
+          }
+
+          // 播放声音：需要是 leader 且用户配置了声音，并且用户已登录且是 Pro 用户
+          if (isLeader && userSettings.playSound && isLoggedIn && isPro) {
             try {
               window.dispatchEvent(
                 new CustomEvent(PLAY_CONFIGURED_SOUND_EVENT)
@@ -104,8 +145,8 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
             }
           }
 
-          // 显示弹框：用户配置了弹框（所有页面都显示，不仅仅是 leader）
-          if (userSettings.showNotification) {
+          // 显示弹框：用户配置了弹框，并且用户已登录且是 Pro 用户（所有页面都显示，不仅仅是 leader）
+          if (userSettings.showNotification && isLoggedIn && isPro) {
             const notification = {
               id: `notification_${Date.now()}_${Math.random()
                 .toString(36)
@@ -142,7 +183,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [settings, isLeader]);
+  }, [settings, isLeader, isLoggedIn, isPro, isEnabled, t]);
 
   // 处理通知点击
   const handleNotificationClick = (notification: any) => {

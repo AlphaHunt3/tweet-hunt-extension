@@ -1,0 +1,147 @@
+{
+  "version": 3,
+  "campaigns": [
+    {
+      "id": "bybit-hunter",
+      "campaignKey": "bybit",
+      "enabled": true,
+      "testList": ["luoyukun4"],
+      "testingPhase": false,
+      "enrollmentWindow": {
+        "startAt": "2025-12-05T00:00:00Z",
+        "endAt": "2025-12-19T00:00:00Z"
+      },
+      "displayName": {
+        "zh": "Bybit Hunter 奖励活动($20K)",
+        "en": "Bybit Hunter Rewards ($20K)"
+      },
+      "logos": [
+        {
+          "image": "https://pbs.twimg.com/profile_images/1980270752445194240/w1Mb3hHq_400x400.jpg",
+          "url": "https://x.com/Bybit_Web3",
+          "label": "Bybit Web3",
+          "ringClassName": "ring-yellow-400/20 hover:ring-yellow-400/50"
+        },
+        {
+          "image": "REPLACE_WITH_XHUNT_AVATAR_URL",
+          "url": "https://x.com/xhunt_ai",
+          "label": "XHunt AI",
+          "ringClassName": "ring-blue-400/20 hover:ring-blue-400/50"
+        }
+      ],
+      "copy": {
+        "title": { "zh": "Bybit Hunter 活动", "en": "Bybit Hunter" },
+        "shortTitle": { "zh": "Bybit Hunter 活动", "en": "Bybit Hunter" },
+        "emoji": "🎉",
+        "ctaText": { "zh": "立即参与", "en": "Join Now" },
+        "goToOfficialText": { "zh": "前往官方", "en": "Go to Official" },
+        "viewGuideText": { "zh": "查看官方指南", "en": "View Official Guide" }
+      },
+      "tasks": [
+        {
+          "id": "follow-bybit-web3",
+          "title": { "zh": "关注 @Bybit_Web3", "en": "Follow @Bybit_Web3" },
+          "url": "https://x.com/Bybit_Web3",
+          "type": "twitter"
+        },
+        {
+          "id": "join-telegram-bybit-alpha",
+          "title": { "zh": "加入 Bybit TG", "en": "Join Bybit TG" },
+          "url": "https://t.me/Official_Bybit_Alpha",
+          "type": "telegram",
+          "autoComplete": true
+        },
+        {
+          "id": "follow-xhunt",
+          "title": { "zh": "关注 @xhunt_ai", "en": "Follow @xhunt_ai" },
+          "url": "https://x.com/xhunt_ai",
+          "type": "twitter"
+        },
+        {
+          "id": "join-telegram-xhunt",
+          "title": { "zh": "加入 XHunt TG", "en": "Join XHunt TG" },
+          "url": "https://t.me/xhunt_ai",
+          "type": "telegram",
+          "autoComplete": true
+        }
+      ],
+      "links": {
+        "guideUrl": "https://xhunt.ai/leaderboard",
+        "activeUrl": "https://xhunt.ai/leaderboard"
+      },
+      "showExtraComponents": true,
+      "targetUserIds": ["bybit_web3"],
+      "hotTweetsKey": "bybit"
+    },
+    {
+      "id": "xworld-hunter",
+      "campaignKey": "xworld",
+      "enabled": true,
+      "testList": ["luoyukun4"],
+      "testingPhase": true,
+      "enrollmentWindow": {
+        "startAt": "2025-12-20T00:00:00Z",
+        "endAt": "2025-12-30T00:00:00Z"
+      },
+      "displayName": {
+        "zh": "XWorld Hunter 奖励活动($20K)",
+        "en": "XWorld Hunter Rewards ($20K)"
+      },
+      "logos": [
+        {
+          "image": "https://pbs.twimg.com/profile_images/1902635076829245441/ONfd4lGq_400x400.jpg",
+          "url": "https://x.com/xworld_ai",
+          "label": "XWorld",
+          "ringClassName": "ring-yellow-400/20 hover:ring-yellow-400/50"
+        }
+      ],
+      "copy": {
+        "title": { "zh": "XWorld Hunter 活动", "en": "XWorld Hunter" },
+        "shortTitle": { "zh": "XWorld Hunter 活动", "en": "XWorld Hunter" },
+        "emoji": "🎉",
+        "ctaText": { "zh": "立即参与", "en": "Join Now" },
+        "goToOfficialText": { "zh": "前往官方", "en": "Go to Official" },
+        "viewGuideText": { "zh": "查看官方指南", "en": "View Official Guide" }
+      },
+      "riskConfirmHtml": {
+        "zh": "<p><strong>重要提示：</strong>该项目为 Early-stage 项目，信息由项目方提供，请在参与前自行判断。点击继续即表示理解并接受。</p>",
+        "en": "<p><strong>Important Notice:</strong> The project is in its early stage. The information is provided by the project team. Please make an informed decision before participating. Proceeding indicates that you understand and accept this.</p>"
+      },
+      "tasks": [
+        {
+          "id": "follow-xworld-web3",
+          "title": { "zh": "关注 @xworld_ai", "en": "Follow @XWorld" },
+          "url": "https://x.com/xworld_ai",
+          "type": "twitter"
+        },
+        {
+          "id": "follow-xhunt",
+          "title": { "zh": "关注 @xhunt_ai", "en": "Follow @xhunt_ai" },
+          "url": "https://x.com/xhunt_ai",
+          "type": "twitter"
+        },
+        {
+          "id": "join-telegram-xworld-alpha",
+          "title": { "zh": "加入 XWorld TG", "en": "Join XWorld TG" },
+          "url": "https://t.me/Official_XWorld",
+          "type": "telegram",
+          "autoComplete": true
+        },
+        {
+          "id": "join-telegram-xhunt",
+          "title": { "zh": "加入 XHunt TG", "en": "Join XHunt TG" },
+          "url": "https://t.me/xhunt_ai",
+          "type": "telegram",
+          "autoComplete": true
+        }
+      ],
+      "links": {
+        "guideUrl": "https://xhunt.ai/leaderboard",
+        "activeUrl": "https://xhunt.ai/leaderboard"
+      },
+      "showExtraComponents": true,
+      "targetUserIds": ["XWorld"],
+      "hotTweetsKey": "xworld"
+    }
+  ]
+}

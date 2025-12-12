@@ -3,7 +3,7 @@ const { defineConfig } = require('plasmo');
 module.exports = defineConfig({
   // 扩展权限配置 - 尝试不同的格式
   manifest: {
-    permissions: ['storage', 'scripting', 'activeTab'],
+    permissions: ['storage', 'scripting', 'idle'],
     host_permissions: ['https://x.com/*'],
     action: {
       default_popup: undefined,

@@ -7,8 +7,16 @@ import { ReviewsOverview } from '~/compontents/ReviewsOverview.tsx';
 import { CommentsSection } from '~/compontents/CommentsSection.tsx';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
 import { PanelHeader } from '~/compontents/navigation/PanelNavigator';
+import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
 import { useNavigation } from '~/compontents/navigation/PanelNavigator';
-import { Bell, GripVertical, CircleX, Tags, Loader2 } from 'lucide-react';
+import {
+  Bell,
+  GripVertical,
+  CircleX,
+  Tags,
+  Loader2,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { KolData, DeletedTweet, InvestmentData } from '~types';
 import { MBTIData } from '~types';
 import { ReviewStats } from '~types/review';
@@ -43,20 +51,18 @@ export const HomePage: React.FC<HomePageProps> = ({
   projectMemberData = null,
   loadingProjectMember = false,
   onClose,
-  isHoverPanel = false
+  isHoverPanel = false,
 }) => {
   const { t, lang } = useI18n();
   const { navigateTo } = useNavigation();
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
-  const [isCheckingMessages, setIsCheckingMessages] = useState(true);
   const langRef = useRef(lang);
+  const reviewsRef = useRef<HTMLDivElement | null>(null);
 
   const mbti = useMemo(() => {
     if (Array.isArray(twInfo?.mbti?.cn) && Array.isArray(twInfo?.mbti?.en)) {
-      return lang === 'zh' ? twInfo?.mbti?.cn?.[0] : twInfo?.mbti?.en?.[0]
+      return lang === 'zh' ? twInfo?.mbti?.cn?.[0] : twInfo?.mbti?.en?.[0];
     } else {
-      return lang === 'zh' ? twInfo?.mbti?.cn : twInfo?.mbti?.en
+      return lang === 'zh' ? twInfo?.mbti?.cn : twInfo?.mbti?.en;
     }
   }, [lang, twInfo]) as MBTIData | undefined;
 
@@ -68,100 +74,44 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   }, [lang]);
 
-  // Use the message manager to check for unread messages
-  useEffect(() => {
-    // Initialize message manager if needed
-    if (!messageManager.getState().messages.length) {
-      messageManager.init();
-    }
-
-    // Add callback to listen for message state changes
-    const removeCallback = messageManager.addCallback((state) => {
-      setHasUnreadMessages(state.hasUnread);
-      setIsCheckingMessages(state.isLoading);
-      if (!initialCheckDone && !state.isLoading) {
-        setInitialCheckDone(true);
-      }
-    });
-
-    return () => {
-      removeCallback();
-    };
-  }, []);
+  // (moved to HeaderRightControls)
 
   // Title with classification
   const titleContent = userId ? (
-    <div className="flex items-center">
-      <span>{`@${userId}`}</span>
-      {!loadingTwInfo && twInfo?.basicInfo?.isKol && (
-        <Tags className="w-4 h-4 ml-4 mb-0.5 theme-text-secondary inline-flex" />
+    <div className='flex items-center min-w-0'>
+      <span className='max-w-[130px] truncate text-[13px]'>{`@${userId}`}</span>
+      {/* {!loadingTwInfo && twInfo?.basicInfo?.isKol && (
+        <Tags className='w-4 h-4 ml-4 mb-0.5 theme-text-secondary inline-flex' />
       )}
-      {!loadingTwInfo && twInfo?.basicInfo?.classification && (twInfo?.basicInfo?.classification !== 'unknown') && (
-        <span className="text-xs theme-text-secondary ml-1">{twInfo?.basicInfo?.classification}</span>
-      )}
+      {!loadingTwInfo &&
+        twInfo?.basicInfo?.classification &&
+        twInfo?.basicInfo?.classification !== 'unknown' && (
+          <span className='text-xs theme-text-secondary ml-1'>
+            {twInfo?.basicInfo?.classification}
+          </span>
+        )} */}
     </div>
-  ) : t('home');
+  ) : (
+    t('home')
+  );
 
   // Right content for header
-  const headerRightContent = (
-    <div className="flex items-center gap-1">
-      {/* Messages Button */}
-      <button
-        onClick={() => {
-          navigateTo('/messages');
-          // Update last read timestamp when clicking the icon
-          if (hasUnreadMessages) {
-            messageManager.markAllAsRead();
-          }
-          setInitialCheckDone(false)
-        }}
-        className="p-1.5 rounded-full theme-hover transition-colors cursor-pointer relative"
-        title={t('messages')}
-      >
-        <Bell className="w-4 h-4 theme-text-secondary" />
-        {/* Only show the indicator when we've confirmed there are unread messages and initial check is done */}
-        {initialCheckDone && hasUnreadMessages && (
-          <div className="absolute -top-0.5 -right-0.5 w-2 h-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-          </div>
-        )}
-      </button>
-
-      {/* Drag Handle */}
-      <div className="tw-hunt-drag-handle p-1.5 rounded-full theme-hover cursor-grab active:cursor-grabbing">
-        <GripVertical className="w-4 h-4 theme-text-secondary" />
-      </div>
-
-      {/* Close Button */}
-      {onClose && (
-        <button
-          className="p-1.5 rounded-full theme-hover transition-colors cursor-pointer"
-          onClick={onClose}
-        >
-          <CircleX className="w-4 h-4 theme-text-secondary" />
-        </button>
-      )}
-    </div>
-  );
+  const headerRightContent = <HeaderRightControls onClose={onClose} />;
 
   return (
     <>
       {/* 只在非悬浮面板模式下显示导航栏 */}
       {!isHoverPanel && (
-        <PanelHeader
-          title={titleContent}
-          rightContent={headerRightContent}
-        />
+        <PanelHeader title={titleContent} rightContent={headerRightContent} />
       )}
 
       {loadingTwInfo ? (
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[300px]">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-2" />
-          <p className="text-sm text-blue-400">{t('loading')}</p>
+        <div className='flex-1 flex flex-col items-center justify-center min-h-[300px]'>
+          <Loader2 className='w-8 h-8 text-blue-400 animate-spin mb-2' />
+          <p className='text-sm text-blue-400'>{t('loading')}</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
-
+        <div className='flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden'>
           {/* KOL Followers Section */}
           {twInfo && <KolFollowersSection kolData={twInfo} />}
 
@@ -183,26 +133,33 @@ export const HomePage: React.FC<HomePageProps> = ({
           {mbti && <MBTISection data={mbti} />}
 
           {/* Investment Panel */}
-          {!loadingRootData && rootData && (rootData?.invested || rootData?.investor) &&
+          {!loadingRootData &&
+            rootData &&
+            (rootData?.invested || rootData?.investor) &&
             twInfo?.basicInfo?.classification !== 'person' && (
-            <InvestmentPanel data={rootData} />
-          )}
+              <InvestmentPanel data={rootData} />
+            )}
 
           {/* Reviews Overview */}
-          <ReviewsOverview stats={reviewInfo} />
+          <div id='panel-scroll-reviews' ref={reviewsRef}>
+            <ReviewsOverview stats={reviewInfo} />
+          </div>
 
           {/* Comments Section */}
           {userId && (
-            <CommentsSection
-              userId={userId}
-              initialCommentsCount={0}
-            />
+            <div id='panel-scroll-comments'>
+              <CommentsSection userId={userId} initialCommentsCount={0} />
+            </div>
           )}
 
           {/* Deleted Tweets Section */}
-          {(twInfo?.basicInfo?.isKol || (deletedTweets && deletedTweets.length > 0)) ? (
-            <DeletedTweetsSection deletedTweets={deletedTweets} loadingDel={loadingDel} />
-          ) : null}
+          {/* {twInfo?.basicInfo?.isKol ||
+          (deletedTweets && deletedTweets.length > 0) ? (
+            <DeletedTweetsSection
+              deletedTweets={deletedTweets}
+              loadingDel={loadingDel}
+            />
+          ) : null} */}
         </div>
       )}
     </>

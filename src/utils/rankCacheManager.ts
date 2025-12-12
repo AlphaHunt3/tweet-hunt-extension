@@ -2,8 +2,8 @@
 import packageJson from '../../package.json';
 
 // Constants
-const MAX_CACHE_SIZE = 500;
-const CACHE_EXPIRATION = 12 * 60 * 60 * 1000; // 0.5 day
+const MAX_CACHE_SIZE = 800;
+const CACHE_EXPIRATION = 15 * 60 * 60 * 1000; // 15小时
 const RANK_CACHE_KEY_OLD = '@xhunt/rank-cache';
 const RANK_CACHE_KEY = '@xhunt/rank-cache-new';
 const BATCH_OPERATION_DELAY = 100; // Delay for batch operations
@@ -37,7 +37,12 @@ export class RankCacheManager {
       this.performScheduledCleanup();
     }, interval);
 
-    devLog('log', `📊 [v${packageJson.version}] Cache cleanup timer started (${interval / 1000}s interval)`);
+    devLog(
+      'log',
+      `📊 [v${packageJson.version}] Cache cleanup timer started (${
+        interval / 1000
+      }s interval)`
+    );
   }
 
   // Stop cleanup timer
@@ -66,10 +71,17 @@ export class RankCacheManager {
 
       if (cleanedCount > 0) {
         await this.setCache(cache);
-        devLog('log', `📊 [v${packageJson.version}] Scheduled cleanup removed ${cleanedCount} expired entries`);
+        devLog(
+          'log',
+          `📊 [v${packageJson.version}] Scheduled cleanup removed ${cleanedCount} expired entries`
+        );
       }
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Scheduled cleanup failed:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Scheduled cleanup failed:`,
+        error
+      );
     }
   }
 
@@ -79,7 +91,11 @@ export class RankCacheManager {
       const cache = await localStorage.getItem(RANK_CACHE_KEY);
       return cache ? JSON.parse(cache) : {};
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to get cache:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to get cache:`,
+        error
+      );
       return {};
     }
   }
@@ -91,22 +107,39 @@ export class RankCacheManager {
 
       // Check cache size limit
       if (Object.keys(cache).length > MAX_CACHE_SIZE) {
-        devLog('log', `📊 [v${packageJson.version}] Cache size limit exceeded (${Object.keys(cache).length}/${MAX_CACHE_SIZE}), performing LRU cleanup...`);
+        devLog(
+          'log',
+          `📊 [v${packageJson.version}] Cache size limit exceeded (${
+            Object.keys(cache).length
+          }/${MAX_CACHE_SIZE}), performing LRU cleanup...`
+        );
 
         const entries = Object.entries(cache);
 
         // LRU cleanup: sort by last accessed time, keep most recently accessed
-        const sortedEntries = entries.sort(([, a], [, b]) => b.lastAccessed - a.lastAccessed);
-        const entriesToKeep = sortedEntries.slice(0, Math.floor(MAX_CACHE_SIZE * 0.8)); // keep 80%
+        const sortedEntries = entries.sort(
+          ([, a], [, b]) => b.lastAccessed - a.lastAccessed
+        );
+        const entriesToKeep = sortedEntries.slice(
+          0,
+          Math.floor(MAX_CACHE_SIZE * 0.8)
+        ); // keep 80%
 
         cache = Object.fromEntries(entriesToKeep);
-        devLog('log', `📊 [v${packageJson.version}] LRU cleanup completed, kept ${entriesToKeep.length} entries`);
+        devLog(
+          'log',
+          `📊 [v${packageJson.version}] LRU cleanup completed, kept ${entriesToKeep.length} entries`
+        );
       }
 
       // Check storage size
       const cacheString = JSON.stringify(cache);
-      if (cacheString.length > 1024 * 1024) { // 1MB
-        devLog('warn', `📊 [v${packageJson.version}] Cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`);
+      if (cacheString.length > 1024 * 1024) {
+        // 1MB
+        devLog(
+          'warn',
+          `📊 [v${packageJson.version}] Cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`
+        );
 
         // Aggressive cleanup: only keep recent data
         const entries = Object.entries(cache);
@@ -116,18 +149,32 @@ export class RankCacheManager {
           .slice(0, Math.floor(MAX_CACHE_SIZE * 0.5)); // only keep 50%
 
         cache = Object.fromEntries(recentEntries);
-        devLog('log', `📊 [v${packageJson.version}] Aggressive cleanup completed, kept ${recentEntries.length} entries`);
+        devLog(
+          'log',
+          `📊 [v${packageJson.version}] Aggressive cleanup completed, kept ${recentEntries.length} entries`
+        );
       }
 
       await localStorage.setItem(RANK_CACHE_KEY, JSON.stringify(cache));
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to set cache:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to set cache:`,
+        error
+      );
       // If storage fails, try to clear cache
       try {
         await localStorage.removeItem(RANK_CACHE_KEY);
-        devLog('warn', `📊 [v${packageJson.version}] Cache cleared due to storage failure`);
+        devLog(
+          'warn',
+          `📊 [v${packageJson.version}] Cache cleared due to storage failure`
+        );
       } catch (clearError) {
-        devLog('error', `📊 [v${packageJson.version}] Failed to clear cache:`, clearError);
+        devLog(
+          'error',
+          `📊 [v${packageJson.version}] Failed to clear cache:`,
+          clearError
+        );
       }
     }
   }
@@ -154,7 +201,11 @@ export class RankCacheManager {
 
       return entry;
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to get cache entry:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to get cache entry:`,
+        error
+      );
       return null;
     }
   }
@@ -168,31 +219,44 @@ export class RankCacheManager {
       cache[username.toLowerCase()] = {
         kolRank: rank,
         timestamp: now,
-        lastAccessed: now
+        lastAccessed: now,
       };
 
       await this.setCache(cache);
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to set cache entry:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to set cache entry:`,
+        error
+      );
       // Create minimal cache
       const minimalCache = {
         [username.toLowerCase()]: {
           kolRank: rank,
           timestamp: Date.now(),
-          lastAccessed: Date.now()
-        }
+          lastAccessed: Date.now(),
+        },
       };
 
       try {
-        await localStorage.setItem(RANK_CACHE_KEY, JSON.stringify(minimalCache));
+        await localStorage.setItem(
+          RANK_CACHE_KEY,
+          JSON.stringify(minimalCache)
+        );
       } catch (fallbackError) {
-        devLog('error', `📊 [v${packageJson.version}] Failed to create minimal cache:`, fallbackError);
+        devLog(
+          'error',
+          `📊 [v${packageJson.version}] Failed to create minimal cache:`,
+          fallbackError
+        );
       }
     }
   }
 
   // Set multiple ranks in cache at once (batch operation)
-  static async setBatch(usernameRankMap: Record<string, number>): Promise<void> {
+  static async setBatch(
+    usernameRankMap: Record<string, number>
+  ): Promise<void> {
     try {
       if (Object.keys(usernameRankMap).length === 0) return;
 
@@ -204,14 +268,23 @@ export class RankCacheManager {
         cache[username.toLowerCase()] = {
           kolRank: rank,
           timestamp: now,
-          lastAccessed: now
+          lastAccessed: now,
         };
       });
 
       await this.setCache(cache);
-      devLog('log', `📊 [v${packageJson.version}] Batch updated ${Object.keys(usernameRankMap).length} rank entries`);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Batch updated ${
+          Object.keys(usernameRankMap).length
+        } rank entries`
+      );
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to batch set cache entries:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to batch set cache entries:`,
+        error
+      );
 
       // If batch operation fails, try to save at least some entries
       try {
@@ -222,20 +295,32 @@ export class RankCacheManager {
           minimalCache[username.toLowerCase()] = {
             kolRank: rank,
             timestamp: Date.now(),
-            lastAccessed: Date.now()
+            lastAccessed: Date.now(),
           };
         });
 
-        await localStorage.setItem(RANK_CACHE_KEY, JSON.stringify(minimalCache));
-        devLog('warn', `📊 [v${packageJson.version}] Created minimal cache with ${entries.length} entries`);
+        await localStorage.setItem(
+          RANK_CACHE_KEY,
+          JSON.stringify(minimalCache)
+        );
+        devLog(
+          'warn',
+          `📊 [v${packageJson.version}] Created minimal cache with ${entries.length} entries`
+        );
       } catch (fallbackError) {
-        devLog('error', `📊 [v${packageJson.version}] Failed to create minimal cache:`, fallbackError);
+        devLog(
+          'error',
+          `📊 [v${packageJson.version}] Failed to create minimal cache:`,
+          fallbackError
+        );
       }
     }
   }
 
   // Get multiple ranks from cache at once (batch operation)
-  static async getBatch(usernames: string[]): Promise<Record<string, RankCacheEntry>> {
+  static async getBatch(
+    usernames: string[]
+  ): Promise<Record<string, RankCacheEntry>> {
     try {
       if (usernames.length === 0) return {};
 
@@ -245,7 +330,7 @@ export class RankCacheManager {
       const cacheUpdates: Record<string, RankCacheEntry> = {};
       let needsUpdate = false;
 
-      usernames.forEach(username => {
+      usernames.forEach((username) => {
         const entry = cache[username.toLowerCase()];
 
         if (!entry) return;
@@ -258,7 +343,8 @@ export class RankCacheManager {
         }
 
         // Update last accessed time
-        if (now - entry.lastAccessed > 60000) { // Only update if last access was more than a minute ago
+        if (now - entry.lastAccessed > 60000) {
+          // Only update if last access was more than a minute ago
           entry.lastAccessed = now;
           cacheUpdates[username.toLowerCase()] = entry;
           needsUpdate = true;
@@ -281,17 +367,30 @@ export class RankCacheManager {
               });
 
               await this.setCache(updatedCache);
-              devLog('log', `📊 [v${packageJson.version}] Updated lastAccessed for ${Object.keys(cacheUpdates).length} entries`);
+              devLog(
+                'log',
+                `📊 [v${packageJson.version}] Updated lastAccessed for ${
+                  Object.keys(cacheUpdates).length
+                } entries`
+              );
             }
           } catch (error) {
-            devLog('error', `📊 [v${packageJson.version}] Failed to update cache after batch get:`, error);
+            devLog(
+              'error',
+              `📊 [v${packageJson.version}] Failed to update cache after batch get:`,
+              error
+            );
           }
         }, BATCH_OPERATION_DELAY);
       }
 
       return result;
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to batch get cache entries:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to batch get cache entries:`,
+        error
+      );
       return {};
     }
   }
@@ -307,21 +406,26 @@ export class RankCacheManager {
         expiredEntries: 0,
         recentEntries: 0,
         cacheSize: JSON.stringify(cache).length,
-        cleanupInterval: 10 * 60 * 1000 // 10 minutes
+        cleanupInterval: 10 * 60 * 1000, // 10 minutes
       };
 
-      Object.values(cache).forEach(entry => {
+      Object.values(cache).forEach((entry) => {
         if (now - entry.timestamp > CACHE_EXPIRATION) {
           stats.expiredEntries++;
         }
-        if (now - entry.lastAccessed < 60 * 60 * 1000) { // 1 hour
+        if (now - entry.lastAccessed < 60 * 60 * 1000) {
+          // 1 hour
           stats.recentEntries++;
         }
       });
 
       return stats;
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to get cache stats:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to get cache stats:`,
+        error
+      );
       return null;
     }
   }
@@ -338,9 +442,16 @@ export class RankCacheManager {
       await localStorage.removeItem(RANK_CACHE_KEY);
       await localStorage.removeItem(RANK_CACHE_KEY_OLD);
 
-      devLog('log', `📊 [v${packageJson.version}] Force cleared all rank cache data`);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Force cleared all rank cache data`
+      );
     } catch (error) {
-      devLog('error', `📊 [v${packageJson.version}] Failed to force clear rank cache:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to force clear rank cache:`,
+        error
+      );
     }
   }
 }

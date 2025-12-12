@@ -7,19 +7,22 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { formatRank } from '~js/utils.ts';
 import { rankService } from '~/utils/rankService';
+import { ProPanel } from './ProPanel.tsx';
 
 dayjs.extend(relativeTime);
 
 interface FollowRelationPanelProps {
   userId: string;
-  type: 'following' | 'followers';
+  type: 'following' | 'followers' | 'unfollowing';
   followRelationData?: FollowRelationData;
+  isPro?: boolean;
 }
 
 export function FollowRelationPanel({
   userId,
   type,
   followRelationData,
+  isPro = false,
 }: FollowRelationPanelProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -34,14 +37,20 @@ export function FollowRelationPanel({
     const actions =
       type === 'following'
         ? followRelationData.following_action
-        : followRelationData.followed_action;
+        : type === 'followers'
+        ? followRelationData.followed_action
+        : followRelationData.unfollowing_action || [];
 
     if (!actions || actions.length === 0) return;
 
     const usernames = actions
       .map((action) => {
         const targetId =
-          type === 'following' ? action.following_id : action.follower_id;
+          type === 'following'
+            ? action.following_id
+            : type === 'followers'
+            ? action.follower_id
+            : action.following_id;
         const user = followRelationData.twitter_users[targetId];
         return user?.username_raw;
       })
@@ -95,31 +104,67 @@ export function FollowRelationPanel({
   }
 
   const actions =
-    type === 'following' ? data.following_action : data.followed_action;
+    type === 'following'
+      ? data.following_action
+      : type === 'followers'
+      ? data.followed_action
+      : data.unfollowing_action || [];
 
   if (!actions || actions.length === 0) {
     return (
       <div className='flex items-center justify-center h-16'>
         <p className='text-xs theme-text-secondary'>
-          {type === 'following' ? t('noRecentFollows') : t('noRecentFollowers')}
+          {type === 'following'
+            ? t('noRecentFollows')
+            : type === 'followers'
+            ? t('noRecentFollowers')
+            : t('noRecentUnfollows')}
         </p>
       </div>
     );
   }
 
+  const BLUR_COUNT = 5; // 需要遮挡的前几条数据
+  const hasBlurredItems = !isPro && actions.length > 0;
+
   return (
-    <div className='space-y-2 py-2'>
-      {actions.map((action) => {
+    <div className='space-y-2 py-2 relative'>
+      {/* 如果不是 Pro 且有至少 5 条数据，显示一条 ProPanel */}
+      {hasBlurredItems && (
+        <div className='mb-2'>
+          <ProPanel
+            isPro={false}
+            show={true}
+            className='border border-gray-200 dark:border-gray-800 rounded-md'
+            enableAnimation={false}
+            showExtraTitle={t('proRequiredViewFirst5')}
+            showBenefits={false}
+          />
+        </div>
+      )}
+
+      {/* 渲染数据：如果不是 Pro，跳过前 5 条；如果是 Pro，显示所有数据 */}
+      {actions.map((action, index) => {
         const targetId =
-          type === 'following' ? action.following_id : action.follower_id;
+          type === 'following'
+            ? action.following_id
+            : type === 'followers'
+            ? action.follower_id
+            : action.following_id;
         const user = data.twitter_users[targetId];
 
         if (!user) return null;
+
+        // 如果不是 Pro 且是前 5 条，跳过不渲染
+        if (!isPro && index < BLUR_COUNT) {
+          return null;
+        }
 
         const username = user.username_raw;
         const userRank = userRanks[username] || -1;
         const isLoading = loadingRanks.has(username);
 
+        // 正常渲染真实数据
         return (
           <FollowRelationItem
             key={`${action.created_at}-${targetId}`}
@@ -153,6 +198,7 @@ function FollowRelationItem({
   theme,
   showAvatarRank,
 }: FollowRelationItemProps) {
+  const { t } = useI18n();
   const formattedTime = dayjs(timestamp).fromNow();
 
   return (

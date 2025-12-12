@@ -1,19 +1,18 @@
 import React from 'react';
 import { useRequest } from 'ahooks';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import {
-  getMantleHunterStats,
-  getMantleRegistrationMe,
-} from '~contents/services/api.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
+import { HunterCampaignConfig } from './types';
 
-interface MantleHunterCaptainProps {
+interface HunterCampaignCaptainProps {
   totalRegistrations?: number;
+  campaignConfig: HunterCampaignConfig;
 }
 
-export function MantleHunterCaptain({
+export function HunterCampaignCaptain({
   totalRegistrations,
-}: MantleHunterCaptainProps) {
+  campaignConfig,
+}: HunterCampaignCaptainProps) {
   const { t } = useI18n();
   const [xhuntUser] = useLocalStorage<{ id: string } | null>(
     '@xhunt/user',
@@ -21,20 +20,36 @@ export function MantleHunterCaptain({
   );
 
   // 使用真实API数据
-  const { data: stats, loading } = useRequest(getMantleHunterStats, {
-    manual: false, // 自动执行
-  });
+  const statsFetcher = campaignConfig.api.fetchStats;
+  const { data: stats, loading } = useRequest(
+    () => (statsFetcher ? statsFetcher() : Promise.resolve(undefined)),
+    {
+      manual: false,
+      refreshDeps: [campaignConfig],
+    }
+  );
 
   // 若父组件已传入 totalRegistrations，则不再重复请求报名信息
   const shouldFetchRegistration = typeof totalRegistrations !== 'number';
   const { data: registration, loading: regLoading } = useRequest(
-    () => getMantleRegistrationMe(xhuntUser?.id || ''),
+    () => campaignConfig.api.fetchRegistration(xhuntUser?.id || ''),
     {
       manual: !shouldFetchRegistration,
       ready: shouldFetchRegistration,
-      refreshDeps: [xhuntUser?.id],
+      refreshDeps: [xhuntUser?.id, campaignConfig],
     }
   );
+
+  const formatW = (val: number | undefined) => {
+    if (typeof val !== 'number' || !isFinite(val))
+      return String(t('statisticsInProgress'));
+    if (val >= 1000000) {
+      const num = val / 1000000;
+      const str = num % 1 === 0 ? String(num) : num.toFixed(1);
+      return `${str}M`;
+    }
+    return val.toLocaleString();
+  };
 
   return (
     <div className='grid grid-cols-3 gap-1.5 relative'>
@@ -69,12 +84,16 @@ export function MantleHunterCaptain({
       </div>
       <div className='p-1.5 rounded-md bg-white/[0.02]  transition-all duration-200'>
         <div className='text-[10px] theme-text-secondary mb-0.5 font-medium text-center'>
-          {t('mantleHunterCaptainTotalBridges')}
+          {t('mantleHunterCaptainTotalViews')}
         </div>
         <div className='text-xs theme-text-primary font-bold text-center'>
           {loading
             ? '-'
-            : (stats?.bridges || t('statisticsInProgress')).toLocaleString()}
+            : formatW(
+                typeof stats?.views === 'number'
+                  ? stats?.views
+                  : Number(stats?.views)
+              )}
         </div>
       </div>
     </div>

@@ -1,5 +1,12 @@
-import React, { useRef } from 'react';
-import { ExternalLink, MessageCircle, Check, Info, Wallet } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  ExternalLink,
+  MessageCircle,
+  Check,
+  Info,
+  Wallet,
+  Calendar,
+} from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
 // import { XLogo } from './XLogo';
@@ -11,6 +18,8 @@ interface Task {
   completed: boolean;
   action: () => void;
 }
+
+import { HunterCampaignConfig } from './types';
 
 interface UnregisteredContentProps {
   tasks: Task[];
@@ -31,6 +40,7 @@ interface UnregisteredContentProps {
   handleOpenGuide: () => void;
   formatEvmAddress: (addr: string) => string;
   clearRegistrationError: () => void;
+  campaignConfig?: HunterCampaignConfig;
 }
 
 export function UnregisteredContent({
@@ -52,8 +62,22 @@ export function UnregisteredContent({
   handleOpenGuide,
   formatEvmAddress,
   clearRegistrationError,
+  campaignConfig,
 }: UnregisteredContentProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const [showRiskConfirm, setShowRiskConfirm] = React.useState(false);
+
+  // 使用配置的翻译键，如果没有配置则使用默认翻译键
+  const ctaButtonText = t(
+    campaignConfig?.copy?.ctaButtonKey || 'mantleHunterCta'
+  );
+  const goToOfficialButtonText = t(
+    campaignConfig?.copy?.goToOfficialButtonKey ||
+      'mantleHunterStatusGoToOfficial'
+  );
+  const viewGuideLinkText = t(
+    campaignConfig?.copy?.viewGuideLinkKey || 'mantleHunterViewOfficialGuide'
+  );
 
   // 针对邀请码输入框拦截快捷键（组合键等），避免输入体验被打断
   const inviteInputRef = useRef<HTMLInputElement | null>(null);
@@ -90,155 +114,242 @@ export function UnregisteredContent({
     return evmRegex.test(address);
   };
 
+  const formatDate = (iso?: string | null): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    try {
+      const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
+      return new Intl.DateTimeFormat(locale, {
+        month: 'short',
+        day: 'numeric',
+      }).format(d);
+    } catch {
+      return d.toISOString().slice(5, 10).replace('-', '/');
+    }
+  };
+
+  const formatRange = (start?: string | null, end?: string | null): string => {
+    const s = formatDate(start);
+    const e = formatDate(end);
+    if (s && e) return `${s} – ${e}`;
+    return s || e || '';
+  };
+
   return (
     <div className='space-y-2.5'>
+      {campaignConfig?.enrollmentWindow &&
+        (campaignConfig.enrollmentWindow.startAt ||
+          campaignConfig.enrollmentWindow.endAt) && (
+          <div className='flex items-center justify-between px-2 py-1.5 rounded-lg border border-dashed border-amber-400/20 bg-amber-500/5'>
+            <div className='flex items-center gap-1.5'>
+              <div className='w-4 h-4 flex items-center justify-center text-amber-300/80'>
+                <Calendar className='w-3 h-3' />
+              </div>
+              <span className='text-[10px] theme-text-primary'>
+                {t('mantleHunterActivityTime')}
+              </span>
+            </div>
+            <div className='text-[10px] theme-text-primary'>
+              {formatRange(
+                campaignConfig.enrollmentWindow.startAt,
+                campaignConfig.enrollmentWindow.endAt
+              )}
+            </div>
+          </div>
+        )}
       {/* 任务列表 - 重新设计 */}
       <div className='space-y-1.5'>
         {/* 前4个任务：2x2网格布局 */}
         <div className='grid grid-cols-2 gap-1.5'>
-          {tasks.slice(0, 4).map((task, index) => (
-            <div
-              key={task.id}
-              className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
-                task.completed
-                  ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                  : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
-              }`}
-            >
-              <button
-                onClick={() => {
-                  clearRegistrationError(); // 清空错误显示
-                  if (!isLoggedIn) {
-                    redirectToLogin();
-                    return;
-                  }
-                  task.action();
-                }}
-                disabled={task.completed}
-                className='w-full p-1.5 flex items-center gap-1.5 text-left transition-all duration-200 disabled:cursor-default'
-              >
-                {/* 状态指示器 */}
-                <div
-                  className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
-                    task.completed
-                      ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
-                      : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
-                  }`}
-                >
-                  {task.completed ? (
-                    <div className='relative'>
-                      <Check
-                        className='w-2.5 h-2.5 text-white font-bold'
-                        strokeWidth={3}
-                      />
-                      <div className='absolute inset-0 w-2.5 h-2.5 text-white/30 animate-pulse'>
-                        <Check className='w-2.5 h-2.5' strokeWidth={3} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className='w-1.5 h-1.5 rounded-full bg-blue-400/50 group-hover:bg-blue-400/70 transition-all duration-200' />
-                  )}
-                </div>
-
-                {/* 任务内容 */}
-                <div className='flex-1 min-w-0'>
-                  <div className='flex items-center gap-1'>
-                    <div
-                      className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
-                        task.completed
-                          ? 'text-green-200'
-                          : 'theme-text-secondary group-hover:theme-text-primary'
-                      }`}
-                    >
-                      {task.icon}
-                    </div>
-                    <span
-                      className={`text-[10px] font-medium transition-all duration-200 ${
-                        task.completed
-                          ? 'text-green-100'
-                          : 'theme-text-secondary group-hover:theme-text-primary'
-                      }`}
-                    >
-                      {task.title}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* 第5个任务：独占一行 */}
-        {tasks.length > 4 && (
-          <div
-            className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
-              tasks[4].completed
-                ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
-            }`}
-          >
-            <button
-              onClick={() => {
-                clearRegistrationError(); // 清空错误显示
-                if (!isLoggedIn) {
-                  redirectToLogin();
-                  return;
-                }
-                tasks[4].action();
-              }}
-              disabled={tasks[4].completed}
-              className='w-full p-1.5 flex items-center gap-1.5 text-left transition-all duration-200 disabled:cursor-default'
-            >
-              {/* 状态指示器 */}
+          {tasks
+            .slice(0, tasks.length - (tasks.length % 2 === 0 ? 0 : 1))
+            .map((task, index) => (
               <div
-                className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
-                  tasks[4].completed
-                    ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
-                    : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
+                key={task.id}
+                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
+                  task.completed
+                    ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
+                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
                 }`}
               >
-                {tasks[4].completed ? (
-                  <div className='relative'>
-                    <Check
-                      className='w-2.5 h-2.5 text-white font-bold'
-                      strokeWidth={3}
-                    />
-                    <div className='absolute inset-0 w-2.5 h-2.5 text-white/30 animate-pulse'>
-                      <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                <button
+                  onClick={() => {
+                    clearRegistrationError(); // 清空错误显示
+                    if (!isLoggedIn) {
+                      redirectToLogin();
+                      return;
+                    }
+                    task.action();
+                  }}
+                  disabled={task.completed}
+                  className='w-full p-1.5 flex items-center gap-1.5 text-left transition-all duration-200 disabled:cursor-default'
+                >
+                  {/* 状态指示器 */}
+                  <div
+                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
+                      task.completed
+                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
+                        : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
+                    }`}
+                  >
+                    {task.completed ? (
+                      <div className='relative'>
+                        <Check
+                          className='w-2.5 h-2.5 text-white font-bold'
+                          strokeWidth={3}
+                        />
+                        <div className='absolute inset-0 w-2.5 h-2.5 text-white/30 animate-pulse'>
+                          <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className='w-1.5 h-1.5 rounded-full bg-blue-400/50 group-hover:bg-blue-400/70 transition-all duration-200' />
+                    )}
+                  </div>
+
+                  {/* 任务内容 */}
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-1'>
+                      <div
+                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
+                          task.completed
+                            ? 'text-green-200'
+                            : 'theme-text-secondary group-hover:theme-text-primary'
+                        }`}
+                      >
+                        {task.icon}
+                      </div>
+                      <span
+                        className={`text-[10px] font-medium transition-all duration-200 ${
+                          task.completed
+                            ? 'text-green-100'
+                            : 'theme-text-secondary group-hover:theme-text-primary'
+                        }`}
+                      >
+                        {task.title}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className='w-1.5 h-1.5 rounded-full bg-blue-400/50 group-hover:bg-blue-400/70 transition-all duration-200' />
-                )}
+                </button>
               </div>
+            ))}
+        </div>
 
-              {/* 任务内容 */}
-              <div className='flex-1 min-w-0'>
-                <div className='flex items-center gap-1'>
+        {/* 其余任务：逐项独占一行 */}
+        {tasks.length % 2 === 1 && (
+          <div className='space-y-1.5'>
+            {tasks.slice(tasks.length - 1).map((task) => (
+              <div
+                key={task.id}
+                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
+                  task.completed
+                    ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
+                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    clearRegistrationError(); // 清空错误显示
+                    if (!isLoggedIn) {
+                      redirectToLogin();
+                      return;
+                    }
+                    task.action();
+                  }}
+                  disabled={task.completed}
+                  className='w-full p-1.5 flex items-center gap-1.5 text-left transition-all duration-200 disabled:cursor-default'
+                >
+                  {/* 状态指示器 */}
                   <div
-                    className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
-                      tasks[4].completed
-                        ? 'text-green-200'
-                        : 'theme-text-secondary group-hover:theme-text-primary'
+                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
+                      task.completed
+                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
+                        : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
                     }`}
                   >
-                    {tasks[4].icon}
+                    {task.completed ? (
+                      <div className='relative'>
+                        <Check
+                          className='w-2.5 h-2.5 text-white font-bold'
+                          strokeWidth={3}
+                        />
+                        <div className='absolute inset-0 w-2.5 h-2.5 text-white/30 animate-pulse'>
+                          <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className='w-1.5 h-1.5 rounded-full bg-blue-400/50 group-hover:bg-blue-400/70 transition-all duration-200' />
+                    )}
                   </div>
-                  <span
-                    className={`text-[10px] font-medium transition-all duration-200 ${
-                      tasks[4].completed
-                        ? 'text-green-100'
-                        : 'theme-text-secondary group-hover:theme-text-primary'
-                    }`}
-                  >
-                    {tasks[4].title}
-                  </span>
-                </div>
+
+                  {/* 任务内容 */}
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-1'>
+                      <div
+                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
+                          task.completed
+                            ? 'text-green-200'
+                            : 'theme-text-secondary group-hover:theme-text-primary'
+                        }`}
+                      >
+                        {task.icon}
+                      </div>
+                      <span
+                        className={`text-[10px] font-medium transition-all duration-200 ${
+                          task.completed
+                            ? 'text-green-100'
+                            : 'theme-text-secondary group-hover:theme-text-primary'
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                    </div>
+                  </div>
+                </button>
               </div>
-            </button>
+            ))}
           </div>
         )}
       </div>
+
+      {/* 风险提示弹框 */}
+      {showRiskConfirm && (
+        <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
+          <div
+            className='absolute inset-0 z-[999001] theme-bg-secondary'
+            style={{ opacity: 0.8 }}
+            onClick={() => setShowRiskConfirm(false)}
+          />
+          <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[360px] shadow-xl mt-4'>
+            <div
+              className='prose prose-invert max-w-none text-xs'
+              dangerouslySetInnerHTML={{
+                __html: campaignConfig?.riskConfirmHtml || '',
+              }}
+            />
+            <div className='mt-3 flex justify-end gap-2'>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
+                onClick={() => setShowRiskConfirm(false)}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
+                onClick={() => {
+                  setShowRiskConfirm(false);
+                  handleSubmitRegistration();
+                }}
+              >
+                {t('continue')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className='space-y-1'>
         <div className='flex items-center gap-1.5'>
@@ -272,9 +383,9 @@ export function UnregisteredContent({
               onFocus={() => {
                 currentInputRef.current = evmAddressInputRef.current;
                 clearRegistrationError();
-                if (!isLoggedIn) {
-                  redirectToLogin();
-                }
+                // if (!isLoggedIn) {
+                //   redirectToLogin();
+                // }
               }}
               onBlur={() => {
                 currentInputRef.current = null;
@@ -401,7 +512,11 @@ export function UnregisteredContent({
               if (isRegisteredState) {
                 handleGoToActive();
               } else {
-                handleSubmitRegistration();
+                if (campaignConfig?.riskConfirmHtml) {
+                  setShowRiskConfirm(true);
+                } else {
+                  handleSubmitRegistration();
+                }
               }
             } else {
               redirectToLogin();
@@ -440,10 +555,10 @@ export function UnregisteredContent({
           <span className='leading-none'>
             {isLoggedIn
               ? isRegisteredState
-                ? t('mantleHunterStatusGoToOfficial')
+                ? goToOfficialButtonText
                 : isSubmitting
                 ? t('submitting')
-                : t('mantleHunterCta')
+                : ctaButtonText
               : t('loginToJoin')}
           </span>
           <ExternalLink className='w-3 h-3 ml-1.5' />
@@ -470,7 +585,7 @@ export function UnregisteredContent({
           }}
           className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
         >
-          {t('mantleHunterViewOfficialGuide')}
+          {viewGuideLinkText}
           <ExternalLink className='w-2.5 h-2.5' />
         </a>
       </div>
