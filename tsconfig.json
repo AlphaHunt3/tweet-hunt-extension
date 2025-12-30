@@ -20,7 +20,7 @@
     "paths": {
       "~*": ["./src/*"]
     },
-    "types": ["chrome", "node"]
+    "types": ["chrome", "node", "react"]
   },
   "include": [".plasmo/index.d.ts", "src", "global.d.ts"]
 }

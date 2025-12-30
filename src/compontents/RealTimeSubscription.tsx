@@ -1,4 +1,5 @@
 import React from 'react';
+import { localStorageInstance } from '~storage/index.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { GossipTweet } from '~contents/services/api.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -233,11 +234,23 @@ export const RealTimeSubscription = React.forwardRef<
       }
     };
 
-    // 监听 storage 变化
-    chrome.storage.onChanged.addListener(handleStorageChange);
+    const handler = async () => {
+      try {
+        const msg = await localStorageInstance.get(
+          'xhunt:realtime_notification'
+        );
+        if (!msg) return;
+        handleStorageChange({
+          'xhunt:realtime_notification': { newValue: msg },
+        } as any);
+      } catch {}
+    };
+    localStorageInstance.watch({ 'xhunt:realtime_notification': handler });
 
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
+      localStorageInstance.unwatch({
+        'xhunt:realtime_notification': handler,
+      });
     };
   }, [activeSubTab]);
 
@@ -263,30 +276,9 @@ export const RealTimeSubscription = React.forwardRef<
       try {
         // 读取现有缓存数据
         const [feedCache, gossipCache, listingCache] = await Promise.all([
-          new Promise<any>((resolve) => {
-            (chrome as any).storage?.local?.get(
-              [FEED_STORAGE_KEY],
-              (res: any) => {
-                resolve(res?.[FEED_STORAGE_KEY] || null);
-              }
-            );
-          }),
-          new Promise<any>((resolve) => {
-            (chrome as any).storage?.local?.get(
-              [GOSSIP_STORAGE_KEY],
-              (res: any) => {
-                resolve(res?.[GOSSIP_STORAGE_KEY] || null);
-              }
-            );
-          }),
-          new Promise<any>((resolve) => {
-            (chrome as any).storage?.local?.get(
-              [LISTING_STORAGE_KEY],
-              (res: any) => {
-                resolve(res?.[LISTING_STORAGE_KEY] || null);
-              }
-            );
-          }),
+          localStorageInstance.get(FEED_STORAGE_KEY),
+          localStorageInstance.get(GOSSIP_STORAGE_KEY),
+          localStorageInstance.get(LISTING_STORAGE_KEY),
         ]);
 
         if (feedCache) {
@@ -425,8 +417,12 @@ export const RealTimeSubscription = React.forwardRef<
         {activeSubTab === 'bnb' ? (
           // BNB Feeds 内容
           dataState.tweets_feed.length === 0 && !dataState.follow_feed ? (
-            <div className='flex items-center justify-center py-10'>
-              <div className='w-6 h-6 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
+            // 空数据：展示空状态
+            <div className='flex flex-col items-center justify-center py-10 space-y-2'>
+              <div className='text-4xl'>📭</div>
+              <p className='text-sm theme-text-secondary'>
+                {t('noDataAvailable')}
+              </p>
             </div>
           ) : (
             <div className='space-y-2'>
@@ -516,8 +512,11 @@ export const RealTimeSubscription = React.forwardRef<
         ) : activeSubTab === 'gossip' ? (
           // Gossip 内容
           gossipData.length === 0 ? (
-            <div className='flex items-center justify-center py-10'>
-              <div className='w-6 h-6 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
+            <div className='flex flex-col items-center justify-center py-10 space-y-2'>
+              <div className='text-4xl'>📭</div>
+              <p className='text-sm theme-text-secondary'>
+                {t('noDataAvailable')}
+              </p>
             </div>
           ) : (
             <div className='space-y-2'>

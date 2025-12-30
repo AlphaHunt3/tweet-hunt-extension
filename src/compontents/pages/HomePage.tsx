@@ -137,7 +137,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             rootData &&
             (rootData?.invested || rootData?.investor) &&
             twInfo?.basicInfo?.classification !== 'person' && (
-              <InvestmentPanel data={rootData} />
+              <InvestmentPanel data={rootData} classicStyle />
             )}
 
           {/* Reviews Overview */}

@@ -16,6 +16,7 @@ import { getActiveCampaignForUserAsync } from './HunterCampaign/campaignConfigs'
 import { configManager } from '~utils/configManager';
 import { LoginRequired } from './LoginRequired';
 import { ProRequired } from './ProRequired';
+import ErrorBoundary from './ErrorBoundary';
 
 export interface TwitterPersonalRightSidebarProps {
   userId: string;
@@ -31,6 +32,7 @@ export function TwitterPersonalRightSidebar({
   className = '',
 }: TwitterPersonalRightSidebarProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
   const { t } = useI18n();
   const { isEnabled } = useCrossPageSettings();
   const [activeTopTab, setActiveTopTab] = useState<'analysis' | 'subs'>(
@@ -55,8 +57,8 @@ export function TwitterPersonalRightSidebar({
       tabs.push({ id: 'analysis', label: 'userAnalysis' });
     }
 
-    // 检查实时订阅是否启用
-    if (isEnabled('showRealtimeSubscription')) {
+    // 检查实时订阅是否启用，且当前用户名已就绪
+    if (isEnabled('showRealtimeSubscription') && currentUsername) {
       tabs.push({
         id: 'subs',
         label: 'realTimeSubscription',
@@ -66,7 +68,12 @@ export function TwitterPersonalRightSidebar({
     }
 
     return tabs;
-  }, [isEnabled, realTimeSubscriptionHasNewMessage, activeTopTab]);
+  }, [
+    isEnabled,
+    realTimeSubscriptionHasNewMessage,
+    activeTopTab,
+    currentUsername,
+  ]);
 
   // 如果没有可用的标签页，自动调整activeTopTab
   React.useEffect(() => {
@@ -196,16 +203,20 @@ export function TwitterPersonalRightSidebar({
         >
           {activeTopTab === 'analysis' ? (
             <LoginRequired showInCenter={true}>
-              <PersonalAnalysisPanel
-                userId={userId}
-                newTwitterData={newTwitterData}
-                loadingTwInfo={loadingTwInfo}
-              />
+              <ErrorBoundary name='PersonalAnalysisPanel'>
+                <PersonalAnalysisPanel
+                  userId={userId}
+                  newTwitterData={newTwitterData}
+                  loadingTwInfo={loadingTwInfo}
+                />
+              </ErrorBoundary>
             </LoginRequired>
           ) : (
             <LoginRequired showInCenter={true}>
               <ProRequired enableAnimation={false} showExtraTitle={true}>
-                <RealTimeSubscription ref={realTimeSubscriptionRef} />
+                <ErrorBoundary name='RealTimeSubscription_2'>
+                  <RealTimeSubscription ref={realTimeSubscriptionRef} />
+                </ErrorBoundary>
               </ProRequired>
             </LoginRequired>
           )}

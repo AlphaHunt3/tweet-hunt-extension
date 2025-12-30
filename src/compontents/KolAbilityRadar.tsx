@@ -4,7 +4,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { generatePersonalizedColor } from '~/utils/colorGenerator.ts';
 import { safeNumber, safeString } from '~/utils/dataValidation.ts';
 import { MultiFieldItem, NewTwitterUserData } from '~types';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import {
   getCanvasContext,
   releaseCanvasContext,
@@ -104,93 +104,93 @@ const getSafeDevicePixelRatio = (): number => {
   }
 };
 
-// 🆕 localStorage缓存管理函数
-const getAvatarCache = (): AvatarCacheStorage => {
-  try {
-    const cached = localStorage.getItem(AVATAR_CACHE_KEY);
-    if (!cached) return {};
+// // 🆕 localStorage缓存管理函数
+// const getAvatarCache = (): AvatarCacheStorage => {
+//   try {
+//     const cached = localStorage.getItem(AVATAR_CACHE_KEY);
+//     if (!cached) return {};
 
-    const data = JSON.parse(cached);
-    const now = Date.now();
+//     const data = JSON.parse(cached);
+//     const now = Date.now();
 
-    // 过滤过期数据
-    const validCache: AvatarCacheStorage = {};
-    Object.keys(data).forEach((username) => {
-      if (
-        data[username] &&
-        now - data[username].timestamp < CACHE_EXPIRY_TIME
-      ) {
-        validCache[username] = data[username];
-      }
-    });
+//     // 过滤过期数据
+//     const validCache: AvatarCacheStorage = {};
+//     Object.keys(data).forEach((username) => {
+//       if (
+//         data[username] &&
+//         now - data[username].timestamp < CACHE_EXPIRY_TIME
+//       ) {
+//         validCache[username] = data[username];
+//       }
+//     });
 
-    return validCache;
-  } catch (error) {
-    console.log('Failed to load avatar cache:', error);
-    return {};
-  }
-};
+//     return validCache;
+//   } catch (error) {
+//     console.log('Failed to load avatar cache:', error);
+//     return {};
+//   }
+// };
 
-const setAvatarCache = (cache: AvatarCacheStorage): void => {
-  try {
-    // 检查缓存大小，如果超过限制则清理
-    let cacheEntries = Object.entries(cache);
+// const setAvatarCache = (cache: AvatarCacheStorage): void => {
+//   try {
+//     // 检查缓存大小，如果超过限制则清理
+//     let cacheEntries = Object.entries(cache);
 
-    // 如果超过数量限制，按时间戳排序，保留最新的
-    if (cacheEntries.length > MAX_CACHE_SIZE) {
-      cacheEntries = cacheEntries
-        .sort(([, a], [, b]) => b.timestamp - a.timestamp)
-        .slice(0, MAX_CACHE_SIZE);
-    }
+//     // 如果超过数量限制，按时间戳排序，保留最新的
+//     if (cacheEntries.length > MAX_CACHE_SIZE) {
+//       cacheEntries = cacheEntries
+//         .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+//         .slice(0, MAX_CACHE_SIZE);
+//     }
 
-    const trimmedCache = Object.fromEntries(cacheEntries);
-    const cacheString = JSON.stringify(trimmedCache);
+//     const trimmedCache = Object.fromEntries(cacheEntries);
+//     const cacheString = JSON.stringify(trimmedCache);
 
-    // 检查存储大小限制
-    if (cacheString.length > MAX_STORAGE_SIZE) {
-      console.log(
-        `Avatar cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`
-      );
+//     // 检查存储大小限制
+//     if (cacheString.length > MAX_STORAGE_SIZE) {
+//       console.log(
+//         `Avatar cache size too large (${cacheString.length} bytes), performing aggressive cleanup...`
+//       );
 
-      // 激进清理：只保留最近的数据
-      const entries = Object.entries(cache);
-      const recentEntries = entries
-        .filter(
-          ([, entry]) => Date.now() - entry.timestamp < 24 * 60 * 60 * 1000
-        ) // 只保留24小时内的
-        .sort(([, a], [, b]) => b.timestamp - a.timestamp)
-        .slice(0, Math.floor(MAX_CACHE_SIZE * 0.5)); // 只保留50%
+//       // 激进清理：只保留最近的数据
+//       const entries = Object.entries(cache);
+//       const recentEntries = entries
+//         .filter(
+//           ([, entry]) => Date.now() - entry.timestamp < 24 * 60 * 60 * 1000
+//         ) // 只保留24小时内的
+//         .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+//         .slice(0, Math.floor(MAX_CACHE_SIZE * 0.5)); // 只保留50%
 
-      cache = Object.fromEntries(recentEntries);
-      console.log(
-        `Aggressive cleanup completed, kept ${recentEntries.length} entries`
-      );
-    }
+//       cache = Object.fromEntries(recentEntries);
+//       console.log(
+//         `Aggressive cleanup completed, kept ${recentEntries.length} entries`
+//       );
+//     }
 
-    localStorage.setItem(AVATAR_CACHE_KEY, JSON.stringify(trimmedCache));
-  } catch (error) {
-    console.log('Failed to save avatar cache:', error);
-    // 如果存储失败，尝试清空缓存重新开始
-    try {
-      localStorage.removeItem(AVATAR_CACHE_KEY);
-    } catch (clearError) {
-      console.log('Failed to clear avatar cache:', clearError);
-    }
-  }
-};
+//     localStorage.setItem(AVATAR_CACHE_KEY, JSON.stringify(trimmedCache));
+//   } catch (error) {
+//     console.log('Failed to save avatar cache:', error);
+//     // 如果存储失败，尝试清空缓存重新开始
+//     try {
+//       localStorage.removeItem(AVATAR_CACHE_KEY);
+//     } catch (clearError) {
+//       console.log('Failed to clear avatar cache:', clearError);
+//     }
+//   }
+// };
 
-const updateAvatarCache = (
-  username: string,
-  data: { name: string; avatar: string }
-): void => {
-  const cache = getAvatarCache();
-  cache[username] = {
-    name: data.name,
-    avatar: data.avatar,
-    timestamp: Date.now(),
-  };
-  setAvatarCache(cache);
-};
+// const updateAvatarCache = (
+//   username: string,
+//   data: { name: string; avatar: string }
+// ): void => {
+//   const cache = getAvatarCache();
+//   cache[username] = {
+//     name: data.name,
+//     avatar: data.avatar,
+//     timestamp: Date.now(),
+//   };
+//   setAvatarCache(cache);
+// };
 
 // 🆕 内存缓存管理（作为localStorage的补充）
 interface AvatarCache {
@@ -201,59 +201,59 @@ interface AvatarCache {
   };
 }
 
-// 模块级缓存，按URL分组
-const avatarCacheByUrl: { [url: string]: AvatarCache } = {};
-const MAX_MEMORY_CACHE_SIZE = 10; // 内存缓存更小，只缓存当前会话
+// // 模块级缓存，按URL分组
+// const avatarCacheByUrl: { [url: string]: AvatarCache } = {};
+// const MAX_MEMORY_CACHE_SIZE = 10; // 内存缓存更小，只缓存当前会话
 
-// 🆕 内存缓存管理函数
-const manageCacheSize = () => {
-  // 计算所有URL下的总缓存数量
-  let totalCacheCount = 0;
-  const allCacheEntries: Array<{
-    url: string;
-    username: string;
-    timestamp: number;
-  }> = [];
+// // 🆕 内存缓存管理函数
+// const manageCacheSize = () => {
+//   // 计算所有URL下的总缓存数量
+//   let totalCacheCount = 0;
+//   const allCacheEntries: Array<{
+//     url: string;
+//     username: string;
+//     timestamp: number;
+//   }> = [];
 
-  // 收集所有缓存条目
-  Object.keys(avatarCacheByUrl).forEach((url) => {
-    Object.keys(avatarCacheByUrl[url]).forEach((username) => {
-      totalCacheCount++;
-      allCacheEntries.push({
-        url,
-        username,
-        timestamp: avatarCacheByUrl[url][username].timestamp,
-      });
-    });
-  });
+//   // 收集所有缓存条目
+//   Object.keys(avatarCacheByUrl).forEach((url) => {
+//     Object.keys(avatarCacheByUrl[url]).forEach((username) => {
+//       totalCacheCount++;
+//       allCacheEntries.push({
+//         url,
+//         username,
+//         timestamp: avatarCacheByUrl[url][username].timestamp,
+//       });
+//     });
+//   });
 
-  // 如果超过限制，删除最旧的缓存
-  if (totalCacheCount > MAX_MEMORY_CACHE_SIZE) {
-    // 按时间戳排序，最旧的在前
-    allCacheEntries.sort((a, b) => a.timestamp - b.timestamp);
+//   // 如果超过限制，删除最旧的缓存
+//   if (totalCacheCount > MAX_MEMORY_CACHE_SIZE) {
+//     // 按时间戳排序，最旧的在前
+//     allCacheEntries.sort((a, b) => a.timestamp - b.timestamp);
 
-    // 删除最旧的缓存，直到数量在限制内
-    const entriesToDelete = allCacheEntries.slice(
-      0,
-      totalCacheCount - MAX_MEMORY_CACHE_SIZE
-    );
+//     // 删除最旧的缓存，直到数量在限制内
+//     const entriesToDelete = allCacheEntries.slice(
+//       0,
+//       totalCacheCount - MAX_MEMORY_CACHE_SIZE
+//     );
 
-    entriesToDelete.forEach(({ url, username }) => {
-      if (avatarCacheByUrl[url] && avatarCacheByUrl[url][username]) {
-        delete avatarCacheByUrl[url][username];
+//     entriesToDelete.forEach(({ url, username }) => {
+//       if (avatarCacheByUrl[url] && avatarCacheByUrl[url][username]) {
+//         delete avatarCacheByUrl[url][username];
 
-        // 如果该URL下没有缓存了，删除整个URL键
-        if (Object.keys(avatarCacheByUrl[url]).length === 0) {
-          delete avatarCacheByUrl[url];
-        }
-      }
-    });
+//         // 如果该URL下没有缓存了，删除整个URL键
+//         if (Object.keys(avatarCacheByUrl[url]).length === 0) {
+//           delete avatarCacheByUrl[url];
+//         }
+//       }
+//     });
 
-    console.log(
-      `🗑️ Cleaned up ${entriesToDelete.length} old memory cache entries`
-    );
-  }
-};
+//     console.log(
+//       `🗑️ Cleaned up ${entriesToDelete.length} old memory cache entries`
+//     );
+//   }
+// };
 
 function KolAbilityRadar({
   abilities = [],
@@ -278,7 +278,7 @@ function KolAbilityRadar({
     displayName: hookName,
     avatar: hookAvatar,
     loading: hookLoading,
-  } = usePlacementTrackingDomUserInfo();
+  } = usePlacementTracking();
   const domUserInfo = useMemo(
     () =>
       hookUsername
@@ -679,6 +679,29 @@ function KolAbilityRadar({
     };
   }, []);
 
+  const abilityFooter = useMemo(() => {
+    try {
+      const mf: any = (newTwitterData as any)?.feature?.multi_field;
+      if (!mf) return '';
+      const updateIso: string | undefined = mf?.update;
+      const daysWindow: number = mf?.days ?? mf?.window_days ?? 45;
+      let formattedDate = '';
+      if (updateIso) {
+        const d = new Date(updateIso);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        formattedDate = `${y}/${m}/${dd}`;
+      }
+      const footer = (t('abilityModelFooter') || '')
+        .replace('{days}', String(daysWindow))
+        .replace('{date}', formattedDate);
+      return footer;
+    } catch {
+      return '';
+    }
+  }, [newTwitterData, t]);
+
   if (isLoading) {
     return (
       <div className='p-3 flex flex-col items-center justify-center min-w-[360px] min-h-[240px] gap-2 theme-bg-secondary rounded-lg'>
@@ -795,6 +818,7 @@ function KolAbilityRadar({
               </h4>
               <p className='text-xs theme-text-secondary leading-relaxed'>
                 {summary}
+                {abilityFooter ? <> ({abilityFooter})</> : null}
               </p>
             </div>
           </div>

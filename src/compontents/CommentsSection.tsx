@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
+  AlertTriangle,
 } from 'lucide-react';
 import { Comment } from '~types/review';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -201,14 +202,14 @@ function CommentItem({ comment }: { comment: Comment }) {
   const isLongComment = comment.comment.length > 150;
 
   return (
-    <div className='theme-bg-tertiary rounded-lg p-3 space-y-2'>
+    <div className='theme-bg-tertiary rounded-md p-2 space-y-1'>
       {/* 评论者信息 */}
-      <div className='flex items-center gap-2'>
+      <div className='flex items-center gap-1'>
         <div className='relative'>
           <img
             src={comment.reviewer.avatar}
             alt={comment.reviewer.displayName}
-            className='w-8 h-8 rounded-full'
+            className='w-7 h-7 rounded-full'
             onError={(e) => {
               (e.target as HTMLImageElement).src =
                 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
@@ -217,26 +218,41 @@ function CommentItem({ comment }: { comment: Comment }) {
           {/*<div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-400 rounded-full theme-border" />*/}
         </div>
         <div className='flex-1'>
-          <div className='flex items-center gap-1'>
-            <span className='font-medium text-sm theme-text-primary'>
+          <div className='flex items-center gap-1 min-w-0'>
+            <span className='font-medium text-xs theme-text-primary truncate'>
               {comment.reviewer.displayName}
             </span>
-            {comment.reviewer.isKOL && (
+            {/* {comment.reviewer.isKOL && (
               <span className='text-xs bg-blue-500/20 text-blue-400 px-1 rounded'>
                 KOL
               </span>
-            )}
+            )} */}
           </div>
-          <div className='flex items-center gap-1 text-xs theme-text-secondary'>
-            <span>@{comment.reviewer.username}</span>
+          <div className='flex items-center gap-1 text-[11px] theme-text-secondary min-w-0'>
+            <span className='truncate max-w-[120px]'>
+              @{comment.reviewer.username}
+            </span>
             <span>•</span>
             <span>{formattedDate}</span>
           </div>
         </div>
         <div className='flex items-center'>
-          <Star className={`w-4 h-4 ${getRatingColor(comment.rating)}`} />
+          <a
+            href='https://t.me/xhunt_ai'
+            target='_blank'
+            rel='noopener noreferrer'
+            className='mr-2 inline-flex items-center justify-center theme-text-secondary hover:text-red-400 relative group opacity-40 hover:opacity-100 transition-opacity'
+            onClick={(e) => e.stopPropagation()}
+            aria-label={t('reportError') || 'Report error'}
+          >
+            <AlertTriangle className='w-3 h-3' />
+            <span className='absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 text-[10px] rounded theme-bg-tertiary theme-text-primary border theme-border hidden group-hover:block'>
+              {t('reportError') || 'Report error'}
+            </span>
+          </a>
+          <Star className={`w-3 h-3 ${getRatingColor(comment.rating)}`} />
           <span
-            className={`ml-1 text-sm font-medium ${getRatingColor(
+            className={`ml-1 text-xs font-medium ${getRatingColor(
               comment.rating
             )}`}
           >
@@ -260,10 +276,10 @@ function CommentItem({ comment }: { comment: Comment }) {
       )}
 
       {/* 评论内容 */}
-      <div className='text-sm theme-text-primary'>
+      <div className='text-xs theme-text-primary'>
         {isLongComment ? (
           <>
-            <div className='whitespace-pre-wrap text-xs'>
+            <div className='whitespace-pre-wrap break-words text-[11px]'>
               {isExpanded
                 ? comment.comment
                 : `${comment.comment.substring(0, 150)}...`}
@@ -273,13 +289,15 @@ function CommentItem({ comment }: { comment: Comment }) {
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
               }}
-              className='text-blue-400 text-xs mt-1 hover:underline'
+              className='text-blue-400 text-[11px] mt-1 hover:underline'
             >
               {isExpanded ? t('showLess') : t('showMore')}
             </button>
           </>
         ) : (
-          <div className='whitespace-pre-wrap text-xs'>{comment.comment}</div>
+          <div className='whitespace-pre-wrap break-words text-[11px]'>
+            {comment.comment}
+          </div>
         )}
       </div>
     </div>

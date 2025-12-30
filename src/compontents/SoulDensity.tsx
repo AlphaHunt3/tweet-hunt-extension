@@ -3,7 +3,7 @@ import { User, FileText, BarChart3, Users, Trophy, Info } from 'lucide-react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { SoulDensityData, NewTwitterUserData } from '~types';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { safeNumber, safeString } from '~utils/dataValidation.ts';
 import { generateScoreBasedColor } from '~utils/colorGenerator.ts';
 import {
@@ -102,7 +102,7 @@ function SoulDensity({
     displayName: hookName,
     avatar: hookAvatar,
     loading: hookLoading,
-  } = usePlacementTrackingDomUserInfo();
+  } = usePlacementTracking();
   const domUserInfo = useMemo(
     () =>
       hookUsername

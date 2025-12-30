@@ -11,7 +11,7 @@ import { fetchAiContent, getTwitterAuthUrl } from '~contents/services/api';
 import { AiContentResponse } from '~types';
 import { AI_ANALYSIS_EVENT, AiAnalysisDetail } from './AiAnalysisTips.tsx';
 import { openNewTab } from '~contents/utils';
-import { useReactiveSettings } from '~/utils/settingsManager.ts';
+import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 
 interface TweetDetailButtonProps {
   // 可以添加其他props
@@ -27,7 +27,7 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
   });
 
   const { t } = useI18n();
-  const { isEnabled } = useReactiveSettings();
+  const { isEnabled } = useCrossPageSettings();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;

@@ -9,7 +9,8 @@ import { TwitterPersonalRightSidebar } from '~/compontents/TwitterPersonalRightS
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
 function _SearchBottomPanel({
   error,
@@ -42,9 +43,13 @@ function _SearchBottomPanel({
 
   const shadowRoot = useShadowContainer(shadowOptions);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const portalHost = usePersistentPortalHost(shadowRoot);
   const currentUrl = useCurrentUrl();
-  const { handler: userId, loading: isLoadingHtml } =
-    usePlacementTrackingDomUserInfo();
+  const {
+    urlUid,
+    handler: userId,
+    loading: isLoadingHtml,
+  } = usePlacementTracking();
   // 如果是 https://x.com/i/premium 或其子路径，直接返回空
   const isPremiumRoute = useMemo(() => {
     try {
@@ -70,34 +75,19 @@ function _SearchBottomPanel({
     return !isPremiumRoute && !isLoadingHtml && shadowRoot && !error;
   }, [isPremiumRoute, isLoadingHtml, shadowRoot, error]);
 
-  // 控制显示/隐藏的状态，用于平滑过渡
+  // 控制显示/隐藏的状态，用于平滑过渡（不卸载，始终保留以缓存状态）
   const [isVisible, setIsVisible] = useState(false);
-  const [shouldRender, setShouldRender] = useState(false);
 
-  // 当 shouldShow 变化时，平滑过渡
+  // 当 shouldShow 变化时，仅控制可见性，不卸载
   useEffect(() => {
     if (shouldShow) {
-      // 先渲染到 DOM，然后显示
-      setShouldRender(true);
-      // 使用 requestAnimationFrame 确保 DOM 更新后再显示
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsVisible(true);
-        });
+        requestAnimationFrame(() => setIsVisible(true));
       });
     } else {
-      // 先隐藏，然后从 DOM 中移除
       setIsVisible(false);
-      // 等待过渡动画完成后再移除
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-      }, 300); // 与 CSS transition 时长一致
-      return () => clearTimeout(timer);
     }
   }, [shouldShow]);
-
-  // 如果不需要渲染，直接返回 null
-  if (!shouldRender) return null;
 
   return ReactDOM.createPortal(
     <div
@@ -113,7 +103,7 @@ function _SearchBottomPanel({
         pointerEvents: isVisible ? 'auto' : 'none',
       }}
     >
-      {!userId ? (
+      {!urlUid ? (
         <TwitterHomeRightSidebar />
       ) : (
         <TwitterPersonalRightSidebar
@@ -123,7 +113,7 @@ function _SearchBottomPanel({
         />
       )}
     </div>,
-    shadowRoot!
+    portalHost!
   );
 }
 

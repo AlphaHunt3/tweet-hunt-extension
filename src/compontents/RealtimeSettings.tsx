@@ -1,10 +1,11 @@
 // src/compontents/RealtimeSettings.tsx
 
 import React from 'react';
+import { localStorageInstance } from '~storage/index.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useRealtimeSettings } from '~contents/hooks/useRealtimeSettings.ts';
 import { useLeader } from '~contents/contexts/LeaderContext.tsx';
-import { Settings } from 'lucide-react';
+import { Settings, Wifi } from 'lucide-react';
 import { navigationService } from '~/compontents/navigation/NavigationService';
 import { PLAY_CONFIGURED_SOUND_EVENT } from '~/compontents/area/SoundPlayer';
 
@@ -20,6 +21,57 @@ export const RealtimeSettings: React.FC<RealtimeSettingsProps> = ({
   const { t } = useI18n();
   const { settings, isLoading, updateSettings } = useRealtimeSettings();
   const { isLeader } = useLeader();
+  const [rtStatus, setRtStatus] = React.useState<{
+    isUsingSSE: boolean;
+    isPolling: boolean;
+    mode: string;
+  } | null>(null);
+
+  // const reconnectRealtime = React.useCallback(() => {
+  //   try {
+  //     (chrome as any).runtime?.sendMessage(
+  //       { type: 'RECONNECT_REALTIME' },
+  //       () => {
+  //         try {
+  //           (chrome as any).runtime?.sendMessage(
+  //             { type: 'GET_REALTIME_STATUS' },
+  //             (resp: any) => {
+  //               if (resp && resp.success && resp.data) {
+  //                 setRtStatus(resp.data);
+  //               }
+  //             }
+  //           );
+  //         } catch {}
+  //       }
+  //     );
+  //   } catch {}
+  // }, []);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const fetchStatus = () => {
+      try {
+        (chrome as any).runtime?.sendMessage(
+          { type: 'GET_REALTIME_STATUS' },
+          (resp: any) => {
+            if (!mounted) return;
+            if (resp && resp.success && resp.data) {
+              setRtStatus(resp.data);
+              // if (resp.data.mode === 'Inactive') {
+              //   reconnectRealtime();
+              // }
+            }
+          }
+        );
+      } catch {}
+    };
+    fetchStatus();
+    const timer = setInterval(fetchStatus, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   // 模拟播放声音
   const simulateSound = () => {
@@ -46,14 +98,10 @@ export const RealtimeSettings: React.FC<RealtimeSettingsProps> = ({
         timestamp: Date.now(),
       };
 
-      await new Promise<void>((resolve) => {
-        chrome.storage.local.set(
-          { 'xhunt:realtime_notification': mockNotification },
-          () => {
-            resolve();
-          }
-        );
-      });
+      await localStorageInstance.set(
+        'xhunt:realtime_notification',
+        mockNotification
+      );
     } catch (error) {
       console.log('Failed to trigger notification:', error);
     }
@@ -171,6 +219,48 @@ export const RealtimeSettings: React.FC<RealtimeSettingsProps> = ({
             ></path>
           </svg>
         </div>
+      )}
+
+      {/* 实时订阅状态：放在这一行的最右侧，使用在线图标表示 Active，慢速呼吸 */}
+      {rtStatus && rtStatus.mode !== 'Inactive' ? (
+        <span
+          className='ml-2 inline-flex items-center opacity-75'
+          title={rtStatus.mode}
+        >
+          <svg
+            viewBox='0 0 1024 1024'
+            version='1.1'
+            xmlns='http://www.w3.org/2000/svg'
+            p-id='3734'
+            className='w-3 h-3'
+          >
+            <path
+              d='M783.552 662.848l-60.352-60.416 60.352-60.288a213.312 213.312 0 1 0-301.696-301.696l-60.352 60.352-60.352-60.352 60.416-60.288a298.688 298.688 0 0 1 422.4 422.4l-60.416 60.288z m-120.704 120.704l-60.352 60.288a298.688 298.688 0 0 1-422.4-422.4l60.352-60.288 60.352 60.416-60.352 60.288a213.312 213.312 0 1 0 301.696 301.696l60.352-60.288 60.352 60.288zM632.64 330.88l60.416 60.416-301.696 301.632-60.416-60.352 301.696-301.632z'
+              fill='#1159cf'
+              p-id='3735'
+            ></path>
+          </svg>
+        </span>
+      ) : (
+        <span
+          className='ml-2 inline-flex items-center opacity-75'
+          title={rtStatus?.mode}
+        >
+          <svg
+            // t='1766053716442'
+            className='w-2.5 h-2.5'
+            viewBox='0 0 1024 1024'
+            version='1.1'
+            xmlns='http://www.w3.org/2000/svg'
+            p-id='11314'
+          >
+            <path
+              d='M816.952281 614.064456l-45.118858-45.118857L895.99028 447.98866a223.99433 223.99433 0 0 0-316.791981-316.791981l-124.156857 120.956938-45.118858-45.438849 122.556898-122.236906a287.99271 287.99271 0 0 1 407.029697 407.029697zM288.00567 1023.974081a287.99271 287.99271 0 0 1-203.514849-491.507559l122.556898-122.556898 45.118858 45.118858-122.556898 122.556898A223.99433 223.99433 0 0 0 448.00162 895.977321l122.556898-122.556898 45.118858 45.118858-122.556898 122.556898A285.752767 285.752767 0 0 1 288.00567 1023.974081zM137.257486 182.555379L182.50434 137.276525l255.897523 255.897523-45.246855 45.246854zM585.214147 630.544039l45.246854-45.246854 255.897523 255.897522-45.246855 45.246855z'
+              fill='#8a8a8a'
+              p-id='11315'
+            ></path>
+          </svg>
+        </span>
       )}
     </div>
   );

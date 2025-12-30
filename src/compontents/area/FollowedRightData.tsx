@@ -15,6 +15,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import { KolData } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
 const renderRankChange = (change: number | undefined | null) => {
   try {
@@ -195,6 +196,7 @@ function _FollowedRightData({
     styleText: cssText,
     useSiblings: true,
   });
+  const portalHost = usePersistentPortalHost(shadowRoot);
   const { t, lang } = useI18n();
 
   // 使用响应式设置管理
@@ -405,7 +407,7 @@ function _FollowedRightData({
         </ErrorBoundary>
       )}
     </>,
-    shadowRoot
+    portalHost!
   );
 }
 

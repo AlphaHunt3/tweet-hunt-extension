@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ReactDOM from 'react-dom';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import cssText from 'data-text:~/css/style.css';
@@ -7,6 +13,10 @@ import {
   BoostPanelEventDetail,
   XHUNT_BOOST_PANEL_EVENT,
 } from '../ArticleBoostPanel';
+import useCurrentUrl from '~contents/hooks/useCurrentUrl';
+import { extractStatusIdFromUrl } from '~contents/utils';
+import { useCrossPageSettings } from '~utils/settingsManager.ts';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
 const ARTICLE_SELECTOR = "article[data-testid='tweet'][tabindex='-1']";
 
@@ -14,6 +24,12 @@ function _ArticleBottomRightArea() {
   const { t } = useI18n();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const currentUrl = useCurrentUrl();
+  const { isEnabled } = useCrossPageSettings();
+  const articleId = useMemo(
+    () => String(extractStatusIdFromUrl(currentUrl)).toLocaleLowerCase(),
+    [currentUrl]
+  );
   const shadowRoot = useShadowContainer({
     selector: ARTICLE_SELECTOR,
     styleText: cssText,
@@ -22,7 +38,13 @@ function _ArticleBottomRightArea() {
     siblingsStyle:
       'position:absolute;bottom:63px;right:18px;pointer-events:none;z-index:99;',
     autoZIndex: false,
+    onShadowCreated: (_, target) => {
+      const baseEl = target.parentElement as HTMLElement | null;
+      const hasThumb = !!baseEl?.querySelector('div[data-testid="thumbnail"]');
+      (target as HTMLElement).style.bottom = hasThumb ? '187px' : '63px';
+    },
   });
+  const portalHost = usePersistentPortalHost(shadowRoot);
 
   const baseBtnClass =
     'xhunt-article-bottom-right group flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 focus:outline-none overflow-hidden';
@@ -57,12 +79,13 @@ function _ArticleBottomRightArea() {
     };
   }, []);
 
-  if (!shadowRoot) {
+  if (!shadowRoot || !articleId || !isEnabled('showArticleBottomRightArea')) {
     return null;
   }
 
   return ReactDOM.createPortal(
     <button
+      data-article-id={articleId}
       type='button'
       ref={buttonRef}
       onClick={togglePanel}
@@ -95,7 +118,7 @@ function _ArticleBottomRightArea() {
         {t('xhuntBoost')}
       </span>
     </button>,
-    shadowRoot
+    portalHost!
   );
 }
 

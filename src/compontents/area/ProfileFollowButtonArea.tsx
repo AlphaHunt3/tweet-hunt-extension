@@ -9,6 +9,7 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
 import { useLockFn } from 'ahooks';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
 function _ProfileFollowButtonArea(mainData: MainData) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -18,6 +19,7 @@ function _ProfileFollowButtonArea(mainData: MainData) {
     siblingsPosition: 'beforebegin',
     styleText: cssText,
   });
+  const portalHost = usePersistentPortalHost(shadowRoot);
 
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;
@@ -73,7 +75,7 @@ function _ProfileFollowButtonArea(mainData: MainData) {
         </span>
       </button>
     </div>,
-    shadowRoot
+    portalHost!
   );
 }
 

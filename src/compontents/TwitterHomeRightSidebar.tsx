@@ -12,14 +12,12 @@ import {
 } from '~utils/notificationEvents';
 import { TopTabNavigator } from './TopTabNavigator';
 import { useCrossPageSettings } from '~utils/settingsManager';
-import { HunterCampaignBanner } from './HunterCampaign/HunterCampaignBanner';
 import { getActiveHunterCampaignsAsync } from './HunterCampaign/campaignConfigs';
-import { EngageToEarn } from './EngageToEarn';
-import { LoginRequired } from './LoginRequired';
 import { ProRequired } from './ProRequired';
-import { CloseConfirmDialog } from './CloseConfirmDialog';
-import { X } from 'lucide-react';
-import { localStorageInstance } from '~storage/index.ts';
+import { LoginRequired } from './LoginRequired';
+import { HunterEarnSection } from './HunterEarnSection';
+import ErrorBoundary from './ErrorBoundary';
+import AnnualReportSection from './AnnualReportSection';
 
 export interface TwitterHomeRightSidebarProps {
   className?: string;
@@ -28,13 +26,29 @@ export interface TwitterHomeRightSidebarProps {
 export function TwitterHomeRightSidebar({
   className = '',
 }: TwitterHomeRightSidebarProps) {
-  const { t } = useI18n();
+  // const { t } = useI18n();
   const [activeTopTab, setActiveTopTab] = React.useState<
     'hot' | 'subs' | 'e2e'
   >('hot');
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { isEnabled } = useCrossPageSettings();
-  const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
+  const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
+
+  // 获取所有应该显示的活动配置列表（统一管理） - 需在 topTabs 之前定义
+  const [activeHunterCampaigns, setActiveHunterCampaigns] = React.useState(
+    [] as ReturnType<typeof Array.prototype.slice>
+  );
+  React.useEffect(() => {
+    let mounted = true;
+    getActiveHunterCampaignsAsync()
+      .then((list) => {
+        if (mounted) setActiveHunterCampaigns(list);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // RealTimeSubscription 小红点状态管理
   const [
@@ -58,8 +72,8 @@ export function TwitterHomeRightSidebar({
       });
     }
 
-    // 检查实时订阅是否启用
-    if (isEnabled('showRealtimeSubscription')) {
+    // 检查实时订阅是否启用，且当前用户名已就绪
+    if (isEnabled('showRealtimeSubscription') && currentUsername) {
       tabs.push({
         id: 'subs',
         label: 'realTimeSubscription',
@@ -67,17 +81,14 @@ export function TwitterHomeRightSidebar({
       });
     }
 
-    // 检查互动赚钱是否启用
-    if (isEnabled('showEngageToEarn')) {
-      tabs.push({
-        id: 'e2e',
-        label: 'engageToEarn',
-        hasRedDot: false,
-      });
-    }
-
     return tabs;
-  }, [isEnabled, realTimeSubscriptionHasNewMessage, activeTopTab]);
+  }, [
+    isEnabled,
+    realTimeSubscriptionHasNewMessage,
+    activeTopTab,
+    activeHunterCampaigns,
+    currentUsername,
+  ]);
 
   // 如果没有可用的标签页，自动调整activeTopTab
   React.useEffect(() => {
@@ -88,22 +99,6 @@ export function TwitterHomeRightSidebar({
       setActiveTopTab(topTabs[0].id as 'hot' | 'subs' | 'e2e');
     }
   }, [topTabs, activeTopTab]);
-
-  // 获取所有应该显示的活动配置列表（统一管理）
-  const [activeHunterCampaigns, setActiveHunterCampaigns] = React.useState(
-    [] as ReturnType<typeof Array.prototype.slice>
-  );
-  React.useEffect(() => {
-    let mounted = true;
-    getActiveHunterCampaignsAsync()
-      .then((list) => {
-        if (mounted) setActiveHunterCampaigns(list);
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // 监听实时通知变化，设置小红点
   React.useEffect(() => {
@@ -127,12 +122,30 @@ export function TwitterHomeRightSidebar({
         }
       }
     };
-
-    // 监听 storage 变化
-    chrome.storage.onChanged.addListener(handleStorageChange);
+    // 使用加密存储监听
+    const handler = async () => {
+      try {
+        const msg = await (
+          await import('~storage/index.ts')
+        ).localStorageInstance.get('xhunt:realtime_notification');
+        if (!msg) return;
+        handleStorageChange({
+          'xhunt:realtime_notification': { newValue: msg },
+        } as any);
+      } catch {}
+    };
+    (async () => {
+      const { localStorageInstance } = await import('~storage/index.ts');
+      localStorageInstance.watch({ 'xhunt:realtime_notification': handler });
+    })();
 
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
+      (async () => {
+        const { localStorageInstance } = await import('~storage/index.ts');
+        localStorageInstance.unwatch({
+          'xhunt:realtime_notification': handler,
+        });
+      })();
     };
   }, [activeTopTab]);
 
@@ -169,11 +182,6 @@ export function TwitterHomeRightSidebar({
     };
   }, []);
 
-  // // 如果两个条件都为 false，则不显示任何内容
-  // if (!shouldShowMantleHunter && !showHotTrending) {
-  //   return null;
-  // }
-
   return (
     <div
       data-theme={theme}
@@ -188,49 +196,17 @@ export function TwitterHomeRightSidebar({
         flexDirection: 'column',
       }}
     >
-      {/* Campaign Banner at the very top - 独立控制 */}
-      {activeHunterCampaigns.length > 0 && isEnabled('showHunterCampaign') && (
-        <div className='relative'>
-          <div className='px-4 pt-3 flex items-center justify-between'>
-            <div className='text-base font-semibold theme-text-primary'>
-              {t('xhuntEarnTitle')}
-            </div>
-            <button
-              type='button'
-              aria-label='Close Hunter Campaign'
-              title='Close'
-              className='p-1.5 rounded-md theme-hover theme-text-primary'
-              onClick={() => setShowCloseConfirm(true)}
-            >
-              <X className='w-4 h-4' />
-            </button>
-          </div>
-          {/* 遍历所有应该显示的活动 */}
-          {activeHunterCampaigns.map((campaignConfig) => (
-            <div key={campaignConfig.id} className='px-4 pt-3'>
-              <HunterCampaignBanner
-                campaignConfig={campaignConfig}
-                defaultExpanded={false}
-              />
-            </div>
-          ))}
-          <CloseConfirmDialog
-            isOpen={showCloseConfirm}
-            onClose={() => setShowCloseConfirm(false)}
-            onConfirm={async () => {
-              setShowCloseConfirm(false);
-              try {
-                await localStorageInstance.set(
-                  '@settings/showHunterCampaign',
-                  false
-                );
-              } catch {}
-            }}
-            prefixKey='confirmCloseHunterCampaignPrefix'
-            suffixKey='confirmCloseHunterCampaignSuffix'
-          />
-        </div>
+      {/* Annual Report section at the very top */}
+      {isEnabled('showAnnualReport') && (
+        <ErrorBoundary name='AnnualReportSection'>
+          <AnnualReportSection />
+        </ErrorBoundary>
       )}
+
+      {/* Campaign Banner at the very top - 独立控制 */}
+      <ErrorBoundary name='HunterEarnSection'>
+        <HunterEarnSection activeHunterCampaigns={activeHunterCampaigns} />
+      </ErrorBoundary>
 
       {/* 顶层 Tab 导航 - 只有在有多个标签页时才显示 */}
       {topTabs.length > 1 && (
@@ -247,16 +223,21 @@ export function TwitterHomeRightSidebar({
           {activeTopTab === 'subs' ? (
             <LoginRequired showInCenter={true}>
               <ProRequired enableAnimation={false} showExtraTitle={true}>
-                <RealTimeSubscription ref={realTimeSubscriptionRef} />
+                <ErrorBoundary name='RealTimeSubscription_1'>
+                  <RealTimeSubscription ref={realTimeSubscriptionRef} />
+                </ErrorBoundary>
               </ProRequired>
             </LoginRequired>
-          ) : activeTopTab === 'e2e' ? (
+          ) : (
+            <ErrorBoundary name='HotProjectsKOLs'>
+              <HotProjectsKOLs />
+            </ErrorBoundary>
+          )}
+          {/* activeTopTab === 'e2e' ? (
             <LoginRequired showInCenter={true}>
               <EngageToEarn />
             </LoginRequired>
-          ) : (
-            <HotProjectsKOLs />
-          )}
+          )  */}
         </div>
       )}
     </div>

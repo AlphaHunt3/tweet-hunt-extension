@@ -18,7 +18,7 @@ import { AiAnalysisTips } from '~compontents/area/AiAnalysisTips.tsx';
 import { SearchBottomPanel } from '~compontents/area/SearchBottomPanel.tsx';
 import { useAvatarRanks } from '~contents/hooks/useAvatarRanks.ts';
 import { GlobalInjector } from '~compontents/area/GlobalInjector.tsx';
-import useMainData from '~contents/hooks/useMainData.ts';
+// useMainData is now provided via context
 import { UICheckSection } from '~compontents/UICheckSection.tsx';
 import { useSystemInitialization } from '~contents/hooks/useSystemInitialization.ts';
 import TweetDetailButton from '~compontents/area/TweetDetailButton.tsx';
@@ -30,6 +30,11 @@ import SoundPlayer from '~compontents/area/SoundPlayer.tsx';
 import { LeaderProvider } from '~contents/contexts/LeaderContext.tsx';
 import RealtimeNotification from '~compontents/RealtimeNotification.tsx';
 import ArticleBoostPanel from '~compontents/ArticleBoostPanel.tsx';
+import { PlacementTrackingProvider } from '~contents/contexts/PlacementTrackingContext.tsx';
+import {
+  MainDataProvider,
+  useMainDataContext,
+} from '~contents/contexts/MainDataContext.tsx';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -50,17 +55,6 @@ const Main = () => {
     '@xhunt/theme',
     'dark'
   );
-  usePresencePort();
-  useSystemInitialization();
-  useThemeWatcher();
-  usePlacementTrackingClick();
-  useVerifyLoginStatus();
-  useTwitterAuthCallback();
-  const mainData = useMainData();
-  useHighlightTokens(mainData.supportedTokens);
-  useAvatarRanks();
-  useOpenSettingsHandler();
-  useInitialStateScript();
 
   // Early guard: do not run hooks/components on non-x.com pages
   if (
@@ -76,14 +70,30 @@ const Main = () => {
   }
 
   return (
-    <LeaderProvider>
-      <MainContent theme={theme} mainData={mainData} />
-    </LeaderProvider>
+    <PlacementTrackingProvider>
+      <MainDataProvider>
+        <LeaderProvider>
+          <MainContent theme={theme} />
+        </LeaderProvider>
+      </MainDataProvider>
+    </PlacementTrackingProvider>
   );
 };
 
 // 内部组件，可以安全使用 useLeader
-function MainContent({ theme, mainData }: { theme: string; mainData: any }) {
+function MainContent({ theme }: { theme: string }) {
+  usePresencePort();
+  useSystemInitialization();
+  useThemeWatcher();
+  usePlacementTrackingClick();
+  useVerifyLoginStatus();
+  useTwitterAuthCallback();
+  const mainData = useMainDataContext();
+  useHighlightTokens(mainData.supportedTokens);
+  useAvatarRanks();
+  useOpenSettingsHandler();
+  useInitialStateScript();
+
   return (
     <div
       data-theme={theme}
@@ -138,13 +148,13 @@ function MainContent({ theme, mainData }: { theme: string; mainData: any }) {
         <TweetDetailButton />
       </ErrorBoundary>
 
-      {/*<ErrorBoundary name='ArticleBottomRightArea'>*/}
-      {/*  <ArticleBottomRightArea />*/}
-      {/*</ErrorBoundary>*/}
+      <ErrorBoundary name='ArticleBottomRightArea'>
+        <ArticleBottomRightArea />
+      </ErrorBoundary>
 
-      {/*<ErrorBoundary name='ArticleBoostPanel'>*/}
-      {/*  <ArticleBoostPanel />*/}
-      {/*</ErrorBoundary>*/}
+      <ErrorBoundary name='ArticleBoostPanel'>
+        <ArticleBoostPanel />
+      </ErrorBoundary>
 
       {/* <ErrorBoundary name='ProfileFollowButtonArea'>
         <ProfileFollowButtonArea {...mainData} />

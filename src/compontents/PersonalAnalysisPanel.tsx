@@ -9,7 +9,7 @@ import {
   fetchFansRank,
   fetchUnfollowRelation,
 } from '~contents/services/api.ts';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import { usePlacementTrackingContext } from '~contents/contexts/PlacementTrackingContext.tsx';
 import { Tabs } from '~/compontents/Tabs.tsx';
 import { FollowRelationPanel } from '~/compontents/FollowRelationPanel.tsx';
 import { UnfollowInfoPanel } from '~/compontents/UnfollowInfoPanel.tsx';
@@ -67,13 +67,13 @@ export function PersonalAnalysisPanel({
   // Track if we've ever had interaction rank data to prevent tab from disappearing during loading
   const [hasInteractionRankData, setHasInteractionRankData] = useState(false);
 
-  const {
-    handler: hookUsername,
-    displayName: hookName,
-    avatar: hookAvatar,
-    loading: hookLoading,
-    twitterId,
-  } = usePlacementTrackingDomUserInfo();
+  const placementCtx = usePlacementTrackingContext();
+  const hookUsername = placementCtx?.handler || '';
+  const hookName = placementCtx?.displayName || '';
+  const hookAvatar = placementCtx?.avatar || '';
+  const hookLoading = placementCtx?.loading || false;
+  const twitterId = placementCtx?.twitterId;
+  const isEmptyState = placementCtx?.isEmptyState || false;
   const domUserInfo = useMemo(
     () =>
       hookUsername
@@ -88,16 +88,12 @@ export function PersonalAnalysisPanel({
   );
   const domUserInfoLoading = hookLoading;
 
-  const emptyStateDom = useWaitForElement("div[data-testid='emptyState']", [
-    currentUrl,
-  ]);
-
-  // Auto switch to deletedTweets tab when emptyStateDom exists
+  // Auto switch to deletedTweets tab when isEmptyState exists
   useEffect(() => {
-    if (emptyStateDom) {
+    if (isEmptyState) {
       setActiveTab('deletedTweets');
     }
-  }, [emptyStateDom]);
+  }, [isEmptyState]);
 
   // Fetch data to get counts
   const { data: followRelationData } = useRequest<
@@ -261,8 +257,8 @@ export function PersonalAnalysisPanel({
       baseTabs.push({ id: 'interactionRank', label: t('interactionRank') });
     }
 
-    // Add "历史删帖" tab if emptyStateDom exists
-    if (emptyStateDom) {
+    // Add "历史删帖" tab if isEmptyState exists
+    if (isEmptyState) {
       baseTabs.unshift({
         id: 'deletedTweets',
         label: `${t('deletedTweets1')}`,
@@ -276,7 +272,7 @@ export function PersonalAnalysisPanel({
     followersCount,
     unfollowingCount,
     profileChangesCount,
-    emptyStateDom,
+    isEmptyState,
     interactionRankData,
     hasInteractionRankData,
   ]);
@@ -405,6 +401,7 @@ export function PersonalAnalysisPanel({
             <ProfileChangesPanel
               userId={userId}
               profileHistoryData={newTwitterData}
+              loading={loadingTwInfo}
             />
           </ProRequired>
         )}

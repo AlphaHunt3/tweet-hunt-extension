@@ -1,6 +1,7 @@
 // src/compontents/RealtimeNotification.tsx
 
 import React, { useEffect, useRef, useState } from 'react';
+import { localStorageInstance } from '~storage/index.ts';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { useI18n } from '~contents/hooks/i18n';
 import { useLocalStorage } from '~storage/useLocalStorage';
@@ -112,16 +113,9 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
           // 如果 settings 还没有更新，尝试从 storage 直接读取
           if (!userSettings || !userSettings.showNotification) {
             try {
-              const storedSettings = await new Promise<RealtimeSettings | null>(
-                (resolve) => {
-                  chrome.storage.local.get(
-                    ['xhunt:realtime_settings'],
-                    (result: { [key: string]: any }) => {
-                      resolve(result?.['xhunt:realtime_settings'] || null);
-                    }
-                  );
-                }
-              );
+              const storedSettings = (await localStorageInstance.get(
+                'xhunt:realtime_settings'
+              )) as RealtimeSettings | null;
               if (storedSettings?.[dataType]) {
                 userSettings = storedSettings[dataType];
               }
@@ -178,10 +172,23 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
       }
     };
 
-    chrome.storage.onChanged.addListener(handleStorageChange);
+    const handler = async () => {
+      try {
+        const msg = (await localStorageInstance.get(
+          'xhunt:realtime_notification'
+        )) as any;
+        if (!msg) return;
+        handleStorageChange({
+          'xhunt:realtime_notification': { newValue: msg },
+        } as any);
+      } catch {}
+    };
+    localStorageInstance.watch({ 'xhunt:realtime_notification': handler });
 
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
+      localStorageInstance.unwatch({
+        'xhunt:realtime_notification': handler,
+      });
     };
   }, [settings, isLeader, isLoggedIn, isPro, isEnabled, t]);
 

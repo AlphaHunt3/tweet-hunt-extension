@@ -20,6 +20,7 @@ import { configManager } from '~/utils/configManager.ts';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { NotesSection } from '~compontents/NotesSection.tsx';
 import { NarrativeSection } from '~/compontents/NarrativeSection.tsx';
 import SoulDensity from '~/compontents/SoulDensity.tsx';
@@ -28,7 +29,7 @@ import { useRequest } from 'ahooks';
 import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { ProRequired } from '~compontents/ProRequired';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 
 function _NameRightData({
   newTwitterData,
@@ -52,6 +53,7 @@ function _NameRightData({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
   });
+  const portalHost = usePersistentPortalHost(shadowRoot);
   const { t, lang } = useI18n();
 
   // 使用响应式设置管理
@@ -61,7 +63,7 @@ function _NameRightData({
     twitterId,
     handler: userId,
     loading: isLoadingHtml,
-  } = usePlacementTrackingDomUserInfo();
+  } = usePlacementTracking();
 
   // 获取灵魂浓度数据
   const { data: soulData, loading: loadingSoulData } = useRequest<
@@ -152,6 +154,23 @@ function _NameRightData({
     return { hasMembers: totalMembers > 0, totalMembers };
   }, [projectMemberData]);
 
+  const rootMembers = useMemo(() => {
+    return Array.isArray((rootData as any)?.members)
+      ? ((rootData as any).members as any[])
+      : [];
+  }, [rootData]);
+  const hasRootMembers = rootMembers.length > 0;
+  const hasGroupedMembers = useMemo(() => {
+    return (
+      !loadingProjectMember &&
+      !!projectMemberData &&
+      projectMemberStats.hasMembers
+    );
+  }, [loadingProjectMember, projectMemberData, projectMemberStats.hasMembers]);
+  const projectMembersCount = hasRootMembers
+    ? rootMembers.length
+    : projectMemberStats.totalMembers || 0;
+
   // 检查是否应该显示能力模型（至少4个能力 + 配置允许）
   const shouldShowAbilityModel = useMemo(() => {
     // 检查配置是否允许显示能力模型
@@ -183,13 +202,11 @@ function _NameRightData({
       <div className='flex flex-wrap items-center w-full mh-[40px] h-auto mt-4 gap-1'>
         {/* 项目成员 */}
         {isEnabled('showProjectMembers') &&
-          !loadingProjectMember &&
-          projectMemberData &&
-          projectMemberStats.hasMembers &&
-          twInfo?.basicInfo?.classification !== 'person' && (
+          twInfo?.basicInfo?.classification !== 'person' &&
+          (hasRootMembers || hasGroupedMembers) && (
             <HoverStatItem
               label={t('projectMembers')}
-              value={`(${projectMemberStats.totalMembers || 0})`}
+              value={`(${projectMembersCount})`}
               hoverContent={
                 <ProjectMembersSection
                   data={projectMemberData}
@@ -415,7 +432,7 @@ function _NameRightData({
           />
         )}
     </>,
-    shadowRoot
+    portalHost!
   );
 }
 

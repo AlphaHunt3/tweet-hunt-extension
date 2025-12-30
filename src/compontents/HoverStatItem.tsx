@@ -147,6 +147,7 @@ export function HoverStatItem({
     <div
       ref={containerRef}
       data-theme={theme}
+      data-xhunt-exclude='true'
       className={`relative mr-4 ${className}`}
       style={{
         width: 'max-content',

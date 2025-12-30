@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { fetchFanByHandle } from '~contents/services/api.ts';
 import { getCurrentUserInfo } from '~contents/utils/helpers';
 import { useRequest } from 'ahooks';
-import usePlacementTrackingDomUserInfo from '~contents/hooks/usePlacementTrackingDomUserInfo';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 
 interface InteractionRankPanelProps {
   userId: string;
@@ -39,7 +39,7 @@ export function InteractionRankPanel({
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
   const [currentUserInfo, setCurrentUserInfo] =
     useState<TwitterInitialStateCurrentUser | null>(null);
-  const { twitterId } = usePlacementTrackingDomUserInfo();
+  const { twitterId } = usePlacementTracking();
 
   // 使用排名服务获取排名
   useEffect(() => {

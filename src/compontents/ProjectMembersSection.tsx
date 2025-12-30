@@ -6,9 +6,10 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { officialTagsManager } from '~/utils/officialTagsManager.ts';
 import { useRequest } from 'ahooks';
 import { rankService } from '~/utils/rankService';
+import { useMainDataContext } from '~contents/contexts/MainDataContext.tsx';
 
 interface ProjectMembersSectionProps {
-  data: ProjectMemberData;
+  data: ProjectMemberData | null;
   isHoverPanel?: boolean;
 }
 
@@ -157,6 +158,136 @@ export function ProjectMembersSection({
   const [showLoading, setShowLoading] = useState(false);
   const [rankingSorted, setRankingSorted] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { rootData } = useMainDataContext();
+
+  const rootMembers = Array.isArray((rootData as any)?.members)
+    ? ((rootData as any).members as Array<{
+        name: string;
+        position?: string;
+        twitter?: string;
+        avatar?: string;
+      }>)
+    : [];
+
+  if (rootMembers.length > 0) {
+    const totalMembers = rootMembers.length;
+    const fixedWidth = isHoverPanel ? '350px' : 'auto';
+    return (
+      <div
+        className={`theme-border ${isHoverPanel ? '' : 'border-b'}`}
+        style={
+          isHoverPanel
+            ? {
+                width: fixedWidth,
+                minWidth: fixedWidth,
+                maxWidth: fixedWidth,
+              }
+            : {}
+        }
+      >
+        <div className='px-3 py-2 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <Users className='w-4 h-4 text-purple-400' />
+            <h2 className='font-bold text-sm theme-text-primary'>
+              {t('projectMembers')}
+            </h2>
+            <span className='text-xs theme-text-secondary'>
+              ({totalMembers})
+            </span>
+          </div>
+          {isHoverPanel && (
+            <a
+              target={'_blank'}
+              href={(rootData as any)?.projectLink}
+              className='flex cursor-pointer items-center gap-1 px-2 py-1 rounded-full'
+            >
+              <span className='text-[10px] text-orange-400/80 hover:underline'>
+                {t('source')}
+              </span>
+              <img
+                src='https://oaewcvliegq6wyvp.public.blob.vercel-storage.com/rootdata-orange.png'
+                alt='root-data'
+                className='h-[24px] w-auto object-contain'
+              />
+            </a>
+          )}
+        </div>
+
+        <div
+          className='px-4 pb-2'
+          style={
+            isHoverPanel
+              ? {
+                  width: fixedWidth,
+                  minWidth: fixedWidth,
+                  maxWidth: fixedWidth,
+                }
+              : {}
+          }
+        >
+          <div
+            className='grid grid-cols-4 gap-2'
+            style={isHoverPanel ? { width: '100%', minWidth: '100%' } : {}}
+          >
+            {rootMembers.map((m, idx) => {
+              const content = (
+                <div className='block p-0.5 rounded theme-hover transition-all duration-200 hover:shadow-sm group relative'>
+                  <div className='flex flex-col items-center space-y-1 min-w-0'>
+                    <div>
+                      <img
+                        src={
+                          m.avatar ||
+                          'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
+                        }
+                        alt={m.name}
+                        className='w-8 h-8 rounded-full border theme-border flex-shrink-0 group-hover:ring-1 group-hover:ring-blue-400 transition-all object-cover'
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+                        }}
+                      />
+                    </div>
+                    <div className='flex flex-col items-center space-y-0.5 min-w-0 w-full'>
+                      <div className='relative w-full'>
+                        <div
+                          className='text-[10px] font-medium theme-text-primary leading-tight text-center w-full px-0.5 truncate'
+                          title={m.name}
+                        >
+                          {m.name}
+                        </div>
+                      </div>
+                      {m.position && (
+                        <div className='text-[9px] theme-text-secondary leading-tight text-center w-full px-0.5 truncate'>
+                          {m.position}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+
+              const href =
+                m.twitter && m.twitter.trim().length > 0
+                  ? m.twitter
+                  : undefined;
+              return href ? (
+                <a
+                  key={`${m.name}-${idx}`}
+                  href={href}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                >
+                  {content}
+                </a>
+              ) : (
+                <div key={`${m.name}-${idx}`}>{content}</div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 定义固定的显示顺序
   const FIXED_ORDER = [

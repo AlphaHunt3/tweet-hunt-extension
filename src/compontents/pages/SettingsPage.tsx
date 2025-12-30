@@ -5,6 +5,7 @@ import {
 } from '~/compontents/navigation/PanelNavigator';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { settingsConfig, useAllSettings } from '~/utils/settingsManager.ts';
+import { useCrossPageSettings } from '~utils/settingsManager.ts';
 import packageJson from '../../../package.json';
 import { Github, Play, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
@@ -48,6 +49,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const { t, lang, setLang } = useI18n();
   const { navigateTo } = useNavigation();
   const { settingStates, isLoading } = useAllSettings();
+  const {
+    disableTesting,
+    setDisableTesting,
+    isTesterOnly,
+    testersListStr,
+    isCanaryUser,
+  } = useCrossPageSettings();
   // 本地缓存音频（单键存储）：{ url, data }
   const [sound, setSound, { isLoading: isSoundStoreLoading }] =
     useLocalStorage<{
@@ -111,12 +119,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     // 立即获取一次
     fetchRealtimeStatus();
 
-    // // 设置定时器
-    // const interval = setInterval(() => {
-    //   fetchRealtimeStatus();
-    // }, 10000);
+    // 设置定时器
+    const interval = setInterval(() => {
+      fetchRealtimeStatus();
+    }, 4000);
 
-    // return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, [settingStates.showRealtimeSubscription?.get]);
 
   const { run: debouncedResetPanelPosition } = useDebounceFn(
@@ -170,7 +178,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const testers: string[] =
       (cfg && cfg.testConfig && cfg.testConfig.testers) || [];
     const username = currentUsername || undefined;
-    const isTester = username ? testers.includes(username) : false;
+    const isTester = username
+      ? testers.includes(username) && !disableTesting
+      : false;
 
     const gated = new Set(features);
     const shouldShow = (k: string) => {
@@ -190,6 +200,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showOfficialTags', label: 'showOfficialTags' },
       ]),
       homeRightSidebar: filterItems([
+        { key: 'showAnnualReport', label: 'showAnnualReport' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
         { key: 'showHotTrending', label: 'showHotTrending' },
         { key: 'showEngageToEarn', label: 'showEngageToEarn' },
@@ -203,9 +214,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showAvatarRank', label: 'showAvatarRank' },
         { key: 'showTokenAnalysis', label: 'showTokenAnalysis' },
         { key: 'showTweetAIAnalysis', label: 'showTweetAIAnalysis' },
+        {
+          key: 'showArticleBottomRightArea',
+          label: 'showArticleBottomRightArea',
+        },
       ]),
     };
-  }, [currentUsername]);
+  }, [currentUsername, disableTesting]);
 
   // 分组展开状态管理
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
@@ -794,6 +809,53 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   t('floatingPanelSettings'),
                   []
                 )}
+                {/* 测试分组（仅测试者可见）*/}
+                {isTesterOnly && (
+                  <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md mb-2'>
+                    {/* 分组标题 */}
+                    <div className='flex items-center justify-between py-1.5 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors rounded-md'>
+                      <span className='text-[12px] font-semibold theme-text-primary tracking-wide flex items-center gap-1.5'>
+                        {t('testerSettings')}
+                        <span className='inline-flex items-center gap-1 group relative'>
+                          <Info className='w-3 h-3 theme-text-secondary/70 hover:theme-text-secondary cursor-pointer transition-colors' />
+                          <div className='absolute bottom-full left-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 min-w-[200px] max-w-[360px] whitespace-normal'>
+                            {t('testerSettingsInfo').replace(
+                              '{list}',
+                              testersListStr
+                            )}
+                            <div className='absolute top-full left-4 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
+                          </div>
+                        </span>
+                      </span>
+                    </div>
+                    {/* 分组内容 */}
+                    <div className='border-t theme-border'>
+                      <div className='flex items-center justify-between py-1.5 px-3'>
+                        <span className='text-[13px] theme-text-primary leading-tight inline-flex items-center gap-1.5'>
+                          {t('disableTesting')}
+                          <span className='inline-flex items-center gap-1 group relative'>
+                            <Info className='w-3 h-3 theme-text-secondary/70 hover:theme-text-secondary cursor-pointer transition-colors' />
+                            <div className='absolute bottom-full left-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 min-w-[200px] max-w-[360px] whitespace-normal'>
+                              {t('disableTestingInfo')}
+                              <div className='absolute top-full left-4 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
+                            </div>
+                          </span>
+                        </span>
+                        <label className='relative inline-flex items-center shrink-0'>
+                          <input
+                            type='checkbox'
+                            className='sr-only peer'
+                            checked={disableTesting}
+                            onChange={(e) =>
+                              setDisableTesting(e.target.checked)
+                            }
+                          />
+                          <div className="relative w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* 已合并：Profile 页面右侧栏设置并入 Profile 页面设置 */}
               </div>
               <div className='h-2' />
@@ -963,7 +1025,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <span className='text-[11px] theme-text-secondary'>
                   {t('version')} {packageJson.version}
                 </span>
-                <span className='text-[11px] theme-text-secondary'>
+                <span
+                  className={`text-[11px] ${
+                    // isTesterOnly
+                    //   ? 'text-blue-800/60'
+                    isCanaryUser ? 'text-yellow-800/60' : 'theme-text-secondary'
+                  }`}
+                >
                   {process.env.PLASMO_PUBLIC_ENV === 'dev' ? 'DEV' : 'BETA'}
                 </span>
                 {/* 轻量级清理缓存按钮：小型、次要视觉权重 */}

@@ -18,11 +18,13 @@ dayjs.extend(relativeTime);
 interface ProfileChangesPanelProps {
   userId: string;
   profileHistoryData?: NewTwitterUserData | null;
+  loading?: boolean;
 }
 
 export function ProfileChangesPanel({
   userId,
   profileHistoryData,
+  loading: loadingProp,
 }: ProfileChangesPanelProps) {
   const { t } = useI18n();
   const [expandedChanges, setExpandedChanges] = useState<Set<number>>(
@@ -34,7 +36,7 @@ export function ProfileChangesPanel({
 
   // Use passed data instead of fetching
   const data = profileHistoryData;
-  const loading = !data;
+  const loading = typeof loadingProp === 'boolean' ? loadingProp : !data;
   const error = null;
 
   // Function to highlight differences between two texts

@@ -12,7 +12,9 @@ export function UICheckSection() {
   );
   const currentUrl = useCurrentUrl();
 
-  const sectionDom = useWaitForElement('main [aria-label] section', [], 60000);
+  const sectionDom = useWaitForElement('main [aria-label] section', [
+    currentUrl,
+  ]);
   useEffect(() => {
     if (!sectionDom) return;
     checkMainSectionAndFixZIndex();
@@ -23,7 +25,7 @@ export function UICheckSection() {
     () => {
       // 方法1: 从 a[data-testid='AppTabBar_Profile_Link'] 的 href 获取
       const profileLink = document.querySelector(
-        "a[data-testid='AppTabBar_Profile_Link']"
+        "header nav a[data-testid='AppTabBar_Profile_Link']"
       ) as HTMLAnchorElement;
       let usernameFromLink: string | null = null;
       if (profileLink) {
@@ -49,7 +51,7 @@ export function UICheckSection() {
       // 方法2: 从 [data-testid="UserName"] 元素中查找 handle
       let usernameFromUserName: string | null = null;
       const usernameElement = document.querySelector(
-        '[data-testid="UserName"]'
+        '[data-testid="primaryColumn"] [data-testid="UserName"]'
       );
       if (usernameElement) {
         const spans = usernameElement.querySelectorAll('span');
@@ -70,7 +72,7 @@ export function UICheckSection() {
       } else if (usernameFromUserName) {
         finalUsername = usernameFromUserName;
       }
-      console.log('finalUsername', finalUsername);
+      // console.log('finalUsername', finalUsername);
       // 如果找到了用户名且与当前存储的不同，则更新
       if (finalUsername && finalUsername !== username) {
         setUsername(finalUsername);

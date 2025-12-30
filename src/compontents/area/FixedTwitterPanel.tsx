@@ -37,7 +37,6 @@ function _FixedTwitterPanel({
     'input[data-testid="SearchBox_Search_Input"]',
     [showPanel, currentUrl]
   );
-
   const [panelWidth, , { isLoading: isPanelWidthLoading }] =
     useLocalStorage<number>('@xhunt/panelWidth', 340);
   const safeWidth = Math.min(

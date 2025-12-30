@@ -8,9 +8,10 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { navigationService } from '~/compontents/navigation/NavigationService';
 import { messageManager } from '~/utils/messageManager';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import { useReactiveSettings } from '~/utils/settingsManager.ts';
+import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
 import { useGlobalResize } from '~contents/hooks/useGlobalResize';
+import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
@@ -19,6 +20,7 @@ function _SideBarIcon() {
     useSiblings: true,
     siblingsStyle: 'width:auto;height:auto;max-width:100%;min-width:50.25px',
   });
+  const portalHost = usePersistentPortalHost(shadowRoot);
   const [, setShowPanel] = useLocalStorage('@settings/showPanel', true);
   const [, setIsMinimized] = useLocalStorage<boolean>(
     '@xhunt/panelMinimized',
@@ -35,7 +37,7 @@ function _SideBarIcon() {
   const [isExpanded, setIsExpanded] = useState(true);
   const { lang } = useI18n();
   const langRef = useRef(lang);
-  const { isEnabled } = useReactiveSettings();
+  const { isEnabled } = useCrossPageSettings();
   const showSidebarIcon = isEnabled('showSidebarIcon');
 
   // 获取宽度并计算 isExpanded
@@ -186,7 +188,7 @@ function _SideBarIcon() {
         </div>
       )}
     </div>,
-    shadowRoot
+    portalHost!
   );
 }
 

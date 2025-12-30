@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDebounceFn, useRequest } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { useI18n } from '~contents/hooks/i18n';
@@ -15,18 +16,28 @@ import { openNewTab } from '~contents/utils';
 import { cleanErrorMessage } from '~utils/dataValidation';
 import { StoredUserInfo } from '~types/review.ts';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
-import { ChevronDown, ChevronUp, X, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, ExternalLink, Info } from 'lucide-react';
 import { localStorageInstance } from '~storage/index';
 import { CloseConfirmDialog } from './CloseConfirmDialog';
 
 interface EngageToEarnProps {
   className?: string;
+  embedded?: boolean;
+  externalStatus?: 'all' | 'active' | 'complete' | 'review';
+  onStatusChange?: (next: 'all' | 'active' | 'complete' | 'review') => void;
+  portalContainer?: HTMLElement | null;
 }
 
 // 统一的活动状态类型
 type ActivityStatus = 'active' | 'complete' | 'review';
 
-export function EngageToEarn({ className = '' }: EngageToEarnProps) {
+export function EngageToEarn({
+  className = '',
+  embedded = false,
+  externalStatus,
+  onStatusChange,
+  portalContainer,
+}: EngageToEarnProps) {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   // E2E 报名前风险提示首选项 & 弹框状态
@@ -71,9 +82,16 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
   );
   // 状态筛选（默认选中进行中）
   const [statusFilter, setStatusFilter] = useState<'all' | ActivityStatus>(
-    'active'
+    'all'
   );
+  const effectiveStatus: 'all' | ActivityStatus =
+    externalStatus ?? statusFilter;
+  const updateStatus = (next: 'all' | ActivityStatus) => {
+    if (onStatusChange) onStatusChange(next as any);
+    else setStatusFilter(next as any);
+  };
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [
@@ -160,6 +178,41 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
     loadingUserInfoCacheBust,
     userInfoCacheBust,
   ]);
+
+  // 允许外部通过事件控制状态筛选/下拉
+  useEffect(() => {
+    const onSetStatus = (e: Event) => {
+      const det = (e as CustomEvent).detail as any;
+      const next = det?.status as 'all' | ActivityStatus;
+      if (
+        next === 'all' ||
+        next === 'active' ||
+        next === 'complete' ||
+        next === 'review'
+      ) {
+        setStatusFilter(next as any);
+        setShowStatusDropdown(false);
+      }
+    };
+    const onToggleDropdown = () => setShowStatusDropdown((v) => !v);
+    window.addEventListener('xhunt:e2e-set-status', onSetStatus as any);
+    window.addEventListener('xhunt:e2e-toggle-filter', onToggleDropdown as any);
+    return () => {
+      window.removeEventListener('xhunt:e2e-set-status', onSetStatus as any);
+      window.removeEventListener(
+        'xhunt:e2e-toggle-filter',
+        onToggleDropdown as any
+      );
+    };
+  }, []);
+
+  // 将内部状态变更广播给外层（用于外层按钮文案同步）
+  useEffect(() => {
+    const ev = new CustomEvent('xhunt:e2e-status-changed', {
+      detail: { status: statusFilter },
+    });
+    window.dispatchEvent(ev);
+  }, [statusFilter]);
 
   // 报名活动（防抖）
   const { run: debouncedSignup } = useDebounceFn(
@@ -294,9 +347,8 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
       case 'active':
         return {
           label: t('active'),
-          bgClass:
-            'bg-gradient-to-br from-green-500/[0.02] to-emerald-500/[0.03]',
-          borderClass: 'border-green-500/20',
+          bgClass: 'bg-gradient-to-br from-gray-500/[0.02] to-slate-500/[0.03]',
+          borderClass: isDark ? 'border-green-500/20' : 'border-green-500/15',
           ribbonClass: isDark
             ? 'bg-gradient-to-br from-green-600/80 to-emerald-700/80 text-white/90 shadow-md shadow-green-500/10'
             : 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30',
@@ -305,7 +357,7 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
         return {
           label: t('complete'),
           bgClass: 'bg-gradient-to-br from-gray-500/[0.02] to-slate-500/[0.03]',
-          borderClass: 'border-gray-500/20',
+          borderClass: isDark ? 'border-gray-500/30' : 'border-gray-500/20',
           ribbonClass: isDark
             ? 'bg-gradient-to-br from-gray-600/70 to-slate-700/70 text-white/80 shadow-md shadow-gray-500/10'
             : 'bg-gradient-to-br from-gray-500 to-slate-600 text-white shadow-lg shadow-gray-500/20',
@@ -316,7 +368,7 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
           label: t('review'),
           bgClass:
             'bg-gradient-to-br from-amber-500/[0.02] to-yellow-500/[0.03]',
-          borderClass: 'border-amber-500/20',
+          borderClass: isDark ? 'border-amber-500/25' : 'border-amber-500/20',
           ribbonClass: isDark
             ? 'bg-gradient-to-br from-amber-600/80 to-yellow-700/80 text-white/90 shadow-md shadow-amber-500/10'
             : 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white shadow-lg shadow-amber-500/30',
@@ -362,207 +414,330 @@ export function EngageToEarn({ className = '' }: EngageToEarnProps) {
     ...makeEntries(activitiesByStatus.review),
   ].filter(([tweetId]) => Boolean(tweetId));
 
+  // 统计各状态数量（用于芯片计数展示）
+  const counts = {
+    active: activitiesByStatus.active.length,
+    review: activitiesByStatus.review.length,
+    complete: activitiesByStatus.complete.length,
+  };
+  const allCount = counts.active + counts.review + counts.complete;
+
   const activitiesList =
-    statusFilter === 'all'
+    effectiveStatus === 'all'
       ? allEntries
-      : statusFilter === 'active'
+      : effectiveStatus === 'active'
       ? makeEntries(activitiesByStatus.active)
-      : statusFilter === 'complete'
+      : effectiveStatus === 'complete'
       ? makeEntries(activitiesByStatus.complete)
       : makeEntries(activitiesByStatus.review);
 
-  if (!activitiesList || activitiesList.length === 0) {
-    return (
-      <div className={`p-4 ${className}`} data-theme={theme}>
-        <div className='text-[12px] text-center py-8 theme-text-secondary'>
-          {t('noActivitiesAvailable')}
-        </div>
-      </div>
-    );
-  }
+  const isEmpty = !activitiesList || activitiesList.length === 0;
 
   return (
     <div
-      className={`${className} max-h-[600px] overflow-y-auto scrollbar-hide relative`}
+      className={`${className} max-h-[360px] overflow-y-auto scrollbar-hide relative`}
       data-theme={theme}
       style={{
         scrollbarWidth: 'none',
         msOverflowStyle: 'none',
       }}
     >
-      {/* 顶部标题与操作区（对齐 HotProjectsKOLs 样式） */}
-      <div className='px-4 pt-3 theme-border flex-shrink-0'>
-        <div className='flex items-center justify-between mb-3'>
-          <h3 className='text-base font-semibold theme-text-primary whitespace-nowrap overflow-hidden text-ellipsis'>
-            🎈 {t('engageToEarn')}
-          </h3>
+      {!embedded && (
+        <div className='px-4 pt-3 theme-border flex-shrink-0'>
+          <div className='flex items-center justify-between mb-3'>
+            <h3 className='text-base font-semibold theme-text-primary whitespace-nowrap overflow-hidden text-ellipsis'>
+              🎈 {t('engageToEarn')}
+            </h3>
 
-          {/* 右侧操作区：状态下拉 + 关闭 */}
-          <div className='flex items-center gap-2'>
-            {/* 状态下拉选择 */}
-            <div className='relative'>
-              <button
-                className='flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md theme-text-primary theme-hover transition-colors border theme-border whitespace-nowrap'
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                aria-label={t('status') || 'Status'}
-              >
-                {(statusFilter === 'all' && (t('all') || 'all')) ||
-                  (statusFilter === 'active' && (t('active') || 'active')) ||
-                  (statusFilter === 'complete' &&
-                    (t('complete') || 'complete')) ||
-                  t('review') ||
-                  'review'}
-                <ChevronDown className='w-3 h-3' />
-              </button>
+            <div className='flex items-center gap-2'>
+              <div className='relative'>
+                <button
+                  className='flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md theme-text-primary theme-hover transition-colors border theme-border whitespace-nowrap'
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  aria-label={t('status') || 'Status'}
+                >
+                  {(statusFilter === 'all' && (t('all') || 'all')) ||
+                    (statusFilter === 'active' && (t('active') || 'active')) ||
+                    (statusFilter === 'complete' &&
+                      (t('complete') || 'complete')) ||
+                    t('review') ||
+                    'review'}
+                  <ChevronDown className='w-3 h-3' />
+                </button>
 
-              {showStatusDropdown && (
-                <>
-                  <div
-                    className='fixed inset-0 z-10'
-                    onClick={() => setShowStatusDropdown(false)}
-                  />
-                  <div className='absolute right-0 top-full mt-1 py-1 theme-bg-secondary rounded-md shadow-lg theme-border border z-20 min-w-[100px]'>
-                    {[
-                      { key: 'all', label: t('all') || 'all' },
-                      { key: 'active', label: t('active') || 'active' },
-                      { key: 'review', label: t('review') || 'review' },
-                      { key: 'complete', label: t('complete') || 'complete' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.key}
-                        className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${
-                          statusFilter === (opt.key as any)
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'theme-text-primary theme-hover'
-                        }`}
-                        onClick={() => {
-                          setStatusFilter(opt.key as any);
-                          setShowStatusDropdown(false);
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+                {showStatusDropdown && (
+                  <>
+                    <div
+                      className='fixed inset-0 z-10'
+                      onClick={() => setShowStatusDropdown(false)}
+                    />
+                    <div className='absolute right-0 top-full mt-1 py-1 theme-bg-secondary rounded-lg shadow-lg theme-border border z-20 min-w-[100px]'>
+                      {[
+                        { key: 'all', label: t('all') || 'all' },
+                        { key: 'active', label: t('active') || 'active' },
+                        { key: 'review', label: t('review') || 'review' },
+                        { key: 'complete', label: t('complete') || 'complete' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.key}
+                          className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${
+                            statusFilter === (opt.key as any)
+                              ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium'
+                              : 'theme-text-primary hover:theme-bg-tertiary'
+                          }`}
+                          onClick={() => {
+                            setStatusFilter(opt.key as any);
+                            setShowStatusDropdown(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
 
-            {/* 关闭按钮 */}
-            <button
-              type='button'
-              aria-label='Close Engage To Earn'
-              title='Close'
-              className='p-1.5 rounded-md theme-hover theme-text-primary'
-              onClick={() => setShowCloseConfirm(true)}
-            >
-              <X className='w-4 h-4' />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className='px-4 pb-3'>
-        <div className='space-y-4'>
-          {activitiesList.map(([tweetId, activityData]) => {
-            const status = getActivityStatus(
-              (activityData as any)?.detail?.status
-            );
-            const isSignedUp = signedUpActivities[tweetId];
-            const isLoading = signupLoading[tweetId];
-            const statusConfig = getStatusConfig(status);
-
-            return (
-              <ActivityCard
-                key={tweetId}
-                tweetId={tweetId}
-                activityData={activityData}
-                statusConfig={statusConfig}
-                status={status}
-                isSignedUp={isSignedUp}
-                isLoading={isLoading}
-                onSignup={handleSignup}
-                signupError={signupErrors[tweetId] || ''}
-                onNavigateToSettings={openSettingsPage}
-                currentUsername={
-                  user && typeof user === 'object' ? user.username : ''
-                }
-                userInfoCacheBust={userInfoCacheBust}
-                theme={theme as 'dark' | 'light'}
-                t={t}
-                lang={lang || 'zh'}
-                formatNumber={formatNumber}
-                formatDate={formatDate}
-              />
-            );
-          })}
-        </div>
-      </div>
-      {/* 关闭确认弹框（放在最外层容器末尾，避免被头部层覆盖） */}
-      <CloseConfirmDialog
-        isOpen={showCloseConfirm}
-        onClose={() => setShowCloseConfirm(false)}
-        onConfirm={async () => {
-          setIsHidden(true);
-          setShowCloseConfirm(false);
-          try {
-            await localStorageInstance.set('@settings/showEngageToEarn', false);
-          } catch {}
-        }}
-        prefixKey='confirmCloseTrendingPrefix'
-        suffixKey='confirmCloseTrendingSuffix'
-      />
-
-      {/* 报名前的风险提示弹框（可勾选不再提示） */}
-      {showRiskWarn && (
-        <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
-          <div
-            className='absolute inset-0 z-[999001] theme-bg-secondary'
-            style={{ opacity: 0.8 }}
-            onClick={() => setShowRiskWarn(false)}
-          />
-          <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-4'>
-            <div className='text-xs whitespace-pre-line'>
-              {t('e2eRiskWarningText')}
-            </div>
-            <label className='mt-3 flex items-center gap-2 text-xs theme-text-secondary'>
-              <input
-                type='checkbox'
-                checked={riskWarnChecked}
-                onChange={(e) => setRiskWarnChecked(e.target.checked)}
-              />
-              <span>{t('e2eRiskDontShowAgain')}</span>
-            </label>
-            <div className='mt-3 flex justify-end gap-2'>
               <button
                 type='button'
-                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
-                onClick={() => setShowRiskWarn(false)}
+                aria-label='Close Engage To Earn'
+                title='Close'
+                className='p-1.5 rounded-md theme-hover theme-text-primary'
+                onClick={() => setShowCloseConfirm(true)}
               >
-                {t('cancel')}
-              </button>
-              <button
-                type='button'
-                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
-                onClick={() => {
-                  if (riskWarnChecked) {
-                    try {
-                      setSkipRiskWarn(true);
-                    } catch {}
-                  }
-                  setShowRiskWarn(false);
-                  if (pendingActivity) {
-                    debouncedSignup(pendingActivity);
-                    setPendingActivity(null);
-                  }
-                }}
-              >
-                {t('e2eRiskContinueButton')}
+                <X className='w-4 h-4' />
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {embedded && (
+        <div className='pb-2 flex items-center justify-between'>
+          <div className='flex-1 min-w-0 overflow-x-auto scrollbar-hide'>
+            <div className='flex items-center gap-1.5 flex-nowrap'>
+              {[
+                { key: 'all', label: t('all') || 'all', count: allCount },
+                {
+                  key: 'active',
+                  label: t('active') || 'active',
+                  count: counts.active,
+                },
+                {
+                  key: 'review',
+                  label: t('review') || 'review',
+                  count: counts.review,
+                },
+                {
+                  key: 'complete',
+                  label: t('complete') || 'complete',
+                  count: counts.complete,
+                },
+              ].map((opt) => {
+                const selected = effectiveStatus === (opt.key as any);
+                return (
+                  <button
+                    key={opt.key}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border transition-colors whitespace-nowrap flex-shrink-0 ${
+                      selected
+                        ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium theme-border'
+                        : 'theme-text-secondary hover:theme-bg-tertiary theme-border'
+                    }`}
+                    onClick={() => updateStatus(opt.key as any)}
+                    aria-label={`${opt.label}`}
+                    title={`${opt.label}`}
+                  >
+                    <span>{opt.label}</span>
+                    <span>{opt.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className='flex items-center gap-1 pl-2 flex-shrink-0'>
+            <div
+              className='relative'
+              onMouseEnter={() => setShowInfo(true)}
+              onMouseLeave={() => setShowInfo(false)}
+            >
+              <button
+                type='button'
+                className='p-1 rounded-md theme-hover theme-text-secondary opacity-70 hover:opacity-100 hover:theme-text-primary'
+                aria-label={t('info') || 'Info'}
+              >
+                <svg
+                  // t='1766460765482'
+                  className='w-3.5 h-3.5'
+                  style={{
+                    filter: 'saturate(1.5) hue-rotate(196deg) brightness(0.9)',
+                  }}
+                  viewBox='0 0 1024 1024'
+                  version='1.1'
+                  xmlns='http://www.w3.org/2000/svg'
+                  p-id='9293'
+                >
+                  <path
+                    d='M576 800c32.448 0 84.928 9.344 96 0 24.48-20.672-21.376-76.352 0-128 21.664-52.352 128-112.576 128-185.216 0-68.736 74.336-139.2 37.44-191.36A319.616 319.616 0 0 0 576 160C399.264 160 256 303.264 256 480c0 59.84-22.56 50.368 0 110.784 8.128 21.76 78.464 47.872 96 81.216 27.2 51.712 5.6 111.552 32 128 49.024 30.528 129.984 0 192 0z'
+                    fill='#FFCB01'
+                    p-id='9294'
+                  ></path>
+                  <path
+                    d='M640 672v-27.616l29.056-18.912a288 288 0 1 0-314.08 0l29.056 18.944V672H640z m0 64h-256v64h256v-64zM512 32c194.4 0 352 157.6 352 352a351.68 351.68 0 0 1-160 295.04V800a64 64 0 0 1-64 64h-256a64 64 0 0 1-64-64v-120.896A351.68 351.68 0 0 1 160 384C160 189.6 317.6 32 512 32z m-128 896h256a32 32 0 0 1 0 64h-256a32 32 0 0 1 0-64z'
+                    fill='#1C412F'
+                    p-id='9295'
+                  ></path>
+                </svg>
+                {/* <Info className='w-3.5 h-3.5' /> */}
+              </button>
+              {showInfo && (
+                <div className='absolute right-0 top-full mt-1 p-3 theme-bg-secondary rounded-md shadow-lg theme-border border z-20 w-[280px]'>
+                  <div className='text-xs font-semibold theme-text-primary mb-2'>
+                    {t('engageEarnRulesTitle') || 'Interaction Rules'}
+                  </div>
+                  <div className='text-[11px] leading-5 theme-text-secondary space-y-1.5'>
+                    <div>
+                      {t('engageEarnRuleInteraction') ||
+                        'Interaction: Quotes/RTs/Replies increase points, Quotes>RTs>Replies.'}
+                    </div>
+                    <div>
+                      {t('engageEarnRuleContent') ||
+                        'Content: Authentic, valuable content gets a boost; AI-like content is discounted.'}
+                    </div>
+                    <div>
+                      {t('engageEarnRuleTimeliness') ||
+                        'Timeliness: Earlier engagement increases weight; late engagement reduces it.'}
+                    </div>
+                    <div>
+                      {t('engageEarnRuleInfluence') ||
+                        'Influence: XHunt rank applies different multipliers.'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className='pb-3'>
+        {isEmpty ? (
+          <div className='text-[12px] text-center py-6 theme-text-secondary'>
+            {t('noActivitiesAvailable')}
+          </div>
+        ) : (
+          <div className='space-y-2'>
+            {activitiesList.map(([tweetId, activityData]) => {
+              const status = getActivityStatus(
+                (activityData as any)?.detail?.status
+              );
+              const isSignedUp = signedUpActivities[tweetId];
+              const isLoading = signupLoading[tweetId];
+              const statusConfig = getStatusConfig(status);
+
+              return (
+                <ActivityCard
+                  key={tweetId}
+                  tweetId={tweetId}
+                  activityData={activityData}
+                  statusConfig={statusConfig}
+                  status={status}
+                  isSignedUp={isSignedUp}
+                  isLoading={isLoading}
+                  onSignup={handleSignup}
+                  signupError={signupErrors[tweetId] || ''}
+                  onNavigateToSettings={openSettingsPage}
+                  currentUsername={
+                    user && typeof user === 'object' ? user.username : ''
+                  }
+                  userInfoCacheBust={userInfoCacheBust}
+                  theme={theme as 'dark' | 'light'}
+                  t={t}
+                  lang={lang || 'zh'}
+                  formatNumber={formatNumber}
+                  formatDate={formatDate}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {!embedded && (
+        <CloseConfirmDialog
+          isOpen={showCloseConfirm}
+          onClose={() => setShowCloseConfirm(false)}
+          onConfirm={async () => {
+            setIsHidden(true);
+            setShowCloseConfirm(false);
+            try {
+              await localStorageInstance.set(
+                '@settings/showEngageToEarn',
+                false
+              );
+            } catch {}
+          }}
+          prefixKey='confirmCloseTrendingPrefix'
+          suffixKey='confirmCloseTrendingSuffix'
+        />
+      )}
+
+      {/* 报名前的风险提示弹框（可勾选不再提示） */}
+      {showRiskWarn &&
+        createPortal(
+          <div
+            className={`${
+              portalContainer ? 'absolute' : 'fixed'
+            } inset-0 z-[999000] flex items-start justify-center`}
+          >
+            <div
+              className={`${
+                portalContainer ? 'absolute' : 'fixed'
+              } inset-0 z-[999001] theme-bg-secondary`}
+              style={{ opacity: 0.8 }}
+              onClick={() => setShowRiskWarn(false)}
+            />
+            <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-10'>
+              <div className='text-xs whitespace-pre-line'>
+                {t('e2eRiskWarningText')}
+              </div>
+              <label className='mt-3 flex items-center gap-2 text-xs theme-text-secondary'>
+                <input
+                  type='checkbox'
+                  checked={riskWarnChecked}
+                  onChange={(e) => setRiskWarnChecked(e.target.checked)}
+                />
+                <span>{t('e2eRiskDontShowAgain')}</span>
+              </label>
+              <div className='mt-3 flex justify-end gap-2'>
+                <button
+                  type='button'
+                  className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
+                  onClick={() => setShowRiskWarn(false)}
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  type='button'
+                  className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
+                  onClick={() => {
+                    if (riskWarnChecked) {
+                      try {
+                        setSkipRiskWarn(true);
+                      } catch {}
+                    }
+                    setShowRiskWarn(false);
+                    if (pendingActivity) {
+                      debouncedSignup(pendingActivity);
+                      setPendingActivity(null);
+                    }
+                  }}
+                >
+                  {t('e2eRiskContinueButton')}
+                </button>
+              </div>
+            </div>
+          </div>,
+          portalContainer || document.body
+        )}
     </div>
   );
 }
@@ -622,14 +797,15 @@ function ActivityCard({
 
   // 格式化时间范围
   const getTimeRange = () => {
-    const start = new Date(detail.start_time).toLocaleDateString('zh-CN', {
-      month: 'numeric',
-      day: 'numeric',
+    const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
+    const fmt = new Intl.DateTimeFormat(locale, {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
     });
-    const end = new Date(detail.end_time).toLocaleDateString('zh-CN', {
-      month: 'numeric',
-      day: 'numeric',
-    });
+    const start = fmt.format(new Date(detail.start_time));
+    const end = fmt.format(new Date(detail.end_time));
     return `${start} - ${end}`;
   };
 
@@ -665,12 +841,8 @@ function ActivityCard({
       {/* 主体内容 */}
       <div className='p-3 pb-2'>
         {/* 顶部：活动时间和奖金 */}
-        <div className='mb-2 flex items-center gap-2 text-xs theme-text-primary'>
-          <span>
-            {t('activityTime')}: {getTimeRange()}
-          </span>
-          <span className='theme-text-secondary'>|</span>
-          <span>
+        <div className='mb-2 text-xs theme-text-primary space-y-1'>
+          <div>
             {t('rewardPool')}:{' '}
             <span
               className='font-bold'
@@ -680,7 +852,43 @@ function ActivityCard({
             >
               {detail.rewards}U
             </span>
-          </span>
+            {detail?.type === 'equal' ? (
+              <span className='relative inline-flex group ml-2'>
+                <span
+                  className='cursor-pointer px-1.5 py-0 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                  aria-label={t('e2eRewardModeEqual')}
+                >
+                  {t('e2eRewardModeEqual')}
+                </span>
+                <div className='absolute -left-10 top-full mt-1 z-20 w-max max-w-[280px] whitespace-normal break-words px-2 py-1 rounded theme-bg-secondary theme-text-primary text-[10px] shadow theme-border border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition'>
+                  {t('e2eRewardModeEqualTooltip')}
+                </div>
+              </span>
+            ) : detail?.type === 'mindshare' ? (
+              <span className='relative inline-flex group ml-2'>
+                <span
+                  className='cursor-pointer px-1.5 py-0 rounded-full text-[10px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                  aria-label={t('e2eRewardModeMindshare')}
+                >
+                  {t('e2eRewardModeMindshare')}
+                </span>
+                <div className='absolute -left-10 top-full mt-1 z-20 w-max max-w-[280px] whitespace-normal break-words px-2 py-1 rounded theme-bg-secondary theme-text-primary text-[10px] shadow theme-border border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition'>
+                  {t('e2eRewardModeMindshareTooltip')}
+                </div>
+              </span>
+            ) : null}
+            {detail?.winners ? (
+              <span className='ml-2 px-1.5 py-[1.6px] rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20'>
+                {t('e2eWinnersCount').replace(
+                  '{count}',
+                  String(detail.winners)
+                )}
+              </span>
+            ) : null}
+          </div>
+          <div>
+            {t('activityTime')}: {getTimeRange()}
+          </div>
         </div>
 
         {/* 头像和名字（推主信息） */}

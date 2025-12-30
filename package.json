@@ -1,7 +1,7 @@
 {
   "name": "xhunt",
   "displayName": "XHunt – Your Crypto Co-pilot on X",
-  "version": "0.2.02",
+  "version": "0.2.05",
   "description": "Your Crypto Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
@@ -32,6 +32,7 @@
     "d3": "^7.8.5",
     "d3-cloud": "^1.2.5",
     "dayjs": "^1.11.13",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.476.0",
     "numeral": "^2.0.6",
     "plasmo": "^0.84.0",
