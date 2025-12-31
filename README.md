@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 
-[官网](https://xhunt.ai/) | [English](#english) | [中文](#中文)
+[官网](https://xhunt.ai/) | [Chrome 插件下载](https://chromewebstore.google.com/detail/xhunt-%E2%80%93-your-crypto-co-pi/gonmfafjcdkngkbhcpmcphlgfhabkeji) | [English](#english) | [中文](#中文)
 
 </div>
 
@@ -342,30 +342,6 @@ Issues and Pull Requests are welcome!
 - GitHub: [AlphaHunt3/tweet-hunt-extension](https://github.com/AlphaHunt3/tweet-hunt-extension)
 
 ---
-
-#### 权限更改脚本
-
-```
-"scripts": {
-"dev": "node script/dev-with-fix.js",
-"dev-original": "plasmo dev --env=.env.pro",
-"dev-test": "plasmo dev --env=.env.dev",
-"build": "node script/build-with-fix.js",
-"build-original": "NODE_ENV=production plasmo build --env=.env.pro",
-"build:analyze": "NODE_ENV=production ANALYZE=true plasmo build --env=.env.pro",
-"build:dev": "NODE_ENV=development plasmo build --env=.env.dev",
-"package": "plasmo package",
-"translate-ranks": "node script/translate_ranks.js",
-"fix-manifest": "node script/fix-manifest.js"
-},
-```
-
-```
-为什么必须是 ssh.github.com？
-github.com:22 → 标准 SSH 端口（常被干扰）
-ssh.github.com:443 → GitHub 官方提供的 SSH-over-HTTPS 服务，专为绕过防火墙设计
-github.com:443 → 这是网站 HTTPS 端口，不接受 SSH 协议，连接即断
-```
 
 <div align="center">
 
