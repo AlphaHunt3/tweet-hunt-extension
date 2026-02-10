@@ -49,7 +49,7 @@ export function HunterCampaignBanner({
   // =========================================
   // 2) Local component state
   // =========================================
-  const [userInviteCode, setUserInviteCode] = useState('');
+  // const [userInviteCode, setUserInviteCode] = useState('');
   const [evmAddress, setEvmAddress] = useState('');
   const [isVerifyingWallet, setIsVerifyingWallet] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,7 +105,7 @@ export function HunterCampaignBanner({
           await localStorageInstance.set(tasksKey, guestProgress);
           await localStorageInstance.remove(guestKey);
         }
-      } catch {}
+      } catch { }
     })();
   }, [tasksKey, taskStorageBase]);
 
@@ -175,7 +175,7 @@ export function HunterCampaignBanner({
                 [taskDef.id]: true,
               }));
             }
-          } catch {}
+          } catch { }
           openTaskAndCompleteOnReturn(taskDef.id, taskDef.url);
         },
       };
@@ -287,8 +287,8 @@ export function HunterCampaignBanner({
     forceDefaultExpanded !== undefined
       ? forceDefaultExpanded
       : isRegisteredState
-      ? true
-      : unregisteredMode !== 'collapsed';
+        ? true
+        : unregisteredMode !== 'collapsed';
 
   // 内容可见性：若用户手动切换，则以手动为准；否则使用默认
   const effectiveExpanded =
@@ -352,7 +352,7 @@ export function HunterCampaignBanner({
             if (tasksKey) {
               localStorageInstance.remove(tasksKey);
             }
-          } catch {}
+          } catch { }
         }
       },
     }
@@ -382,7 +382,7 @@ export function HunterCampaignBanner({
             setEvmAddress(addr);
           }
         }
-      } catch {}
+      } catch { }
     };
     fetchEvm();
     return () => {
@@ -399,7 +399,7 @@ export function HunterCampaignBanner({
     setRegistrationError(''); // 清空之前的错误
     try {
       const res = await campaignConfig.api.submitRegistration({
-        invitedByCode: userInviteCode || null,
+        // invitedByCode: userInviteCode || null,
         evmAddress: evmAddress || null,
         registrationUrl: window.location.href,
       });
@@ -415,7 +415,7 @@ export function HunterCampaignBanner({
         if (tasksKey) {
           await localStorageInstance.remove(tasksKey);
         }
-      } catch {}
+      } catch { }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '报名失败';
       setTips({ text: cleanErrorMessage(msg), type: 'fail' }); // Tips 显示完整错误信息
@@ -425,7 +425,7 @@ export function HunterCampaignBanner({
     }
   }, [
     allRequiredTasksCompleted,
-    userInviteCode,
+    // userInviteCode,
     evmAddress,
     campaignConfig,
     refreshRegistration,
@@ -465,15 +465,15 @@ export function HunterCampaignBanner({
             campaignConfig.copy?.shortTitleText
               ? campaignConfig.copy.shortTitleText
               : campaignConfig.copy?.shortTitleKey
-              ? t(campaignConfig.copy.shortTitleKey)
-              : campaignConfig.displayName
+                ? t(campaignConfig.copy.shortTitleKey)
+                : campaignConfig.displayName
           }
           fullTitle={
             campaignConfig.copy?.activityTitleText
               ? campaignConfig.copy.activityTitleText
               : campaignConfig.copy?.activityTitleKey
-              ? t(campaignConfig.copy.activityTitleKey)
-              : campaignConfig.displayName
+                ? t(campaignConfig.copy.activityTitleKey)
+                : campaignConfig.displayName
           }
           emoji={campaignConfig.copy?.emoji}
           logos={campaignConfig.logos}
@@ -506,14 +506,14 @@ export function HunterCampaignBanner({
             <UnregisteredContent
               tasks={tasks}
               evmAddress={evmAddress}
-              userInviteCode={userInviteCode}
+              userInviteCode={""}
               isVerifyingWallet={isVerifyingWallet}
               isSubmitting={isSubmitting}
               allRequiredTasksCompleted={allRequiredTasksCompleted}
               isLoggedIn={isLoggedIn}
               isRegisteredState={isRegisteredState}
               registrationError={registrationError}
-              setUserInviteCode={setUserInviteCode}
+              setUserInviteCode={() => { }}
               setEvmAddress={setEvmAddress}
               // handleWalletVerification={handleWalletVerification}
               handleSubmitRegistration={handleSubmitRegistration}

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { Globe, BookOpen, Calendar } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { openNewTab } from '~contents/utils';
 import { HunterCampaignConfig } from './types';
+import { CampaignTags } from './CampaignTags';
+import { isUrlValid } from './utils';
 
 interface RegisteredContentProps {
   inviteCodeState: string;
@@ -20,18 +22,36 @@ interface RegisteredContentProps {
 }
 
 export function RegisteredContent({
-  inviteCodeState,
-  invitedCountState,
   hunterDataState,
   evmAddress,
-  showMantleHunterComponents,
-  activeUrl,
-  handleCopyInviteCode,
-  handleOpenGuide,
   campaignConfig,
 }: RegisteredContentProps) {
-  const { t } = useI18n();
-  
+  const { t, lang } = useI18n();
+
+  const formatDate = (iso?: string | null): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    try {
+      const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
+      return new Intl.DateTimeFormat(locale, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(d);
+    } catch {
+      return d.toISOString().slice(5, 10).replace('-', '/');
+    }
+  };
+
+  const formatRange = (start?: string | null, end?: string | null): string => {
+    const s = formatDate(start);
+    const e = formatDate(end);
+    if (s && e) return `${s} – ${e}`;
+    return s || e || '';
+  };
+
   // 使用配置的翻译键，如果没有配置则使用默认翻译键
   const goToOfficialButtonText = t(
     campaignConfig?.copy?.goToOfficialButtonKey || 'mantleHunterStatusGoToOfficial'
@@ -40,15 +60,59 @@ export function RegisteredContent({
   const [showEvmTooltip, setShowEvmTooltip] = useState(false);
 
   return (
-    <div className='space-y-3'>
-      {/* 状态卡片网格 */}
-      <div className='grid grid-cols-4 gap-1.5 relative'>
-        {/* 背景装饰层 - 个人数据区域 */}
-        <div className='absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-purple-500/[0.03] to-pink-500/[0.03] pointer-events-none' />
-        <div className='absolute inset-0 bg-gradient-to-br from-transparent via-white/[0.01] to-transparent pointer-events-none' />
+    <div className='space-y-2.5'>
+      {/* 活动关键信息：统一 UnregisteredContent 的 tag 视觉（chip + icon + tooltip），兼容明暗主题 */}
+      {campaignConfig && (
+        <div
+          className={`rounded-lg ${campaignConfig.enrollmentWindow &&
+            (campaignConfig.enrollmentWindow.startAt ||
+              campaignConfig.enrollmentWindow.endAt)
+            ? 'px-2.5 py-2 border theme-border space-y-1.5'
+            : 'px-0 py-1.5 bg-white/[0.02]'
+            }`}
+        >
+          <CampaignTags
+            campaignConfig={campaignConfig}
+            showBorder={
+              !!(
+                campaignConfig.enrollmentWindow &&
+                (campaignConfig.enrollmentWindow.startAt ||
+                  campaignConfig.enrollmentWindow.endAt)
+              )
+            }
+          />
+          {campaignConfig.enrollmentWindow &&
+            (campaignConfig.enrollmentWindow.startAt ||
+              campaignConfig.enrollmentWindow.endAt) && (
+              <div className='flex items-center justify-between gap-2'>
+                <div className='flex items-center gap-1.5 min-w-0'>
+                  <div className='w-4 h-4 flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300/90'>
+                    <Calendar className='w-3 h-3' />
+                  </div>
+                  <span className='text-[10px] theme-text-secondary font-medium truncate'>
+                    {t('mantleHunterActivityTime')}
+                  </span>
+                </div>
+                <div className='text-[10px] theme-text-secondary font-medium truncate'>
+                  {formatRange(
+                    campaignConfig.enrollmentWindow.startAt,
+                    campaignConfig.enrollmentWindow.endAt
+                  )}
+                </div>
+              </div>
+            )}
+        </div>
+      )}
 
-        <div className='py-2 rounded-md bg-white/[0.02]  transition-all duration-200 relative group z-10'>
-          <div className='text-[10px] theme-text-secondary mb-0.5 font-medium text-center'>
+      {/* 状态卡片网格 */}
+      <div className='grid grid-cols-2 gap-1.5 relative'>
+        {/* 背景装饰层 - 个人数据区域 */}
+        <div className='absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-purple-500/[0.03] to-pink-500/[0.03] pointer-events-none rounded-lg' />
+        <div className='absolute inset-0 bg-gradient-to-br from-transparent via-white/[0.01] to-transparent pointer-events-none rounded-lg' />
+
+        {/* Mindshare Rank */}
+        <div className='py-2 rounded-lg bg-white/[0.02] transition-all duration-200 relative group z-10 hover:bg-white/[0.04]'>
+          <div className='text-[9px] theme-text-secondary mb-0.5 font-medium text-center'>
             {t('mantleHunterStatusRank')}
           </div>
           <div
@@ -78,31 +142,10 @@ export function RegisteredContent({
             </div>
           )}
         </div>
-        <div className='py-2 rounded-md bg-white/[0.02]  transition-all duration-200'>
-          <div className='text-[10px] theme-text-secondary mb-0.5 font-medium text-center'>
-            {t('mantleHunterMyInviteCode')}
-          </div>
-          <div className='text-xs theme-text-primary font-bold text-center'>
-            <div
-              onClick={handleCopyInviteCode}
-              className='hover:text-blue-400 transition-colors cursor-pointer'
-              title={t('mantleHunterClickToCopy')}
-            >
-              {inviteCodeState || '-'}
-            </div>
-          </div>
-        </div>
-        <div className='py-2 rounded-md bg-white/[0.02]  transition-all duration-200'>
-          <div className='text-[10px] theme-text-secondary mb-0.5 font-medium text-center'>
-            {t('mantleHunterStatusInvitedCount')}
-          </div>
-          <div className='text-xs theme-text-primary font-bold text-center'>
-            {invitedCountState}
-          </div>
-        </div>
-        {/* EVM Address - 4th column */}
-        <div className='py-2 rounded-md bg-white/[0.02] transition-all duration-200 relative group -ml-2'>
-          <div className='text-[10px] theme-text-secondary mb-0.5 font-medium text-center'>
+
+        {/* EVM Address */}
+        <div className='py-2 rounded-lg bg-white/[0.02] transition-all duration-200 relative group z-10 hover:bg-white/[0.04]'>
+          <div className='text-[9px] theme-text-secondary mb-0.5 font-medium text-center'>
             {t('mantleHunterBoundAddress')}
           </div>
           <div
@@ -119,12 +162,11 @@ export function RegisteredContent({
             </div>
           </div>
 
-          {/* 自定义 tooltip - same style as rank tooltip */}
+          {/* 自定义 tooltip */}
           {showEvmTooltip && evmAddress && (
             <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50 pointer-events-none whitespace-nowrap'>
               <div className='flex flex-col gap-1.5'>
                 <div className='flex items-center gap-2'>
-                  {/* <div className='w-3 h-3 rounded-full bg-blue-300'></div> */}
                   <span className='font-mono'>{evmAddress}</span>
                 </div>
               </div>
@@ -134,22 +176,40 @@ export function RegisteredContent({
         </div>
       </div>
 
-      {/* 官方页面按钮 */}
-      {!showMantleHunterComponents && (
-        <a
-          href={'#'}
-          className='w-full relative overflow-hidden px-4 py-2 text-xs font-bold rounded-xl transition-all duration-300 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] h-8'
-          onClick={(e) => {
-            e.preventDefault();
-            openNewTab(activeUrl || '#');
-          }}
-        >
-          <span className='leading-none'>
-            {goToOfficialButtonText}
-          </span>
-          <ExternalLink className='w-3 h-3 ml-1.5' />
-        </a>
-      )}
+      {/* 官方页面 / 查看指南按钮：0~2 个，同时存在时一行各占 50%，图标区分 */}
+      {(isUrlValid(campaignConfig?.links?.activeUrl) ||
+        isUrlValid(campaignConfig?.links?.guideUrl)) && (
+          <div className='flex gap-1.5'>
+            {isUrlValid(campaignConfig?.links?.activeUrl) && (
+              <a
+                href={'#'}
+                className='flex-1 min-w-0 h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-emerald-500/8 hover:border-emerald-500/25 active:scale-[0.98] border-l-2 border-l-emerald-500/50'
+                onClick={(e) => {
+                  e.preventDefault();
+                  openNewTab(campaignConfig?.links?.activeUrl || '#');
+                }}
+              >
+                <Globe className='w-3.5 h-3.5 shrink-0 opacity-70' />
+                <span className='leading-none truncate'>{goToOfficialButtonText}</span>
+              </a>
+            )}
+            {isUrlValid(campaignConfig?.links?.guideUrl) && (
+              <a
+                href={'#'}
+                className='flex-1 min-w-0 h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-violet-500/8 hover:border-violet-500/25 active:scale-[0.98] border-l-2 border-l-violet-500/50'
+                onClick={(e) => {
+                  e.preventDefault();
+                  openNewTab(campaignConfig?.links?.guideUrl || '#');
+                }}
+              >
+                <BookOpen className='w-3.5 h-3.5 shrink-0 opacity-70' />
+                <span className='leading-none truncate'>
+                  {t('mantleHunterViewOfficialGuide')}
+                </span>
+              </a>
+            )}
+          </div>
+        )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ const extractHandleFromUrl = (url: string): string | null => {
     if (match && match[1]) {
       return match[1].toLowerCase();
     }
-  } catch {}
+  } catch { }
   return null;
 };
 
@@ -126,7 +126,7 @@ type ServerCampaign = {
   }[];
   copy?: any;
   tasks?: ServerTask[];
-  links?: { guideUrl?: string; activeUrl?: string };
+  links?: { guideUrl?: string; activeUrl?: string; showLeaderboardLink?: boolean };
   showExtraComponents?: boolean;
   targetUserIds?: string[];
   hotTweetsKey?: string;
@@ -134,6 +134,22 @@ type ServerCampaign = {
   testList?: string[];
   // 富文本风险提示弹框字段（支持中英文对象或字符串）
   riskConfirmHtml?: string | { zh?: string; en?: string };
+  // ===== 奖励与报名规则相关字段（服务端下发的原始字段） =====
+  rewardAmount?: number;
+  rewardParticipantCount?: number;
+  rewardDistributionType?: 'equal' | 'mindshare' | string;
+  threshold?: number;
+  includeCreator?: boolean;
+  rewardUnit?: string;
+  enableEssayContest?: boolean;
+  essayContestAmount?: number;
+  essayContestWinnerCount?: number;
+  essayContestWinners?: Array<{
+    name: string;
+    handler: string;
+    avatar: string;
+    reward: string;
+  }>;
   // 兼容中文键名
   [key: string]: any;
 };
@@ -148,7 +164,7 @@ const getCurrentLangAsync = async (): Promise<Lang> => {
   try {
     const v = await localStorageInstance.get('@settings/language1');
     if (v === 'zh' || v === 'en') return v as Lang;
-  } catch {}
+  } catch { }
   return isUserUsingChinese() ? 'zh' : 'en';
 };
 
@@ -193,36 +209,41 @@ const transformServerCampaign = (
     shouldShow: () => Boolean(c.enabled),
     getGuideUrl: () => c.links?.guideUrl || '',
     getActiveUrl: () => c.links?.activeUrl || '',
+    getShowLeaderboardLink: () => Boolean((c.links as { showLeaderboardLink?: boolean } | undefined)?.showLeaderboardLink),
+    activeUrl: c.links?.activeUrl || '',
+    guideUrl: c.links?.guideUrl || '',
+    showLeaderboardLink: Boolean((c.links as { showLeaderboardLink?: boolean } | undefined)?.showLeaderboardLink),
   };
 
   const api =
     campaignKey === 'mantle2'
       ? {
-          fetchRegistration: (userId: string) =>
-            getMantleRegistrationMe(userId),
-          submitRegistration: (payload: {
-            invitedByCode?: string | null;
-            evmAddress?: string | null;
-            registrationUrl?: string | null;
-          }) => postMantleRegister(payload),
-          fetchStats: () => getMantleHunterStats(),
-          fetchLeaderboard: () => getMantleLeaderboard(),
-          fetchHotTweets: () => getHotTweets('mantle2'),
-        }
+        fetchRegistration: (userId: string) =>
+          getMantleRegistrationMe(userId),
+        submitRegistration: (payload: {
+          invitedByCode?: string | null;
+          evmAddress?: string | null;
+          registrationUrl?: string | null;
+        }) => postMantleRegister(payload),
+        fetchStats: () => getMantleHunterStats(),
+        fetchLeaderboard: () => getMantleLeaderboard(),
+        fetchHotTweets: () => getHotTweets('mantle2'),
+      }
       : {
-          fetchRegistration: (userId: string) =>
-            getHunterCampaignRegistration(campaignKey, userId),
-          submitRegistration: (payload: {
-            invitedByCode?: string | null;
-            evmAddress?: string | null;
-            registrationUrl?: string | null;
-          }) => postHunterCampaignRegister(campaignKey, payload),
-          fetchStats: () => getHunterCampaignStats(campaignKey),
-          fetchLeaderboard: () => getHunterCampaignLeaderboard(campaignKey),
-          fetchHotTweets: () => getHotTweets(c.hotTweetsKey || campaignKey),
-        };
+        fetchRegistration: (userId: string) =>
+          getHunterCampaignRegistration(campaignKey, userId),
+        submitRegistration: (payload: {
+          invitedByCode?: string | null;
+          evmAddress?: string | null;
+          registrationUrl?: string | null;
+        }) => postHunterCampaignRegister(campaignKey, payload),
+        fetchStats: () => getHunterCampaignStats(campaignKey),
+        fetchLeaderboard: () => getHunterCampaignLeaderboard(campaignKey),
+        fetchHotTweets: () => getHotTweets(c.hotTweetsKey || campaignKey),
+      };
 
   return {
+    ...c,
     id: c.id,
     campaignKey,
     displayName,
@@ -234,10 +255,10 @@ const transformServerCampaign = (
     api,
     copy: c.copy
       ? {
-          shortTitleText: resolveText((c.copy as any).shortTitle),
-          activityTitleText: resolveText((c.copy as any).title),
-          emoji: (c.copy as any).emoji,
-        }
+        shortTitleText: resolveText((c.copy as any).shortTitle),
+        activityTitleText: resolveText((c.copy as any).title),
+        emoji: (c.copy as any).emoji,
+      }
       : undefined,
     showExtraComponents: Boolean(c.showExtraComponents),
     targetUserIds: (c.targetUserIds || []).map((v) => String(v).toLowerCase()),
@@ -248,6 +269,17 @@ const transformServerCampaign = (
           ? (c as any).riskConfirmHtml
           : ''
       ) || undefined,
+    // 奖励与报名规则相关字段下发给前端配置
+    rewardAmount: c.rewardAmount,
+    rewardParticipantCount: c.rewardParticipantCount,
+    rewardDistributionType: c.rewardDistributionType,
+    threshold: c.threshold,
+    includeCreator: c.includeCreator,
+    rewardUnit: c.rewardUnit,
+    enableEssayContest: c.enableEssayContest,
+    essayContestAmount: c.essayContestAmount,
+    essayContestWinnerCount: c.essayContestWinnerCount,
+    essayContestWinners: c.essayContestWinners,
   } as HunterCampaignConfig;
 };
 
@@ -263,6 +295,7 @@ export const getActiveHunterCampaignsAsync = async (): Promise<
     const currentUsername = (await getCurrentUsername()).toLowerCase();
     const list = (data?.campaigns || [])
       .filter((c) => {
+        //TEST xhunt eran 本地测试
         if (!c.enabled) return false;
         if (c.testingPhase) {
           const tl = (c.testList || []).map((v) => String(v).toLowerCase());

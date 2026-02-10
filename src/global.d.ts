@@ -30,6 +30,7 @@ declare interface Window {
   _xhunt: string;
   dataLayer: any[];
   gtag: (...args: any[]) => void;
+  _xhunt_language: string;
 }
 
 // Add Chrome extension API types

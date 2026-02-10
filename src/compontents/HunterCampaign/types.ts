@@ -51,6 +51,11 @@ export interface HunterCampaignLinks {
   shouldShow: () => boolean;
   getGuideUrl: () => string;
   getActiveUrl: () => string;
+  /** 是否在排行榜底部展示「查看更多」链接（跳转 activeUrl） */
+  getShowLeaderboardLink?: () => boolean;
+  activeUrl: string;
+  guideUrl: string;
+  showLeaderboardLink: boolean;
 }
 
 export interface HunterCampaignApi {
@@ -61,10 +66,10 @@ export interface HunterCampaignApi {
     registrationUrl?: string | null;
   }) => Promise<
     | {
-        success: boolean;
-        inviteCode?: string | null;
-        registration?: any;
-      }
+      success: boolean;
+      inviteCode?: string | null;
+      registration?: any;
+    }
     | undefined
   >;
   fetchStats?: () => Promise<any | undefined>;
@@ -102,4 +107,30 @@ export interface HunterCampaignConfig {
   enrollmentWindow?: { startAt?: string | null; endAt?: string | null };
   // 报名前的风险提示弹框（富文本 HTML）
   riskConfirmHtml?: string;
+  // ===== 奖励与报名规则相关字段（从服务端透传） =====
+  // 奖池金额（如果有的话，优先在其他组件里展示）
+  rewardAmount?: number;
+  // 获奖用户总名额
+  rewardParticipantCount?: number;
+  // 奖励分配方式: equal / mindshare / 其他
+  rewardDistributionType?: 'equal' | 'mindshare' | string;
+  // 报名门槛：KOL 排名需要小于等于该值
+  threshold?: number;
+  // 已认证创作者是否也能报名
+  includeCreator?: boolean;
+  // 奖励单位（如 "U" 表示 USDT）
+  rewardUnit?: string;
+  // 是否启用征文大赛
+  enableEssayContest?: boolean;
+  // 征文大赛奖池金额
+  essayContestAmount?: number;
+  // 征文大赛获奖人数
+  essayContestWinnerCount?: number;
+  // 征文大赛获奖名单
+  essayContestWinners?: Array<{
+    name: string;
+    handler: string;
+    avatar: string;
+    reward: string;
+  }>;
 }

@@ -52,7 +52,7 @@ export function HunterCampaignCaptain({
   };
 
   return (
-    <div className='grid grid-cols-3 gap-1.5 relative'>
+    <div className='grid grid-cols-3 gap-1.5 relative mt-2'>
       {/* 背景装饰层 - 全局数据区域 */}
       <div className='absolute inset-0 bg-gradient-to-r from-indigo-500/[0.03] via-blue-500/[0.03] to-cyan-500/[0.03]' />
       <div className='absolute inset-0 bg-gradient-to-br from-transparent via-white/[0.01] to-transparent' />
@@ -65,11 +65,11 @@ export function HunterCampaignCaptain({
           {loading && (shouldFetchRegistration ? regLoading : false)
             ? '-'
             : (
-                (typeof totalRegistrations === 'number'
-                  ? totalRegistrations
-                  : (registration?.totalRegistrations as number | undefined)) ??
-                (stats?.participants || 0)
-              ).toLocaleString()}
+              (typeof totalRegistrations === 'number'
+                ? totalRegistrations
+                : (registration?.totalRegistrations as number | undefined)) ??
+              (stats?.participants || 0)
+            ).toLocaleString()}
         </div>
       </div>
       <div className='p-1.5 rounded-md bg-white/[0.02]  transition-all duration-200'>
@@ -90,10 +90,10 @@ export function HunterCampaignCaptain({
           {loading
             ? '-'
             : formatW(
-                typeof stats?.views === 'number'
-                  ? stats?.views
-                  : Number(stats?.views)
-              )}
+              typeof stats?.views === 'number'
+                ? stats?.views
+                : Number(stats?.views)
+            )}
         </div>
       </div>
     </div>

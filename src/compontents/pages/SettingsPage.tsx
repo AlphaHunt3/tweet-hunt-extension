@@ -22,6 +22,8 @@ import { configManager } from '~utils/configManager.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
 import { cleanErrorMessage } from '~utils/dataValidation';
 import { getCurrentUsername } from '~contents/utils/helpers.ts';
+import { avatarSkins } from '../../contents/constants/avatarSkins';
+import { useAvatarSkinState } from '~contents/hooks/useAvatarSkin';
 
 // Chrome 类型声明
 declare const chrome: any;
@@ -47,6 +49,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onClose,
 }) => {
   const { t, lang, setLang } = useI18n();
+  const { skin: currentSkin, setSkin: setAvatarSkin } = useAvatarSkinState();
   const { navigateTo } = useNavigation();
   const { settingStates, isLoading } = useAllSettings();
   const {
@@ -72,6 +75,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     'default' | 'persistent'
   >('@xhunt/floatingPanelMode', 'default');
   const [token] = useLocalStorage('@xhunt/token', '');
+  const [avatarRankMode, setAvatarRankMode] = useLocalStorage<
+    'influence' | 'composite'
+  >('@settings/avatarRankMode', 'influence');
 
   // 用户信息缓存时间戳，用于绕过协商缓存
   const [userInfoCacheBust, setUserInfoCacheBust] = useLocalStorage<number>(
@@ -209,9 +215,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'enableGossip', label: 'enableGossip' },
         { key: 'enableListing', label: 'enableListing' },
       ]),
+      avatarSettings: [{ key: 'showAvatarRank', label: 'showAvatarRank' }],
       others: filterItems([
         { key: 'showSidebarIcon', label: 'showSidebarIcon' },
-        { key: 'showAvatarRank', label: 'showAvatarRank' },
         { key: 'showTokenAnalysis', label: 'showTokenAnalysis' },
         { key: 'showTweetAIAnalysis', label: 'showTweetAIAnalysis' },
         {
@@ -228,6 +234,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       profilePage: false,
       homeRightSidebar: false,
       floatingPanel: false,
+      avatarSettings: true, // 头像设置默认展开
       others: true, // 其他分组默认展开
     }
   );
@@ -362,6 +369,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }
       }
       state.set(checked);
+
+      // 关闭头像排名或 Token Analysis 后 1 秒自动刷新
+      if (
+        (setting.key === 'showAvatarRank' ||
+          setting.key === 'showTokenAnalysis') &&
+        !checked
+      ) {
+        setTimeout(() => {
+          try {
+            window.location.reload();
+          } catch {}
+        }, 200);
+      }
     };
 
     // 判断是否为最后一个启用的选项
@@ -650,6 +670,102 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </>
             )}
             {settings.map(renderSettingItem)}
+            {/* 头像设置专属：排名类型选择（影响力 / 综合） */}
+            {/* {groupKey === 'avatarSettings' && (
+              <div className='flex items-center justify-between py-1.5 px-3'>
+                <span className='text-[13px] theme-text-primary leading-tight'>
+                  {t('avatarRankModeSelectorTitle')}
+                </span>
+                <label className='relative inline-flex items-center cursor-pointer shrink-0'>
+                  <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
+                    <button
+                      className={`px-2 py-1 text-[11px] rounded ${
+                        avatarRankMode === 'influence'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                      }`}
+                      onClick={() => {
+                        if (avatarRankMode === 'influence') return;
+                        setAvatarRankMode('influence');
+                        setTimeout(() => {
+                          try {
+                            window.location.reload();
+                          } catch {}
+                        }, 200);
+                      }}
+                    >
+                      <span
+                        data-xhunt-avatar-rank-mode='influence'
+                        className='gold-trophy'
+                      >
+                        🏆
+                      </span>{' '}
+                      {t('avatarRankModeInfluence')}
+                    </button>
+                    <button
+                      className={`px-2 py-1 text-[11px] rounded ${
+                        avatarRankMode === 'composite'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                      }`}
+                      onClick={() => {
+                        if (avatarRankMode === 'composite') return;
+                        setAvatarRankMode('composite');
+                        setTimeout(() => {
+                          try {
+                            window.location.reload();
+                          } catch {}
+                        }, 200);
+                      }}
+                    >
+                      <span
+                        data-xhunt-avatar-rank-mode='composite'
+                        className='gold-trophy middle-badge'
+                      >
+                        🏅
+                      </span>{' '}
+                      {t('avatarRankModeComposite')}
+                    </button>
+                  </div>
+                </label>
+              </div>
+            )} */}
+
+            {/* 头像设置专属：皮肤选择器 */}
+            {/* {groupKey === 'avatarSettings' && (
+              <div className='py-1.5 px-3'>
+                <div className='text-[13px] theme-text-primary leading-tight mb-2.5'>
+                  {t('avatarSkinSelectorTitle')}
+                </div>
+                <div className='flex flex-wrap items-center gap-3'>
+                  {Object.entries(avatarSkins).map(([id, skinCfg]) => {
+                    const theme =
+                      (typeof document !== 'undefined' &&
+                        document.documentElement.getAttribute('data-theme')) ||
+                      'dark';
+                    const themeColors =
+                      theme === 'light' ? skinCfg.light : skinCfg.dark;
+                    const isActive = currentSkin === id;
+                    return (
+                      <button
+                        key={id}
+                        type='button'
+                        className={`relative w-5 h-5 rounded-md border-2 transition-all duration-200 ${
+                          isActive
+                            ? 'border-blue-500 ring-2 ring-blue-500/30'
+                            : 'border-gray-500/20 hover:border-gray-500/50'
+                        }`}
+                        style={{
+                          background: themeColors.background,
+                        }}
+                        title={t(skinCfg.nameKey)}
+                        onClick={() => setAvatarSkin(id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )} */}
           </div>
         )}
       </div>
@@ -793,6 +909,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   'others',
                   t('otherSettings'),
                   groupedSettings.others
+                )}
+                {renderSettingsGroup(
+                  'avatarSettings',
+                  t('avatarSettings'),
+                  groupedSettings.avatarSettings
                 )}
                 {renderSettingsGroup(
                   'profilePage',
@@ -1029,7 +1150,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   className={`text-[11px] ${
                     // isTesterOnly
                     //   ? 'text-blue-800/60'
-                    isCanaryUser ? 'text-yellow-800/60' : 'theme-text-secondary'
+                    isCanaryUser
+                      ? 'text-yellow-800/60 dark:text-yellow-300/70'
+                      : 'theme-text-secondary'
                   }`}
                 >
                   {process.env.PLASMO_PUBLIC_ENV === 'dev' ? 'DEV' : 'BETA'}

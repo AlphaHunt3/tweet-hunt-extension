@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import {
   ExternalLink,
+  Globe,
+  BookOpen,
   MessageCircle,
   Check,
   Info,
@@ -20,6 +22,9 @@ interface Task {
 }
 
 import { HunterCampaignConfig } from './types';
+import { CampaignTags } from './CampaignTags';
+import { isUrlValid } from './utils';
+import { openNewTab } from '~contents/utils';
 
 interface UnregisteredContentProps {
   tasks: Task[];
@@ -66,6 +71,7 @@ export function UnregisteredContent({
 }: UnregisteredContentProps) {
   const { t, lang } = useI18n();
   const [showRiskConfirm, setShowRiskConfirm] = React.useState(false);
+  const [showEvmConfirm, setShowEvmConfirm] = React.useState(false);
 
   // 使用配置的翻译键，如果没有配置则使用默认翻译键
   const ctaButtonText = t(
@@ -73,7 +79,7 @@ export function UnregisteredContent({
   );
   const goToOfficialButtonText = t(
     campaignConfig?.copy?.goToOfficialButtonKey ||
-      'mantleHunterStatusGoToOfficial'
+    'mantleHunterStatusGoToOfficial'
   );
   const viewGuideLinkText = t(
     campaignConfig?.copy?.viewGuideLinkKey || 'mantleHunterViewOfficialGuide'
@@ -123,6 +129,8 @@ export function UnregisteredContent({
       return new Intl.DateTimeFormat(locale, {
         month: 'short',
         day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       }).format(d);
     } catch {
       return d.toISOString().slice(5, 10).replace('-', '/');
@@ -136,26 +144,44 @@ export function UnregisteredContent({
     return s || e || '';
   };
 
+  const proceedRegistration = () => {
+    if (campaignConfig?.riskConfirmHtml) {
+      setShowRiskConfirm(true);
+    } else {
+      handleSubmitRegistration();
+    }
+  };
+
   return (
     <div className='space-y-2.5'>
-      {campaignConfig?.enrollmentWindow &&
-        (campaignConfig.enrollmentWindow.startAt ||
-          campaignConfig.enrollmentWindow.endAt) && (
-          <div className='flex items-center justify-between px-2 py-1.5 rounded-lg border border-dashed border-amber-400/20 bg-amber-500/5'>
-            <div className='flex items-center gap-1.5'>
-              <div className='w-4 h-4 flex items-center justify-center text-amber-300/80'>
-                <Calendar className='w-3 h-3' />
-              </div>
-              <span className='text-[10px] theme-text-primary'>
-                {t('mantleHunterActivityTime')}
-              </span>
-            </div>
-            <div className='text-[10px] theme-text-primary'>
-              {formatRange(
-                campaignConfig.enrollmentWindow.startAt,
-                campaignConfig.enrollmentWindow.endAt
+      {/* 活动关键信息：奖励标签 + 报名时间（整合为一块信息卡片，更贴合整体 UI） */}
+      {campaignConfig &&
+        ((campaignConfig.enrollmentWindow &&
+          (campaignConfig.enrollmentWindow.startAt ||
+            campaignConfig.enrollmentWindow.endAt))) && (
+          <div className='px-2.5 py-2 rounded-lg border theme-border space-y-1.5'>
+            <CampaignTags campaignConfig={campaignConfig} showBorder={true} />
+
+            {campaignConfig.enrollmentWindow &&
+              (campaignConfig.enrollmentWindow.startAt ||
+                campaignConfig.enrollmentWindow.endAt) && (
+                <div className='flex items-center justify-between gap-2'>
+                  <div className='flex items-center gap-1.5 min-w-0'>
+                    <div className='w-4 h-4 flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300/90'>
+                      <Calendar className='w-3 h-3' />
+                    </div>
+                    <span className='text-[10px] theme-text-secondary font-medium truncate'>
+                      {t('mantleHunterActivityTime')}
+                    </span>
+                  </div>
+                  <div className='text-[10px] theme-text-secondary font-medium truncate'>
+                    {formatRange(
+                      campaignConfig.enrollmentWindow.startAt,
+                      campaignConfig.enrollmentWindow.endAt
+                    )}
+                  </div>
+                </div>
               )}
-            </div>
           </div>
         )}
       {/* 任务列表 - 重新设计 */}
@@ -167,11 +193,10 @@ export function UnregisteredContent({
             .map((task, index) => (
               <div
                 key={task.id}
-                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
-                  task.completed
-                    ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
-                }`}
+                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${task.completed
+                  ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
+                  : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
+                  }`}
               >
                 <button
                   onClick={() => {
@@ -187,11 +212,10 @@ export function UnregisteredContent({
                 >
                   {/* 状态指示器 */}
                   <div
-                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
-                      task.completed
-                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
-                        : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
-                    }`}
+                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${task.completed
+                      ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
+                      : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
+                      }`}
                   >
                     {task.completed ? (
                       <div className='relative'>
@@ -212,20 +236,18 @@ export function UnregisteredContent({
                   <div className='flex-1 min-w-0'>
                     <div className='flex items-center gap-1'>
                       <div
-                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
-                          task.completed
-                            ? 'text-green-200'
-                            : 'theme-text-secondary group-hover:theme-text-primary'
-                        }`}
+                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${task.completed
+                          ? 'text-green-200'
+                          : 'theme-text-secondary group-hover:theme-text-primary'
+                          }`}
                       >
                         {task.icon}
                       </div>
                       <span
-                        className={`text-[10px] font-medium transition-all duration-200 ${
-                          task.completed
-                            ? 'text-green-100'
-                            : 'theme-text-secondary group-hover:theme-text-primary'
-                        }`}
+                        className={`text-[10px] font-medium transition-all duration-200 ${task.completed
+                          ? 'text-green-100'
+                          : 'theme-text-secondary group-hover:theme-text-primary'
+                          }`}
                       >
                         {task.title}
                       </span>
@@ -242,11 +264,10 @@ export function UnregisteredContent({
             {tasks.slice(tasks.length - 1).map((task) => (
               <div
                 key={task.id}
-                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${
-                  task.completed
-                    ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
-                }`}
+                className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${task.completed
+                  ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
+                  : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
+                  }`}
               >
                 <button
                   onClick={() => {
@@ -262,11 +283,10 @@ export function UnregisteredContent({
                 >
                   {/* 状态指示器 */}
                   <div
-                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${
-                      task.completed
-                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
-                        : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
-                    }`}
+                    className={`relative flex items-center justify-center w-4 h-4 rounded-full transition-all duration-200 ${task.completed
+                      ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/30'
+                      : 'border border-dashed border-blue-400/40 group-hover:border-blue-400/60 group-hover:bg-blue-400/8'
+                      }`}
                   >
                     {task.completed ? (
                       <div className='relative'>
@@ -287,20 +307,18 @@ export function UnregisteredContent({
                   <div className='flex-1 min-w-0'>
                     <div className='flex items-center gap-1'>
                       <div
-                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${
-                          task.completed
-                            ? 'text-green-200'
-                            : 'theme-text-secondary group-hover:theme-text-primary'
-                        }`}
+                        className={`flex items-center justify-center w-3 h-3 rounded transition-all duration-200 ${task.completed
+                          ? 'text-green-200'
+                          : 'theme-text-secondary group-hover:theme-text-primary'
+                          }`}
                       >
                         {task.icon}
                       </div>
                       <span
-                        className={`text-[10px] font-medium transition-all duration-200 ${
-                          task.completed
-                            ? 'text-green-100'
-                            : 'theme-text-secondary group-hover:theme-text-primary'
-                        }`}
+                        className={`text-[10px] font-medium transition-all duration-200 ${task.completed
+                          ? 'text-green-100'
+                          : 'theme-text-secondary group-hover:theme-text-primary'
+                          }`}
                       >
                         {task.title}
                       </span>
@@ -345,6 +363,61 @@ export function UnregisteredContent({
                 }}
               >
                 {t('continue')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 报名前 EVM 地址确认弹框 */}
+      {showEvmConfirm && (
+        <div className='absolute inset-0 z-[998500] flex items-start justify-center'>
+          <div
+            className='absolute inset-0 z-[998501] theme-bg-secondary'
+            style={{ opacity: 0.8 }}
+            onClick={() => setShowEvmConfirm(false)}
+          />
+          <div className='relative z-[998502] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[360px] shadow-xl mt-4 space-y-3'>
+            <div className='space-y-1'>
+              <div className='text-sm font-semibold'>
+                {t('mantleHunterConfirmEvmTitle')}
+              </div>
+              <p className='text-xs theme-text-secondary leading-relaxed'>
+                {t('mantleHunterConfirmEvmDesc')}
+              </p>
+            </div>
+
+            <div className='space-y-1'>
+              <div className='text-[11px] theme-text-secondary'>
+                {t('mantleHunterConfirmEvmLabel')}
+              </div>
+              <div className='px-2 py-1 rounded-md border theme-border bg-black/5 dark:bg-white/5'>
+                <span className='text-[11px] font-mono break-all'>
+                  {evmAddress || t('mantleHunterEvmOptional')}
+                </span>
+              </div>
+              <p className='text-[11px] text-amber-500'>
+                {t('mantleHunterConfirmEvmWarning')}
+              </p>
+            </div>
+
+            <div className='mt-1 flex justify-end gap-2'>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
+                onClick={() => setShowEvmConfirm(false)}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type='button'
+                className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600'
+                onClick={() => {
+                  setShowEvmConfirm(false);
+                  proceedRegistration();
+                }}
+              >
+                {t('confirm')}
               </button>
             </div>
           </div>
@@ -432,19 +505,17 @@ export function UnregisteredContent({
           {/* EVM地址验证提示1 */}
           {evmAddress && evmAddress.length > 0 && (
             <div
-              className={`px-2 py-1.5 text-xs rounded-md transition-all duration-200 ${
-                isValidEvmAddress(evmAddress)
-                  ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-                  : 'text-orange-400 bg-orange-500/10 border border-orange-500/20'
-              }`}
+              className={`px-2 py-1.5 text-xs rounded-md transition-all duration-200 ${isValidEvmAddress(evmAddress)
+                ? 'text-green-400 bg-green-500/10 border border-green-500/20'
+                : 'text-orange-400 bg-orange-500/10 border border-orange-500/20'
+                }`}
             >
               <div className='flex items-center gap-1.5'>
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    isValidEvmAddress(evmAddress)
-                      ? 'bg-green-400'
-                      : 'bg-orange-400'
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full ${isValidEvmAddress(evmAddress)
+                    ? 'bg-green-400'
+                    : 'bg-orange-400'
+                    }`}
                 />
                 <span>
                   {isValidEvmAddress(evmAddress)
@@ -456,7 +527,7 @@ export function UnregisteredContent({
           )}
         </div>
 
-        {/* 邀请码输入 */}
+        {/* 邀请码输入
         <div className='relative'>
           <input
             type='text'
@@ -489,7 +560,7 @@ export function UnregisteredContent({
               <div className='absolute top-full right-0 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* 错误信息显示 */}
         {registrationError && (
@@ -512,10 +583,10 @@ export function UnregisteredContent({
               if (isRegisteredState) {
                 handleGoToActive();
               } else {
-                if (campaignConfig?.riskConfirmHtml) {
-                  setShowRiskConfirm(true);
+                if (evmAddress) {
+                  setShowEvmConfirm(true);
                 } else {
-                  handleSubmitRegistration();
+                  proceedRegistration();
                 }
               }
             } else {
@@ -527,8 +598,8 @@ export function UnregisteredContent({
               ? isRegisteredState
                 ? false
                 : !allRequiredTasksCompleted ||
-                  isSubmitting ||
-                  (evmAddress.length > 0 && !isValidEvmAddress(evmAddress))
+                isSubmitting ||
+                (evmAddress.length > 0 && !isValidEvmAddress(evmAddress))
               : false
           }
           style={{
@@ -538,8 +609,8 @@ export function UnregisteredContent({
                 : allRequiredTasksCompleted &&
                   !isSubmitting &&
                   (evmAddress.length === 0 || isValidEvmAddress(evmAddress))
-                ? 1
-                : 0.6
+                  ? 1
+                  : 0.6
               : 1,
             cursor: isLoggedIn
               ? isRegisteredState
@@ -547,8 +618,8 @@ export function UnregisteredContent({
                 : allRequiredTasksCompleted &&
                   !isSubmitting &&
                   (evmAddress.length === 0 || isValidEvmAddress(evmAddress))
-                ? 'pointer'
-                : 'not-allowed'
+                  ? 'pointer'
+                  : 'not-allowed'
               : 'pointer',
           }}
         >
@@ -557,8 +628,8 @@ export function UnregisteredContent({
               ? isRegisteredState
                 ? goToOfficialButtonText
                 : isSubmitting
-                ? t('submitting')
-                : ctaButtonText
+                  ? t('submitting')
+                  : ctaButtonText
               : t('loginToJoin')}
           </span>
           <ExternalLink className='w-3 h-3 ml-1.5' />
@@ -568,27 +639,45 @@ export function UnregisteredContent({
             {!evmAddress
               ? t('mantleHunterPleaseVerifyWalletFirst')
               : evmAddress.length > 0 && !isValidEvmAddress(evmAddress)
-              ? t('mantleHunterCheckEvmAddressFormat')
-              : t('mantleHunterCompleteTasksFirst')}
+                ? t('mantleHunterCheckEvmAddressFormat')
+                : t('mantleHunterCompleteTasksFirst')}
             <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
           </div>
         )}
       </div>
 
-      {/* 活动说明链接 */}
-      <div className='flex justify-center pb-2'>
-        <a
-          href={'#'}
-          onClick={(e) => {
-            e.preventDefault();
-            handleOpenGuide();
-          }}
-          className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
-        >
-          {viewGuideLinkText}
-          <ExternalLink className='w-2.5 h-2.5' />
-        </a>
-      </div>
+      {/* 活动说明链接：活动页面 + 活动指南，并列展示 */}
+      {(isUrlValid(campaignConfig?.links?.activeUrl) ||
+        isUrlValid(campaignConfig?.links?.guideUrl)) && (
+          <div className='flex justify-center items-center gap-3 pb-2 flex-wrap'>
+            {isUrlValid(campaignConfig?.links?.activeUrl) && (
+              <a
+                href={'#'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openNewTab(campaignConfig?.links?.activeUrl || '#');
+                }}
+                className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
+              >
+                <Globe className='w-2.5 h-2.5' />
+                {goToOfficialButtonText}
+              </a>
+            )}
+            {isUrlValid(campaignConfig?.links?.guideUrl) && (
+              <a
+                href={'#'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openNewTab(campaignConfig?.links?.guideUrl || '#');
+                }}
+                className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
+              >
+                <BookOpen className='w-2.5 h-2.5' />
+                {viewGuideLinkText}
+              </a>
+            )}
+          </div>
+        )}
     </div>
   );
 }

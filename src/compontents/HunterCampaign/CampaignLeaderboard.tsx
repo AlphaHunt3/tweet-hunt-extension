@@ -2,9 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useRequest } from 'ahooks';
 import { Heart, Repeat, Eye } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { Tabs } from '../Tabs';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
-import { formatRank } from '~js/utils.ts';
+import AvatarRankBadge from '../AvatarRankBadge';
 import { rankService } from '~/utils/rankService';
 import { openNewTab } from '~contents/utils';
 import { type LeaderboardItem, HunterCampaignConfig } from './types';
@@ -20,12 +21,17 @@ interface CampaignLeaderboardProps {
 export function CampaignLeaderboard({
   campaignConfig,
 }: CampaignLeaderboardProps) {
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'mindshare' | 'hotTweets'>(
-    'mindshare'
-  );
+  const { t, lang } = useI18n();
+  const [activeTab, setActiveTab] = useState<
+    'mindshare' | 'hotTweets' | 'articleContest'
+  >('mindshare');
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const [showAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
+
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
 
@@ -75,6 +81,89 @@ export function CampaignLeaderboard({
       };
     }
   };
+
+  const parseRewardAmount = (reward: string | null | undefined): number | null => {
+    if (!reward) return null;
+    const cleaned = String(reward).replace(/,/g, '').trim();
+    const match = cleaned.match(/-?\d+(\.\d+)?/);
+    if (!match) return null;
+    const value = Number(match[0]);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const getRewardColorScheme = (
+    rewardValue: number | null,
+    maxValue: number | null,
+    index?: number
+  ) => {
+    // Top 3: align with rank badge colors (gold / silver / bronze)
+    if (index === 0) {
+      return {
+        bg: 'from-[#e3c102]/18 to-[#e3c102]/6',
+        border: 'border-[#e3c102]/35',
+        text: 'text-[#e3c102]',
+      };
+    }
+    if (index === 1) {
+      return {
+        bg: 'from-[#C0C0C0]/18 to-[#C0C0C0]/6',
+        border: 'border-[#C0C0C0]/35',
+        text: 'text-[#C0C0C0]',
+      };
+    }
+    if (index === 2) {
+      return {
+        bg: 'from-[#CD7F32]/18 to-[#CD7F32]/6',
+        border: 'border-[#CD7F32]/35',
+        text: 'text-[#CD7F32]',
+      };
+    }
+
+    // fallback
+    if (rewardValue === null || maxValue === null || maxValue <= 0) {
+      return {
+        bg: 'from-amber-500/10 to-yellow-500/8',
+        border: 'border-amber-400/25',
+        text: 'text-amber-400',
+      };
+    }
+
+    const ratio = rewardValue / maxValue;
+
+    if (ratio >= 0.8) {
+      return {
+        bg: 'from-amber-500/12 to-yellow-500/8',
+        border: 'border-amber-400/25',
+        text: 'text-amber-400',
+      };
+    }
+    if (ratio >= 0.6) {
+      return {
+        bg: 'from-purple-500/10 to-violet-500/8',
+        border: 'border-purple-400/25',
+        text: 'text-purple-400',
+      };
+    }
+    if (ratio >= 0.4) {
+      return {
+        bg: 'from-blue-500/10 to-cyan-500/8',
+        border: 'border-blue-400/25',
+        text: 'text-blue-400',
+      };
+    }
+    if (ratio >= 0.2) {
+      return {
+        bg: 'from-emerald-500/10 to-green-500/8',
+        border: 'border-emerald-400/25',
+        text: 'text-emerald-400',
+      };
+    }
+    return {
+      bg: 'from-slate-500/8 to-gray-500/6',
+      border: 'border-slate-400/20',
+      text: 'text-slate-400',
+    };
+  };
   // 获取热门推文数据
   const { data: hotTweetsData, loading: hotTweetsLoading } = useRequest(
     () =>
@@ -101,10 +190,10 @@ export function CampaignLeaderboard({
     }
   );
 
-  // 转换API数据为组件需要的格式，只展示前10条
+  // 转换API数据为组件需要的格式
   const mindshareData = useMemo(() => {
     if (!leaderboardData?.mindshare) return [];
-    return leaderboardData.mindshare.slice(0, 10).map((item: any) => ({
+    return leaderboardData.mindshare.map((item: any) => ({
       rank: item.rank,
       username: item.username,
       displayName: item.name,
@@ -117,17 +206,21 @@ export function CampaignLeaderboard({
 
   // 已移除 Workshare 展示
 
-  // 获取头像排名（xhunt rank）- 只获取当前活跃tab的前10名用户排名
+  // 获取头像排名（xhunt rank）
   useEffect(() => {
-    if (!showAvatarRank) return;
+    if (isAvatarRankModeLoading) return;
 
-    // 仅在 mindshare 标签下获取用户排名；hotTweets 不需要
-    const usernames: string[] =
-      activeTab === 'mindshare'
-        ? (mindshareData
-            .map((i: LeaderboardItem) => i.username)
-            .filter(Boolean) as string[])
-        : [];
+    // 在 mindshare 和 articleContest 标签下获取用户排名；hotTweets 不需要
+    let usernames: string[] = [];
+    if (activeTab === 'mindshare') {
+      usernames = (mindshareData
+        .map((i: LeaderboardItem) => i.username)
+        .filter(Boolean) as string[]);
+    } else if (activeTab === 'articleContest') {
+      usernames = (campaignConfig.essayContestWinners || [])
+        .map((winner) => winner.handler)
+        .filter(Boolean) as string[];
+    }
 
     if (usernames.length === 0) return;
 
@@ -135,22 +228,20 @@ export function CampaignLeaderboard({
       setLoadingRanks(loadingUsernames);
     });
 
-    rankService.getRanks(usernames).then((ranks) => {
+    rankService.getRanks(usernames, avatarRankMode).then((ranks) => {
       setUserRanks(ranks);
     });
 
     return () => {
       removeCallback();
     };
-  }, [activeTab, mindshareData, showAvatarRank]);
-
-  const handleViewMore = () => {
-    // campaignConfig.links.getActiveUrl() 会根据活动类型（Mantle/Bybit）
-    // 调用对应的 configManager 方法获取活动链接
-    // 定义位置：campaignConfigs.ts 中的 links.getActiveUrl
-    const url = campaignConfig.links.getActiveUrl();
-    openNewTab(url || '#');
-  };
+  }, [
+    activeTab,
+    mindshareData,
+    campaignConfig.essayContestWinners,
+    avatarRankMode,
+    isAvatarRankModeLoading,
+  ]);
 
   // 格式化数字
   const formatNumber = (num: number | null | undefined) => {
@@ -181,9 +272,26 @@ export function CampaignLeaderboard({
           rel='noopener noreferrer'
           className='flex items-center gap-2.5'
         >
+          {/* 排名徽标：前三名奖牌，其他显示序号 */}
+          <div className='flex-shrink-0 flex justify-center w-7'>
+            {item.rank === 1 ? (
+              <span className='text-xl'>🥇</span>
+            ) : item.rank === 2 ? (
+              <span className='text-base'>🥈</span>
+            ) : item.rank === 3 ? (
+              <span className='text-base'>🥉</span>
+            ) : (
+              <span className='text-[10px] font-semibold theme-text-secondary'>
+                #{item.rank ?? '-'}
+              </span>
+            )}
+          </div>
+
           <div
             className='relative rounded-full'
-            style={{ border: '3px solid #60A5FA80' }}
+            style={{
+              border: '3px solid var(--xhunt-avatar-outer-border-color)',
+            }}
           >
             <img
               src={
@@ -191,33 +299,22 @@ export function CampaignLeaderboard({
                 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
               }
               alt={item.displayName}
-              className='w-[34px] h-[34px] rounded-full object-cover'
+              className='w-[30px] h-[30px] rounded-full object-cover'
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
               }}
             />
-            {showAvatarRank ? (
-              <div
-                className={`xhunt-avatar-rank-badge ${
-                  userRank && userRank > 0 && userRank <= 10000
-                    ? 'high-ranked'
-                    : ''
-                } ${isLoading ? 'loading' : ''}`}
-                data-theme={theme}
-              >
-                <span
-                  className='xhunt-avatar-rank-text'
-                  dangerouslySetInnerHTML={{
-                    __html: isLoading ? '~' : formatRank(userRank),
-                  }}
-                ></span>
-              </div>
-            ) : null}
+            <AvatarRankBadge
+              rank={userRank}
+              isLoading={isLoading}
+              avatarRankMode={avatarRankMode}
+              theme={theme}
+            />
           </div>
           <div className='flex-1 min-w-0'>
             <div className='flex items-center gap-1'>
-              <p className='font-medium text-sm theme-text-primary truncate'>
+              <p className='font-medium text-[13px] theme-text-primary truncate'>
                 {item.displayName}
               </p>
               {item.isVerified && (
@@ -230,7 +327,7 @@ export function CampaignLeaderboard({
                 </svg>
               )}
             </div>
-            <p className='text-xs theme-text-secondary truncate'>
+            <p className='text-[11px] theme-text-secondary truncate'>
               @{item.username}
             </p>
           </div>
@@ -248,6 +345,115 @@ export function CampaignLeaderboard({
                     className={`text-[11px] font-medium ${colorScheme.text}`}
                   >
                     {(item.share * 100).toFixed(1)}%
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+        </a>
+      </div>
+    );
+  };
+
+  const essayContestMaxReward = useMemo(() => {
+    const winners = campaignConfig.essayContestWinners || [];
+    const values = winners
+      .map((w) => parseRewardAmount(w.reward))
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return null;
+    return Math.max(...values);
+  }, [campaignConfig.essayContestWinners]);
+
+  // 渲染征文大赛获奖者
+  const renderEssayContestWinner = (
+    winner: {
+      name: string;
+      handler: string;
+      avatar: string;
+      reward: string;
+    },
+    index: number,
+    totalItems: number
+  ) => {
+    const username = winner.handler;
+    const userRank = userRanks[username] || -1;
+    const isLoading = loadingRanks.has(username);
+
+    return (
+      <div
+        key={winner.handler}
+        className='px-3 py-2 rounded-md theme-hover transition-colors'
+      >
+        <a
+          href={`https://x.com/${winner.handler}`}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='flex items-center gap-2.5'
+        >
+          {/* 序号排名：前三奖牌，后续序号 */}
+          <div className='flex-shrink-0 flex justify-center w-7'>
+            {index === 0 ? (
+              <span className='text-xl'>🥇</span>
+            ) : index === 1 ? (
+              <span className='text-base'>🥈</span>
+            ) : index === 2 ? (
+              <span className='text-base'>🥉</span>
+            ) : (
+              <span className='text-[10px] font-semibold theme-text-secondary'>
+                #{index + 1}
+              </span>
+            )}
+          </div>
+
+          <div
+            className='relative rounded-full'
+            style={{
+              border: '3px solid var(--xhunt-avatar-outer-border-color)',
+            }}
+          >
+            <img
+              src={
+                winner.avatar ||
+                'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
+              }
+              alt={winner.name}
+              className='w-[34px] h-[34px] rounded-full object-cover'
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+              }}
+            />
+            <AvatarRankBadge
+              rank={userRank}
+              isLoading={isLoading}
+              avatarRankMode={avatarRankMode}
+              theme={theme}
+            />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <div className='flex items-center gap-1'>
+              <p className='font-medium text-sm theme-text-primary truncate'>
+                {winner.name}
+              </p>
+            </div>
+            <p className='text-xs theme-text-secondary truncate'>
+              @{winner.handler}
+            </p>
+          </div>
+          <div className='flex flex-col items-end justify-center ml-2'>
+            {(() => {
+              const rewardValue = parseRewardAmount(winner.reward);
+              const scheme = getRewardColorScheme(
+                rewardValue,
+                essayContestMaxReward,
+                index
+              );
+              return (
+                <div
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md bg-gradient-to-r ${scheme.bg} border ${scheme.border}`}
+                >
+                  <span className={`text-[11px] font-medium ${scheme.text}`}>
+                    {winner.reward} {campaignConfig.rewardUnit || ''}
                   </span>
                 </div>
               );
@@ -336,36 +542,84 @@ export function CampaignLeaderboard({
     );
   };
 
+  const handleViewMore = () => {
+    const url = campaignConfig.links.getActiveUrl();
+    if (url) openNewTab(url);
+  };
+
+  const showLeaderboardLink = useMemo(
+    () => campaignConfig.links.getShowLeaderboardLink?.() ?? false,
+    [campaignConfig.links]
+  );
+
+  // 计算显示的金额文本（带奖池前缀）
+  const getRewardText = (amount?: number, unit?: string) => {
+    if (!amount) return '';
+    const formattedAmount = new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(amount);
+    const poolLabel = lang === 'zh' ? '奖池' : 'Prize pool ';
+    return `${poolLabel}${formattedAmount}${unit ? ` ${unit}` : ''}`.trim();
+  };
+
+  // 使用 Tabs 组件：短标签展示，长文本（含奖池）hover 展示，避免换行
+  const leaderboardTabs = useMemo(() => {
+    const tabs: { id: string; label: string; tooltip?: string }[] = [
+      {
+        id: 'mindshare',
+        label: t('mantleHunterTabMindshare'),
+        tooltip:
+          campaignConfig.rewardAmount
+            ? `${t('mantleHunterTabMindshare')}（${getRewardText(
+              campaignConfig.rewardAmount,
+              campaignConfig.rewardUnit
+            )}）`
+            : undefined,
+      },
+    ];
+    if (campaignConfig.enableEssayContest) {
+      tabs.push({
+        id: 'articleContest',
+        label: t('mantleHunterTabArticleContest'),
+        tooltip:
+          campaignConfig.essayContestAmount
+            ? `${t('mantleHunterTabArticleContest')}（${getRewardText(
+              campaignConfig.essayContestAmount,
+              campaignConfig.rewardUnit
+            )}）`
+            : t('mantleHunterTabArticleContest'),
+      });
+    }
+    tabs.push({
+      id: 'hotTweets',
+      label: t('mantleHunterTabHotTweets'),
+      tooltip: t('mantleHunterTabHotTweets'),
+    });
+    return tabs;
+  }, [
+    campaignConfig.rewardAmount,
+    campaignConfig.rewardUnit,
+    campaignConfig.enableEssayContest,
+    campaignConfig.essayContestAmount,
+    lang,
+    t,
+  ]);
+
   return (
     <div className='space-y-1.5'>
-      {/* Tab Headers - 参考 Tabs 组件的设计 */}
-      <div className='flex border-b theme-border'>
-        <button
-          onClick={() => setActiveTab('mindshare')}
-          className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
-            activeTab === 'mindshare'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'theme-text-secondary hover:theme-text-primary'
-          }`}
-        >
-          {t('mantleHunterTabMindshare')}
-        </button>
-        {/* 已移除 Workshare 标签 */}
-        <button
-          onClick={() => setActiveTab('hotTweets')}
-          className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
-            activeTab === 'hotTweets'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'theme-text-secondary hover:theme-text-primary'
-          }`}
-        >
-          {t('mantleHunterTabHotTweets')}
-        </button>
-      </div>
+      <Tabs
+        tabs={leaderboardTabs}
+        activeTab={activeTab}
+        onChange={(id) => setActiveTab(id as typeof activeTab)}
+        zhMaxRow={Math.min(3, leaderboardTabs.length)}
+        enMaxRow={Math.min(3, leaderboardTabs.length)}
+        labelClassName='text-xs'
+      />
 
       {/* Tab Content - 固定高度，查看更多按钮固定在底部 */}
       <div className='relative'>
-        <div className='max-h-[290px] overflow-y-auto custom-scrollbar pb-10'>
+        <div className={`max-h-[290px] overflow-y-auto custom-scrollbar ${showLeaderboardLink ? 'pb-10' : ''}`}>
           <div className='space-y-2 py-2'>
             {activeTab === 'mindshare' &&
               (leaderboardLoading ? (
@@ -388,7 +642,24 @@ export function CampaignLeaderboard({
                   <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
                 </div>
               ) : hotTweetsData?.data?.data?.length > 0 ? (
-                hotTweetsData.data.data.slice(0, 10).map(renderHotTweet)
+                hotTweetsData.data.data.map(renderHotTweet)
+              ) : (
+                <div className='flex items-center justify-center py-4 theme-text-secondary'>
+                  <span className='text-xs'>
+                    {t('mantleHunterNoHotTweets')}
+                  </span>
+                </div>
+              ))}
+            {activeTab === 'articleContest' &&
+              (campaignConfig.essayContestWinners &&
+                campaignConfig.essayContestWinners.length > 0 ? (
+                campaignConfig.essayContestWinners.map((winner, index) =>
+                  renderEssayContestWinner(
+                    winner,
+                    index,
+                    campaignConfig.essayContestWinners!.length
+                  )
+                )
               ) : (
                 <div className='flex items-center justify-center py-4 theme-text-secondary'>
                   <span className='text-xs'>
@@ -399,23 +670,24 @@ export function CampaignLeaderboard({
           </div>
         </div>
 
-        {/* 查看更多按钮 - 固定在底部 */}
-        <div
-          className='absolute bottom-0 left-0 right-0 pt-6 pb-2 z-[9999]'
-          style={{
-            background:
-              theme === 'dark'
-                ? 'linear-gradient(to top, #000000 0%, #000000 50%, transparent 100%)'
-                : 'linear-gradient(to top, var(--bg-primary) 0%, var(--bg-primary) 50%, transparent 100%)',
-          }}
-        >
-          <button
-            onClick={handleViewMore}
-            className='w-full py-2 px-3 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-md'
+        {showLeaderboardLink && (
+          <div
+            className='absolute bottom-0 left-0 right-0 pt-6 pb-2 z-[9999]'
+            style={{
+              background:
+                theme === 'dark'
+                  ? 'linear-gradient(to top, #000000 0%, #000000 50%, transparent 100%)'
+                  : 'linear-gradient(to top, var(--bg-primary) 0%, var(--bg-primary) 50%, transparent 100%)',
+            }}
           >
-            {t('mantleHunterViewMore')}
-          </button>
-        </div>
+            <button
+              onClick={handleViewMore}
+              className='w-full py-2 px-3 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-md'
+            >
+              {t('mantleHunterViewMore')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

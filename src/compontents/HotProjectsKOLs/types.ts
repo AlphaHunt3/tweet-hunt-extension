@@ -1,5 +1,6 @@
 export interface HotItem {
   id: string;
+  score?: number;
   share: number;
   summary_cn?: string;
   summary_en?: string;
@@ -54,9 +55,51 @@ export interface TokenTreemapNode
 export interface HotDiscussion {
   price: number | null;
   share: number;
+  score?: number;
   summary_cn: string;
   summary_en: string;
   tag: string;
+  twitter: {
+    ai: {
+      classification: 'project' | 'person';
+      is_cn: boolean;
+    };
+    create_time: string;
+    id: string;
+    name: string;
+    profile: {
+      changed_field: string[];
+      description: string;
+      first_record: string;
+      followers_count: number;
+      following_count: number;
+      is_blue_verified: boolean;
+      listed_count: number;
+      location: string;
+      name: string;
+      pinned_tweet_id: string[];
+      profile_banner_url: string;
+      profile_image_url: string;
+      protected: boolean;
+      tweets_count: number;
+      url: string;
+      username: string;
+      username_raw: string;
+      verified: boolean;
+    };
+    username: string;
+    username_raw: string;
+  };
+}
+
+// discussion 情绪（positive/negative）
+export interface DiscussionAttitudeItem {
+  attitude: 'positive' | 'negative';
+  percentage: number;
+  share: number;
+  displayValue?: string;
+  summary_cn: string;
+  summary_en: string;
   twitter: {
     ai: {
       classification: 'project' | 'person';
