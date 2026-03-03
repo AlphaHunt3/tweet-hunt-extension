@@ -8,6 +8,8 @@ import {
   Info,
   Wallet,
   Calendar,
+  Trophy,
+  Flag,
 } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
@@ -72,6 +74,7 @@ export function UnregisteredContent({
   const { t, lang } = useI18n();
   const [showRiskConfirm, setShowRiskConfirm] = React.useState(false);
   const [showEvmConfirm, setShowEvmConfirm] = React.useState(false);
+  const [agreedToSponsoredPolicy, setAgreedToSponsoredPolicy] = React.useState(false);
 
   // 使用配置的翻译键，如果没有配置则使用默认翻译键
   const ctaButtonText = t(
@@ -84,6 +87,8 @@ export function UnregisteredContent({
   const viewGuideLinkText = t(
     campaignConfig?.copy?.viewGuideLinkKey || 'mantleHunterViewOfficialGuide'
   );
+
+
 
   // 针对邀请码输入框拦截快捷键（组合键等），避免输入体验被打断
   const inviteInputRef = useRef<HTMLInputElement | null>(null);
@@ -144,6 +149,15 @@ export function UnregisteredContent({
     return s || e || '';
   };
 
+  // 判断活动是否已结束
+  const isCampaignEnded = (): boolean => {
+    if (!campaignConfig?.enrollmentWindow?.endAt) return false;
+    const endTime = new Date(campaignConfig.enrollmentWindow.endAt).getTime();
+    return Date.now() > endTime;
+  };
+
+  const campaignEnded = isCampaignEnded();
+
   const proceedRegistration = () => {
     if (campaignConfig?.riskConfirmHtml) {
       setShowRiskConfirm(true);
@@ -165,16 +179,16 @@ export function UnregisteredContent({
             {campaignConfig.enrollmentWindow &&
               (campaignConfig.enrollmentWindow.startAt ||
                 campaignConfig.enrollmentWindow.endAt) && (
-                <div className='flex items-center justify-between gap-2'>
+                <div className={`flex items-center justify-between gap-2 ${campaignEnded ? 'py-1.5 px-2 -mx-2 rounded-md bg-gray-500/10' : ''}`}>
                   <div className='flex items-center gap-1.5 min-w-0'>
-                    <div className='w-4 h-4 flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300/90'>
-                      <Calendar className='w-3 h-3' />
+                    <div className={`flex items-center justify-center rounded-full ${campaignEnded ? 'w-5 h-5 bg-gray-500/20 text-gray-400' : 'w-4 h-4 bg-amber-500/10 text-amber-300/90'}`}>
+                      {campaignEnded ? <Flag className='w-3.5 h-3.5' /> : <Calendar className='w-3 h-3' />}
                     </div>
-                    <span className='text-[10px] theme-text-secondary font-medium truncate'>
-                      {t('mantleHunterActivityTime')}
+                    <span className={`font-medium truncate ${campaignEnded ? 'text-xs theme-text-primary' : 'text-[10px] theme-text-secondary'}`}>
+                      {campaignEnded ? t('ended') : t('mantleHunterActivityTime')}
                     </span>
                   </div>
-                  <div className='text-[10px] theme-text-secondary font-medium truncate'>
+                  <div className={`font-medium truncate ${campaignEnded ? 'text-xs text-gray-400' : 'text-[10px] theme-text-secondary'}`}>
                     {formatRange(
                       campaignConfig.enrollmentWindow.startAt,
                       campaignConfig.enrollmentWindow.endAt
@@ -184,8 +198,10 @@ export function UnregisteredContent({
               )}
           </div>
         )}
-      {/* 任务列表 - 重新设计 */}
-      <div className='space-y-1.5'>
+
+
+      {/* 任务列表 - 重新设计（活动结束时隐藏） */}
+      {!campaignEnded && <div className='space-y-1.5'>
         {/* 前4个任务：2x2网格布局 */}
         <div className='grid grid-cols-2 gap-1.5'>
           {tasks
@@ -329,7 +345,7 @@ export function UnregisteredContent({
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* 风险提示弹框 */}
       {showRiskConfirm && (
@@ -424,41 +440,125 @@ export function UnregisteredContent({
         </div>
       )}
 
-      <div className='space-y-1'>
-        <div className='flex items-center gap-1.5'>
-          <div className='relative flex-1'>
-            {/* 注释掉原来的只读输入框，改为可编辑的输入框 */}
-            {/* <input
-              type='text'
-              value={formatEvmAddress(evmAddress)}
-              placeholder={t('mantleHunterPlaceholderEvmAddress')}
-              className={`w-full px-2 py-1.5 pr-8 text-xs rounded-md outline-none cursor-pointer backdrop-blur-sm transition-colors ${'bg-white/5 theme-text-primary border theme-border border-white/10 focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 hover:border-blue-400/30'}`}
+      {/* EVM 输入框区域（活动结束时隐藏） */}
+      {!campaignEnded && (
+        <div className='space-y-1'>
+          <div className='flex items-center gap-1.5'>
+            <div className='relative flex-1'>
+              {/* 注释掉原来的只读输入框，改为可编辑的输入框 */}
+              {/* <input
+                type='text'
+                value={formatEvmAddress(evmAddress)}
+                placeholder={t('mantleHunterPlaceholderEvmAddress')}
+                className={`w-full px-2 py-1.5 pr-8 text-xs rounded-md outline-none cursor-pointer backdrop-blur-sm transition-colors ${'bg-white/5 theme-text-primary border theme-border border-white/10 focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 hover:border-blue-400/30'}`}
+                onClick={() => {
+                  clearRegistrationError(); // 清空错误显示
+                  if (!isLoggedIn) {
+                    redirectToLogin();
+                    return;
+                  }
+                  handleWalletVerification();
+                }}
+                title={evmAddress || t('mantleHunterClickToVerifyWallet')}
+                readOnly
+              /> */}
+
+              {/* 新的可编辑 EVM 地址输入框 */}
+              <input
+                type='text'
+                value={evmAddress}
+                onChange={(e) => handleEvmAddressChange(e.target.value)}
+                placeholder={t('mantleHunterPlaceholderEvmAddress')}
+                ref={evmAddressInputRef}
+                className='w-full px-2 py-1.5 pr-8 text-xs rounded-md outline-none backdrop-blur-sm transition-colors bg-white/5 theme-text-primary border theme-border border-white/10 focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 hover:border-blue-400/30'
+                onFocus={() => {
+                  currentInputRef.current = evmAddressInputRef.current;
+                  clearRegistrationError();
+                  // if (!isLoggedIn) {
+                  //   redirectToLogin();
+                  // }
+                }}
+                onBlur={() => {
+                  currentInputRef.current = null;
+                }}
+                onCompositionStart={() => {
+                  isComposingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  isComposingRef.current = false;
+                }}
+              />
+
+              <div className='absolute right-2 top-1/2 transform -translate-y-1/2 group'>
+                <Info className='w-3 h-3 text-blue-400/60 hover:text-blue-400 cursor-help transition-colors' />
+                <div className='absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap'>
+                  {t('mantleHunterInfoEvmAddress')}
+                  <div className='absolute top-full right-0 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
+                </div>
+              </div>
+            </div>
+
+            {/* 注释掉钱包验证按钮 */}
+            {/* <button
               onClick={() => {
                 clearRegistrationError(); // 清空错误显示
-                if (!isLoggedIn) {
-                  redirectToLogin();
-                  return;
-                }
                 handleWalletVerification();
               }}
-              title={evmAddress || t('mantleHunterClickToVerifyWallet')}
-              readOnly
-            /> */}
+              disabled={isVerifyingWallet}
+              className='inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md bg-gradient-to-r from-purple-500/8 to-blue-500/8 border border-purple-400/20 hover:border-purple-400/30 theme-text-primary transition-all duration-200 disabled:opacity-60'
+            >
+              {isVerifyingWallet ? (
+                <>
+                  <div className='w-2.5 h-2.5 border border-purple-400 border-t-transparent rounded-full animate-spin' />
+                  <span>{t('connecting')}</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className='w-3 h-3' />
+                  <span>{t('mantleHunterTaskVerifyWallet')}</span>
+                </>
+              )}
+            </button> */}
 
-            {/* 新的可编辑 EVM 地址输入框 */}
+            {/* EVM地址验证提示1 */}
+            {evmAddress && evmAddress.length > 0 && (
+              <div
+                className={`px-2 py-1.5 text-xs rounded-md transition-all duration-200 ${isValidEvmAddress(evmAddress)
+                  ? 'text-green-400 bg-green-500/10 border border-green-500/20'
+                  : 'text-orange-400 bg-orange-500/10 border border-orange-500/20'
+                  }`}
+              >
+                <div className='flex items-center gap-1.5'>
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${isValidEvmAddress(evmAddress)
+                      ? 'bg-green-400'
+                      : 'bg-orange-400'
+                      }`}
+                  />
+                  <span>
+                    {isValidEvmAddress(evmAddress)
+                      ? t('mantleHunterEvmAddressFormatCorrect')
+                      : t('mantleHunterEvmAddressFormatIncorrect')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 邀请码输入
+          <div className='relative'>
             <input
               type='text'
-              value={evmAddress}
-              onChange={(e) => handleEvmAddressChange(e.target.value)}
-              placeholder={t('mantleHunterPlaceholderEvmAddress')}
-              ref={evmAddressInputRef}
-              className='w-full px-2 py-1.5 pr-8 text-xs rounded-md outline-none backdrop-blur-sm transition-colors bg-white/5 theme-text-primary border theme-border border-white/10 focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 hover:border-blue-400/30'
+              value={userInviteCode}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+                setUserInviteCode(value);
+                clearRegistrationError(); // 清空错误显示
+              }}
+              placeholder={t('mantleHunterPlaceholderInvite')}
+              ref={inviteInputRef}
               onFocus={() => {
-                currentInputRef.current = evmAddressInputRef.current;
-                clearRegistrationError();
-                // if (!isLoggedIn) {
-                //   redirectToLogin();
-                // }
+                currentInputRef.current = inviteInputRef.current;
               }}
               onBlur={() => {
                 currentInputRef.current = null;
@@ -469,112 +569,67 @@ export function UnregisteredContent({
               onCompositionEnd={() => {
                 isComposingRef.current = false;
               }}
+              className='w-full px-2 py-1.5 text-xs rounded-md bg-white/5 theme-text-primary border theme-border border-white/10 outline-none focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 transition-all duration-200 placeholder-gray-400/80 backdrop-blur-sm'
             />
-
             <div className='absolute right-2 top-1/2 transform -translate-y-1/2 group'>
               <Info className='w-3 h-3 text-blue-400/60 hover:text-blue-400 cursor-help transition-colors' />
               <div className='absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap'>
-                {t('mantleHunterInfoEvmAddress')}
+                {t('mantleHunterInfoInviteCode')}
                 <div className='absolute top-full right-0 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
               </div>
             </div>
-          </div>
+          </div> */}
 
-          {/* 注释掉钱包验证按钮 */}
-          {/* <button
-            onClick={() => {
-              clearRegistrationError(); // 清空错误显示
-              handleWalletVerification();
-            }}
-            disabled={isVerifyingWallet}
-            className='inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md bg-gradient-to-r from-purple-500/8 to-blue-500/8 border border-purple-400/20 hover:border-purple-400/30 theme-text-primary transition-all duration-200 disabled:opacity-60'
-          >
-            {isVerifyingWallet ? (
-              <>
-                <div className='w-2.5 h-2.5 border border-purple-400 border-t-transparent rounded-full animate-spin' />
-                <span>{t('connecting')}</span>
-              </>
-            ) : (
-              <>
-                <Wallet className='w-3 h-3' />
-                <span>{t('mantleHunterTaskVerifyWallet')}</span>
-              </>
-            )}
-          </button> */}
-
-          {/* EVM地址验证提示1 */}
-          {evmAddress && evmAddress.length > 0 && (
-            <div
-              className={`px-2 py-1.5 text-xs rounded-md transition-all duration-200 ${isValidEvmAddress(evmAddress)
-                ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-                : 'text-orange-400 bg-orange-500/10 border border-orange-500/20'
-                }`}
-            >
+          {/* 错误信息显示 */}
+          {registrationError && (
+            <div className='px-2 py-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-md animate-in slide-in-from-top-1 duration-200'>
               <div className='flex items-center gap-1.5'>
-                <div
-                  className={`w-1.5 h-1.5 rounded-full ${isValidEvmAddress(evmAddress)
-                    ? 'bg-green-400'
-                    : 'bg-orange-400'
-                    }`}
-                />
-                <span>
-                  {isValidEvmAddress(evmAddress)
-                    ? t('mantleHunterEvmAddressFormatCorrect')
-                    : t('mantleHunterEvmAddressFormatIncorrect')}
-                </span>
+                <div className='w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse' />
+                <span>{registrationError}</span>
               </div>
             </div>
           )}
+
+          {/* 付费推广政策免责声明（仅未报名、配置开启、活动未结束时显示） */}
+          {isLoggedIn && !isRegisteredState && !campaignEnded && campaignConfig?.showSponsoredPolicy && (
+            <label
+              className={`group flex items-start gap-2 p-2 rounded-lg border transition-all duration-200 cursor-pointer ${
+                agreedToSponsoredPolicy
+                  ? 'bg-gradient-to-br from-amber-400/5 to-blue-500/5 border-amber-400/20 hover:border-amber-400/30'
+                  : 'bg-amber-400/[0.02] border-amber-400/15 hover:border-amber-400/25 hover:bg-amber-400/[0.04]'
+              }`}
+            >
+              {/* 自定义 checkbox */}
+              <div
+                className={`relative flex items-center justify-center w-4 h-4 mt-0.5 rounded transition-all duration-200 flex-shrink-0 ${
+                  agreedToSponsoredPolicy
+                    ? 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm shadow-amber-500/20'
+                    : 'border border-dashed border-amber-400/50 group-hover:border-amber-400/70 group-hover:bg-amber-400/5'
+                }`}
+              >
+                {agreedToSponsoredPolicy && (
+                  <Check className='w-2.5 h-2.5 text-white' strokeWidth={3} />
+                )}
+              </div>
+              <input
+                type='checkbox'
+                checked={agreedToSponsoredPolicy}
+                onChange={(e) => setAgreedToSponsoredPolicy(e.target.checked)}
+                className='sr-only'
+              />
+              <p
+                className='text-[10px] leading-relaxed theme-text-secondary/80 select-none'
+                dangerouslySetInnerHTML={{
+                  __html: t('hunterCampaignPaidPartnershipDisclaimer'),
+                }}
+              />
+            </label>
+          )}
         </div>
+      )}
 
-        {/* 邀请码输入
-        <div className='relative'>
-          <input
-            type='text'
-            value={userInviteCode}
-            onChange={(e) => {
-              const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
-              setUserInviteCode(value);
-              clearRegistrationError(); // 清空错误显示
-            }}
-            placeholder={t('mantleHunterPlaceholderInvite')}
-            ref={inviteInputRef}
-            onFocus={() => {
-              currentInputRef.current = inviteInputRef.current;
-            }}
-            onBlur={() => {
-              currentInputRef.current = null;
-            }}
-            onCompositionStart={() => {
-              isComposingRef.current = true;
-            }}
-            onCompositionEnd={() => {
-              isComposingRef.current = false;
-            }}
-            className='w-full px-2 py-1.5 text-xs rounded-md bg-white/5 theme-text-primary border theme-border border-white/10 outline-none focus:border-blue-400/40 focus:ring-1 focus:ring-blue-400/20 transition-all duration-200 placeholder-gray-400/80 backdrop-blur-sm'
-          />
-          <div className='absolute right-2 top-1/2 transform -translate-y-1/2 group'>
-            <Info className='w-3 h-3 text-blue-400/60 hover:text-blue-400 cursor-help transition-colors' />
-            <div className='absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap'>
-              {t('mantleHunterInfoInviteCode')}
-              <div className='absolute top-full right-0 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
-            </div>
-          </div>
-        </div> */}
-
-        {/* 错误信息显示 */}
-        {registrationError && (
-          <div className='px-2 py-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-md animate-in slide-in-from-top-1 duration-200'>
-            <div className='flex items-center gap-1.5'>
-              <div className='w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse' />
-              <span>{registrationError}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 报名按钮 */}
-      <div className='relative group'>
+      {/* 报名按钮（活动结束时隐藏） */}
+      {!campaignEnded && <div className='relative group'>
         <button
           className='w-full relative overflow-hidden px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99]'
           onClick={() => {
@@ -599,7 +654,8 @@ export function UnregisteredContent({
                 ? false
                 : !allRequiredTasksCompleted ||
                 isSubmitting ||
-                (evmAddress.length > 0 && !isValidEvmAddress(evmAddress))
+                (evmAddress.length > 0 && !isValidEvmAddress(evmAddress)) ||
+                (campaignConfig?.showSponsoredPolicy && !agreedToSponsoredPolicy)
               : false
           }
           style={{
@@ -608,7 +664,8 @@ export function UnregisteredContent({
                 ? 1
                 : allRequiredTasksCompleted &&
                   !isSubmitting &&
-                  (evmAddress.length === 0 || isValidEvmAddress(evmAddress))
+                  (evmAddress.length === 0 || isValidEvmAddress(evmAddress)) &&
+                  !(campaignConfig?.showSponsoredPolicy && !agreedToSponsoredPolicy)
                   ? 1
                   : 0.6
               : 1,
@@ -617,7 +674,8 @@ export function UnregisteredContent({
                 ? 'pointer'
                 : allRequiredTasksCompleted &&
                   !isSubmitting &&
-                  (evmAddress.length === 0 || isValidEvmAddress(evmAddress))
+                  (evmAddress.length === 0 || isValidEvmAddress(evmAddress)) &&
+                  !(campaignConfig?.showSponsoredPolicy && !agreedToSponsoredPolicy)
                   ? 'pointer'
                   : 'not-allowed'
               : 'pointer',
@@ -634,22 +692,38 @@ export function UnregisteredContent({
           </span>
           <ExternalLink className='w-3 h-3 ml-1.5' />
         </button>
-        {isLoggedIn && !allRequiredTasksCompleted && (
+        {isLoggedIn && (!allRequiredTasksCompleted || (campaignConfig?.showSponsoredPolicy && !agreedToSponsoredPolicy)) && (
           <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 shadow-lg'>
-            {!evmAddress
-              ? t('mantleHunterPleaseVerifyWalletFirst')
-              : evmAddress.length > 0 && !isValidEvmAddress(evmAddress)
-                ? t('mantleHunterCheckEvmAddressFormat')
-                : t('mantleHunterCompleteTasksFirst')}
+            {!allRequiredTasksCompleted
+              ? (!evmAddress
+                ? t('mantleHunterPleaseVerifyWalletFirst')
+                : evmAddress.length > 0 && !isValidEvmAddress(evmAddress)
+                  ? t('mantleHunterCheckEvmAddressFormat')
+                  : t('mantleHunterCompleteTasksFirst'))
+              : t('hunterCampaignAgreeToPolicyFirst')}
             <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* 活动说明链接：活动页面 + 活动指南，并列展示 */}
+      {/* 活动说明链接：排行榜 + 活动页面 + 活动指南，并列展示 */}
       {(isUrlValid(campaignConfig?.links?.activeUrl) ||
-        isUrlValid(campaignConfig?.links?.guideUrl)) && (
+        isUrlValid(campaignConfig?.links?.guideUrl) ||
+        (campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url))) && (
           <div className='flex justify-center items-center gap-3 pb-2 flex-wrap'>
+            {campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url) && (
+              <a
+                href={'#'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openNewTab(campaignConfig.logos[0].url);
+                }}
+                className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-amber-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
+              >
+                <Trophy className='w-2.5 h-2.5' />
+                {t('viewLeaderboard')}
+              </a>
+            )}
             {isUrlValid(campaignConfig?.links?.activeUrl) && (
               <a
                 href={'#'}
@@ -670,7 +744,7 @@ export function UnregisteredContent({
                   e.preventDefault();
                   openNewTab(campaignConfig?.links?.guideUrl || '#');
                 }}
-                className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
+                className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-violet-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
               >
                 <BookOpen className='w-2.5 h-2.5' />
                 {viewGuideLinkText}

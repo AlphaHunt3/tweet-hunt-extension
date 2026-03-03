@@ -107,6 +107,8 @@ export interface HunterCampaignConfig {
   enrollmentWindow?: { startAt?: string | null; endAt?: string | null };
   // 报名前的风险提示弹框（富文本 HTML）
   riskConfirmHtml?: string;
+  // 是否展示付费推广政策免责声明
+  showSponsoredPolicy?: boolean;
   // ===== 奖励与报名规则相关字段（从服务端透传） =====
   // 奖池金额（如果有的话，优先在其他组件里展示）
   rewardAmount?: number;

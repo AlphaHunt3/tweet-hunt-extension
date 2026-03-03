@@ -1,8 +1,8 @@
 {
   "name": "xhunt",
-  "displayName": "XHunt – Your Crypto Co-pilot on X",
-  "version": "0.2.09",
-  "description": "Your Crypto Co-pilot on X",
+  "displayName": "XHunt – Your AI Co-pilot on X",
+  "version": "0.2.13",
+  "description": "Your AI Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
   "scripts": {

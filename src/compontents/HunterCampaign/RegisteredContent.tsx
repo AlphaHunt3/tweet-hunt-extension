@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, BookOpen, Calendar } from 'lucide-react';
+import { Globe, BookOpen, Calendar, Trophy, Flag } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { openNewTab } from '~contents/utils';
 import { HunterCampaignConfig } from './types';
@@ -52,12 +52,34 @@ export function RegisteredContent({
     return s || e || '';
   };
 
+  // 判断活动是否已结束
+  const isCampaignEnded = (): boolean => {
+    if (!campaignConfig?.enrollmentWindow?.endAt) return false;
+    const endTime = new Date(campaignConfig.enrollmentWindow.endAt).getTime();
+    return Date.now() > endTime;
+  };
+
+  const campaignEnded = isCampaignEnded();
+
   // 使用配置的翻译键，如果没有配置则使用默认翻译键
   const goToOfficialButtonText = t(
     campaignConfig?.copy?.goToOfficialButtonKey || 'mantleHunterStatusGoToOfficial'
   );
   const [showRankTooltip, setShowRankTooltip] = useState(false);
   const [showEvmTooltip, setShowEvmTooltip] = useState(false);
+
+  // 底部按钮展示状态
+  const hasLeaderboard = campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url);
+  const hasOfficial = isUrlValid(campaignConfig?.links?.activeUrl);
+  const hasGuide = isUrlValid(campaignConfig?.links?.guideUrl);
+  const linkCount = (hasLeaderboard ? 1 : 0) + (hasOfficial ? 1 : 0) + (hasGuide ? 1 : 0);
+  // 按钮宽度：1个时100%，多个时每行最多2个（50%），奇数时最后一个占满
+  const getButtonWidth = (index: number, total: number) => {
+    if (total === 1) return 'w-full';
+    // 如果是最后一个且是奇数个（3个中的第3个），占满整行
+    if (index === total - 1 && total % 2 === 1) return 'w-full';
+    return 'w-[calc(50%-3px)]'; // 50%减去gap的一半(3px)
+  };
 
   return (
     <div className='space-y-2.5'>
@@ -86,11 +108,11 @@ export function RegisteredContent({
               campaignConfig.enrollmentWindow.endAt) && (
               <div className='flex items-center justify-between gap-2'>
                 <div className='flex items-center gap-1.5 min-w-0'>
-                  <div className='w-4 h-4 flex items-center justify-center rounded-full bg-amber-500/10 text-amber-300/90'>
-                    <Calendar className='w-3 h-3' />
+                  <div className={`w-4 h-4 flex items-center justify-center rounded-full ${campaignEnded ? 'bg-gray-500/10 text-gray-400' : 'bg-amber-500/10 text-amber-300/90'}`}>
+                    {campaignEnded ? <Flag className='w-3 h-3' /> : <Calendar className='w-3 h-3' />}
                   </div>
                   <span className='text-[10px] theme-text-secondary font-medium truncate'>
-                    {t('mantleHunterActivityTime')}
+                    {campaignEnded ? t('ended') : t('mantleHunterActivityTime')}
                   </span>
                 </div>
                 <div className='text-[10px] theme-text-secondary font-medium truncate'>
@@ -176,40 +198,52 @@ export function RegisteredContent({
         </div>
       </div>
 
-      {/* 官方页面 / 查看指南按钮：0~2 个，同时存在时一行各占 50%，图标区分 */}
-      {(isUrlValid(campaignConfig?.links?.activeUrl) ||
-        isUrlValid(campaignConfig?.links?.guideUrl)) && (
-          <div className='flex gap-1.5'>
-            {isUrlValid(campaignConfig?.links?.activeUrl) && (
-              <a
-                href={'#'}
-                className='flex-1 min-w-0 h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-emerald-500/8 hover:border-emerald-500/25 active:scale-[0.98] border-l-2 border-l-emerald-500/50'
-                onClick={(e) => {
-                  e.preventDefault();
-                  openNewTab(campaignConfig?.links?.activeUrl || '#');
-                }}
-              >
-                <Globe className='w-3.5 h-3.5 shrink-0 opacity-70' />
-                <span className='leading-none truncate'>{goToOfficialButtonText}</span>
-              </a>
-            )}
-            {isUrlValid(campaignConfig?.links?.guideUrl) && (
-              <a
-                href={'#'}
-                className='flex-1 min-w-0 h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-violet-500/8 hover:border-violet-500/25 active:scale-[0.98] border-l-2 border-l-violet-500/50'
-                onClick={(e) => {
-                  e.preventDefault();
-                  openNewTab(campaignConfig?.links?.guideUrl || '#');
-                }}
-              >
-                <BookOpen className='w-3.5 h-3.5 shrink-0 opacity-70' />
-                <span className='leading-none truncate'>
-                  {t('mantleHunterViewOfficialGuide')}
-                </span>
-              </a>
-            )}
-          </div>
-        )}
+      {/* 底部按钮组：排行榜 + 官方页面 + 查看指南 */}
+      {linkCount > 0 && (
+        <div className='flex flex-wrap gap-1.5'>
+          {hasLeaderboard && (
+            <a
+              href={'#'}
+              className={`${getButtonWidth(0, linkCount)} h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-amber-500/8 hover:border-amber-500/25 active:scale-[0.98] border-l-2 border-l-amber-500/50`}
+              onClick={(e) => {
+                e.preventDefault();
+                openNewTab(campaignConfig.logos[0].url);
+              }}
+            >
+              <Trophy className='w-3.5 h-3.5 shrink-0 opacity-70' />
+              <span className='leading-none truncate'>{t('viewLeaderboard')}</span>
+            </a>
+          )}
+          {hasOfficial && (
+            <a
+              href={'#'}
+              className={`${getButtonWidth(hasLeaderboard ? 1 : 0, linkCount)} h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-emerald-500/8 hover:border-emerald-500/25 active:scale-[0.98] border-l-2 border-l-emerald-500/50`}
+              onClick={(e) => {
+                e.preventDefault();
+                openNewTab(campaignConfig?.links?.activeUrl || '#');
+              }}
+            >
+              <Globe className='w-3.5 h-3.5 shrink-0 opacity-70' />
+              <span className='leading-none truncate'>{goToOfficialButtonText}</span>
+            </a>
+          )}
+          {hasGuide && (
+            <a
+              href={'#'}
+              className={`${getButtonWidth(linkCount - 1, linkCount)} h-8 pl-2.5 pr-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border theme-border bg-white/[0.02] theme-text-primary hover:bg-violet-500/8 hover:border-violet-500/25 active:scale-[0.98] border-l-2 border-l-violet-500/50`}
+              onClick={(e) => {
+                e.preventDefault();
+                openNewTab(campaignConfig?.links?.guideUrl || '#');
+              }}
+            >
+              <BookOpen className='w-3.5 h-3.5 shrink-0 opacity-70' />
+              <span className='leading-none truncate'>
+                {t('mantleHunterViewOfficialGuide')}
+              </span>
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
