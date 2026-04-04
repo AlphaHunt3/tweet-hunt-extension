@@ -1,6 +1,7 @@
 // src/contents/hooks/useRealtimeSettings.ts
 
 import { useState, useCallback, useEffect } from 'react';
+import { localStorageInstance } from '~storage/index.ts';
 
 const SETTINGS_STORAGE_KEY = 'xhunt:realtime_settings';
 
@@ -43,40 +44,22 @@ export function useRealtimeSettings() {
 
   // 读取设置
   const readSettings = useCallback(async (): Promise<RealtimeSettings> => {
-    return new Promise((resolve) => {
-      try {
-        (chrome as any).storage?.local?.get(
-          [SETTINGS_STORAGE_KEY],
-          (res: any) => {
-            const savedSettings = res?.[SETTINGS_STORAGE_KEY];
-            if (savedSettings) {
-              resolve(savedSettings);
-            } else {
-              resolve(DEFAULT_SETTINGS);
-            }
-          }
-        );
-      } catch (error) {
-        resolve(DEFAULT_SETTINGS);
-      }
-    });
+    try {
+      const saved = (await localStorageInstance.get(
+        SETTINGS_STORAGE_KEY
+      )) as RealtimeSettings | null;
+      return saved || DEFAULT_SETTINGS;
+    } catch (error) {
+      return DEFAULT_SETTINGS;
+    }
   }, []);
 
   // 保存设置
   const saveSettings = useCallback(
     async (newSettings: RealtimeSettings): Promise<void> => {
-      return new Promise((resolve) => {
-        try {
-          (chrome as any).storage?.local?.set(
-            { [SETTINGS_STORAGE_KEY]: newSettings },
-            () => {
-              resolve();
-            }
-          );
-        } catch (error) {
-          resolve();
-        }
-      });
+      try {
+        await localStorageInstance.set(SETTINGS_STORAGE_KEY, newSettings);
+      } catch {}
     },
     []
   );
@@ -127,16 +110,17 @@ export function useRealtimeSettings() {
 
   // 监听 storage 变化以同步设置
   useEffect(() => {
-    const handleStorageChange = (changes: { [key: string]: any }) => {
-      if (changes[SETTINGS_STORAGE_KEY]?.newValue) {
-        setSettings(changes[SETTINGS_STORAGE_KEY].newValue);
-      }
+    const handler = async () => {
+      try {
+        const saved = (await localStorageInstance.get(
+          SETTINGS_STORAGE_KEY
+        )) as RealtimeSettings | null;
+        if (saved) setSettings(saved);
+      } catch {}
     };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
+    localStorageInstance.watch({ [SETTINGS_STORAGE_KEY]: handler });
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
+      localStorageInstance.unwatch({ [SETTINGS_STORAGE_KEY]: handler });
     };
   }, []);
 

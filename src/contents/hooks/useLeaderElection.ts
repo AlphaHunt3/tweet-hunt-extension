@@ -33,9 +33,7 @@ export function useLeaderElection() {
         silentAudio.pause();
 
         setHasUserInteracted(true);
-        console.log(
-          '[LeaderElection] Audio context activated by user interaction'
-        );
+
 
         // 用户交互后注册到leader列表
         registerPage();
@@ -100,7 +98,7 @@ export function useLeaderElection() {
         isCurrentLeader
       );
     } catch (error) {
-      console.log('[Content] Failed to register page:', error);
+      console.warn('[Content] Failed to register page:', error);
     }
   };
 
@@ -112,9 +110,9 @@ export function useLeaderElection() {
       );
       const updatedList = leaderList.filter((page: any) => page.id !== pageId);
       localStorage.setItem(LEADER_LIST_KEY, JSON.stringify(updatedList));
-      console.log('[Content] Unregistered page:', pageId);
+
     } catch (error) {
-      console.log('[Content] Failed to unregister page:', error);
+      console.warn('[Content] Failed to unregister page:', error);
     }
   };
 
@@ -126,7 +124,7 @@ export function useLeaderElection() {
         const isCurrentLeader =
           updatedList[updatedList.length - 1]?.id === pageId;
         setIsLeader(isCurrentLeader);
-        console.log('[Content] Leader status updated:', isCurrentLeader);
+
       }
     };
 
@@ -151,7 +149,7 @@ export function useLeaderElection() {
         );
         localStorage.setItem(LEADER_LIST_KEY, JSON.stringify(updatedList));
       } catch (error) {
-        console.log('[LeaderElection] Heartbeat failed:', error);
+        console.warn('[LeaderElection] Heartbeat failed:', error);
       }
     }, 30 * 1000);
 

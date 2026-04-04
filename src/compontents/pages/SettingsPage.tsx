@@ -24,6 +24,7 @@ import { cleanErrorMessage } from '~utils/dataValidation';
 import { getCurrentUsername } from '~contents/utils/helpers.ts';
 import { avatarSkins } from '../../contents/constants/avatarSkins';
 import { useAvatarSkinState } from '~contents/hooks/useAvatarSkin';
+import { ApiAccessSection } from '~/compontents/ApiAccessSection';
 
 // Chrome 类型声明
 declare const chrome: any;
@@ -49,6 +50,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onClose,
 }) => {
   const { t, lang, setLang } = useI18n();
+  // 滚动容器 ref，用于 API 申请成功后滚动到底部
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { skin: currentSkin, setSkin: setAvatarSkin } = useAvatarSkinState();
   const { navigateTo } = useNavigation();
   const { settingStates, isLoading } = useAllSettings();
@@ -58,6 +61,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     isTesterOnly,
     testersListStr,
     isCanaryUser,
+    isEnabled,
   } = useCrossPageSettings();
   // 本地缓存音频（单键存储）：{ url, data }
   const [sound, setSound, { isLoading: isSoundStoreLoading }] =
@@ -144,7 +148,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           },
         } as any);
         window.dispatchEvent(event);
-      } catch {}
+      } catch { }
     },
     { wait: 200 }
   );
@@ -206,7 +210,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showOfficialTags', label: 'showOfficialTags' },
       ]),
       homeRightSidebar: filterItems([
-        { key: 'showAnnualReport', label: 'showAnnualReport' },
+        // { key: 'showAnnualReport', label: 'showAnnualReport' }, // 已替换为广告位
+        { key: 'showAdBanner', label: 'showAdBanner' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
         { key: 'showHotTrending', label: 'showHotTrending' },
         { key: 'showEngageToEarn', label: 'showEngageToEarn' },
@@ -261,7 +266,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       if (!url) return;
       const event = new CustomEvent('xhunt:play-sound', { detail: { url } });
       window.dispatchEvent(event);
-    } catch {}
+    } catch { }
   };
 
   const fetchAndCacheSound = async (url: string) => {
@@ -294,15 +299,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       // 二次确认
       const confirmed = window.confirm(
         (t && t('clearCacheConfirm')) ||
-          'Are you sure you want to clear all XHunt caches? This cannot be undone.'
+        'Are you sure you want to clear all XHunt caches? This cannot be undone.'
       );
       if (!confirmed) return;
-    } catch {}
+    } catch { }
     try {
       // 1) 清理扩展的 chrome.storage.local 区域（通过 Plasmo Storage）
       try {
         await localStorageInstance.clear();
-      } catch {}
+      } catch { }
 
       // 兜底：直接调用 chrome.storage.local.clear（某些键可能不是通过 Plasmo 写入）
       try {
@@ -311,7 +316,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             chrome.storage.local.clear(() => resolve());
           });
         }
-      } catch {}
+      } catch { }
 
       // 2) 清理网页 localStorage 中与 xhunt 相关的键
       try {
@@ -325,12 +330,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             window.localStorage.removeItem(key);
           }
         });
-      } catch {}
+      } catch { }
 
       try {
         window.location.reload();
-      } catch {}
-    } catch {}
+      } catch { }
+    } catch { }
   };
 
   const renderSettingItem = (setting: { key: string; label: string }) => {
@@ -379,7 +384,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         setTimeout(() => {
           try {
             window.location.reload();
-          } catch {}
+          } catch { }
         }, 200);
       }
     };
@@ -409,26 +414,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return (
       <div
         key={setting.key}
-        className={`flex items-center justify-between py-1.5 ${
-          isSubOption ? 'px-6' : 'px-3'
-        }`}
+        className={`flex items-center justify-between py-1.5 ${isSubOption ? 'px-6' : 'px-3'
+          }`}
       >
         <span
-          className={`text-[13px] leading-tight ${
-            isSubOption ? 'text-[12px]' : ''
-          } flex items-center gap-2`}
+          className={`text-[13px] leading-tight ${isSubOption ? 'text-[12px]' : ''
+            } flex items-center gap-2`}
         >
           {isSubOption && '• '}
           {t(setting.label)}
           {isRealtimeSubscription && state.get && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium scale-90 ${
-                realtimeMode === 'SSE'
-                  ? 'bg-emerald-600/15 text-emerald-500 border border-emerald-600/25'
-                  : realtimeMode === 'Polling'
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium scale-90 ${realtimeMode === 'SSE'
+                ? 'bg-emerald-600/15 text-emerald-500 border border-emerald-600/25'
+                : realtimeMode === 'Polling'
                   ? 'bg-indigo-600/15 text-indigo-500 border border-indigo-600/25'
                   : 'bg-slate-600/15 text-slate-400 border border-slate-600/25'
-              }`}
+                }`}
             >
               {/* <span>🏷️</span> */}
               <span>{realtimeMode}</span>
@@ -446,9 +448,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {isSubOption ? (
             // Checkbox样式
             <div
-              className={`relative w-4 h-4 border-2 peer-focus:outline-none rounded transition-all border-gray-400 peer-checked:bg-blue-500 peer-checked:border-blue-500 ${
-                isLastEnabled ? 'opacity-60' : ''
-              }`}
+              className={`relative w-4 h-4 border-2 peer-focus:outline-none rounded transition-all border-gray-400 peer-checked:bg-blue-500 peer-checked:border-blue-500 ${isLastEnabled ? 'opacity-60' : ''
+                }`}
             >
               {state.get && (
                 <svg
@@ -511,21 +512,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <label className='relative inline-flex items-center cursor-pointer shrink-0'>
                     <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${
-                          floatingPanelMode === 'default'
-                            ? 'bg-blue-500 text-white'
-                            : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
+                        className={`px-2 py-1 text-[11px] rounded ${floatingPanelMode === 'default'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
                         onClick={() => setFloatingPanelMode('default')}
                       >
                         {t('floatingPanelModeDefault')}
                       </button>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${
-                          floatingPanelMode === 'persistent'
-                            ? 'bg-blue-500 text-white'
-                            : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
+                        className={`px-2 py-1 text-[11px] rounded ${floatingPanelMode === 'persistent'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
                         onClick={() => setFloatingPanelMode('persistent')}
                       >
                         {t('floatingPanelModePersistent')}
@@ -552,7 +551,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           Math.max(
                             300,
                             Math.round((Number(e.target.value) || 340) / 10) *
-                              10
+                            10
                           )
                         );
                         setPanelWidthTemp(v);
@@ -578,21 +577,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <label className='relative inline-flex items-center cursor-pointer shrink-0'>
                     <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${
-                          lang === 'en'
-                            ? 'bg-blue-500 text-white'
-                            : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
+                        className={`px-2 py-1 text-[11px] rounded ${lang === 'en'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
                         onClick={() => setLang('en')}
                       >
                         EN
                       </button>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${
-                          lang === 'zh'
-                            ? 'bg-blue-500 text-white'
-                            : 'theme-text-secondary hover:theme-text-primary'
-                        }`}
+                        className={`px-2 py-1 text-[11px] rounded ${lang === 'zh'
+                          ? 'bg-blue-500 text-white'
+                          : 'theme-text-secondary hover:theme-text-primary'
+                          }`}
                         onClick={() => setLang('zh')}
                       >
                         中
@@ -610,11 +607,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </span>
                   <div className='relative inline-flex items-center cursor-pointer shrink-0 gap-2'>
                     <select
-                      className={`text-[12px] theme-text-primary theme-bg-tertiary rounded-md px-2 py-1 focus:outline-none focus:ring-0 focus:border-transparent ${
-                        isSoundLoading || isSoundStoreLoading
-                          ? 'opacity-60 pointer-events-none'
-                          : ''
-                      }`}
+                      className={`text-[12px] theme-text-primary theme-bg-tertiary rounded-md px-2 py-1 focus:outline-none focus:ring-0 focus:border-transparent ${isSoundLoading || isSoundStoreLoading
+                        ? 'opacity-60 pointer-events-none'
+                        : ''
+                        }`}
                       value={sound?.url || ''}
                       disabled={isSoundLoading || isSoundStoreLoading}
                       onChange={async (e) => {
@@ -782,7 +778,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       ) {
         setSound({ url: defaultSound.url, data: defaultSound.data });
       }
-    } catch {}
+    } catch { }
   }, [isSoundStoreLoading, sound?.data, setSound]);
 
   // 获取用户信息并同步到 @xhunt/user
@@ -840,7 +836,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     if (evmAddress && !isValidEvmAddress(evmAddress)) {
       setEvmAddressError(
         t('mantleHunterEvmAddressFormatIncorrect') ||
-          'Invalid EVM address format'
+        'Invalid EVM address format'
       );
       return;
     }
@@ -882,8 +878,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
+  // API Access 风险提示弹框状态
+  const [showApiRiskDialog, setShowApiRiskDialog] = useState(false);
+  const [apiRiskAcknowledged, setApiRiskAcknowledged] = useState(false);
+
   return (
-    <div className='flex flex-col h-full min-h-0'>
+    <div className='flex flex-col h-full min-h-0 relative'>
       <PanelHeader
         title={<span>{t('settingsTitle')}</span>}
         showBackButton={showBackButton}
@@ -891,7 +891,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <HeaderRightControls
             onOpenMessages={() => navigateTo('/messages')}
             onClose={onClose}
-            onOpenSettings={() => {}}
+            onOpenSettings={() => { }}
           />
         }
       />
@@ -901,7 +901,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       ) : (
         <>
-          <div className='flex-1 min-h-0 overflow-y-auto scrollbar-hide'>
+          <div ref={scrollContainerRef} className='flex-1 min-h-0 overflow-y-auto scrollbar-hide'>
             <div className='py-2'>
               <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md'>
                 {/* 分组设置：将基础设置放到最前 */}
@@ -1055,27 +1055,42 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       (evmAddress &&
                         evmAddress.length > 0 &&
                         !isValidEvmAddress(evmAddress))) && (
-                      <div
-                        className={`mx-3 px-3 py-2 border-t theme-border ${
-                          evmAddressError
+                        <div
+                          className={`mx-3 px-3 py-2 border-t theme-border ${evmAddressError
                             ? 'bg-red-500/10 border-red-500/20'
                             : 'theme-bg-tertiary/50'
-                        }`}
-                      >
-                        <div
-                          className={`text-[11px] leading-relaxed whitespace-pre-line ${
-                            evmAddressError
+                            }`}
+                        >
+                          <div
+                            className={`text-[11px] leading-relaxed whitespace-pre-line ${evmAddressError
                               ? 'text-red-400 font-medium'
                               : 'theme-text-secondary'
-                          }`}
-                        >
-                          {evmAddressError ||
-                            t('mantleHunterEvmAddressFormatIncorrect')}
+                              }`}
+                          >
+                            {evmAddressError ||
+                              t('mantleHunterEvmAddressFormatIncorrect')}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 </div>
+              )}
+
+              {/* API Access 板块（通过 useCrossPageSettings 控制，无显式开关） */}
+              {isEnabled('showApiAccess') && (
+                <ApiAccessSection
+                  onApplySuccess={() => {
+                    // 申请成功后滚动到底部
+                    scrollContainerRef.current?.scrollTo({
+                      top: scrollContainerRef.current.scrollHeight,
+                      behavior: 'smooth',
+                    });
+                  }}
+                  onShowRiskDialog={() => {
+                    setApiRiskAcknowledged(false);
+                    setShowApiRiskDialog(true);
+                  }}
+                />
               )}
             </div>
           </div>
@@ -1083,9 +1098,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {/* 底部信息 - 左侧图标（仅登录时显示），右侧版本/环境 */}
           <div className='sticky bottom-0 z-0 px-2 py-2 border-t theme-border theme-bg-secondary/95'>
             <div
-              className={`flex items-center ${
-                token ? 'justify-between' : 'justify-end'
-              }`}
+              className={`flex items-center ${token ? 'justify-between' : 'justify-end'
+                }`}
             >
               {token && (
                 <div className='flex items-center gap-1'>
@@ -1153,7 +1167,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     isCanaryUser
                       ? 'text-yellow-800/60 dark:text-yellow-300/70'
                       : 'theme-text-secondary'
-                  }`}
+                    }`}
                 >
                   {process.env.PLASMO_PUBLIC_ENV === 'dev' ? 'DEV' : 'BETA'}
                 </span>
@@ -1170,6 +1184,61 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           </div>
         </>
+      )}
+
+      {/* API Access 风险提示弹框 - 相对于SettingsPage根容器绝对定位 */}
+      {showApiRiskDialog && (
+        <div
+          className='absolute z-50 theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[320px] shadow-xl'
+          style={{
+            top: '55%',
+            left: '50%',
+            transform: 'translate(-50%, 0)'
+          }}
+        >
+          <div className='text-xs whitespace-pre-line theme-text-secondary leading-relaxed'>
+            {t('apiAutoWalletRiskDesc')}
+            <br /><br />
+            {t('apiAutoWalletRisk1')}
+            <br />
+            {t('apiAutoWalletRisk2')}
+            <br />
+            {t('apiAutoWalletRisk3')}
+            <br />
+            {t('apiAutoWalletRisk4')}
+          </div>
+          <label className='mt-3 flex items-center gap-2 text-xs theme-text-secondary'>
+            <input
+              type='checkbox'
+              checked={apiRiskAcknowledged}
+              onChange={(e) => setApiRiskAcknowledged(e.target.checked)}
+            />
+            <span>{t('apiAutoWalletAgree')}</span>
+          </label>
+          <div className='mt-3 flex justify-end gap-2'>
+            <button
+              type='button'
+              className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
+              onClick={() => setShowApiRiskDialog(false)}
+            >
+              {t('apiAutoWalletCancel')}
+            </button>
+            <button
+              type='button'
+              className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed'
+              onClick={() => {
+                // 通过自定义事件通知 ApiAccessSection
+                window.dispatchEvent(new CustomEvent('xhunt-api-risk-confirmed', {
+                  detail: { acknowledged: apiRiskAcknowledged }
+                }));
+                setShowApiRiskDialog(false);
+              }}
+              disabled={!apiRiskAcknowledged}
+            >
+              {t('apiAutoWalletConfirm')}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

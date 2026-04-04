@@ -1,4 +1,9 @@
-import { useDebounceEffect, useDebounceFn, useLatest, useRequest } from 'ahooks';
+import {
+  useDebounceEffect,
+  useDebounceFn,
+  useLatest,
+  useRequest,
+} from 'ahooks';
 import {
   fetchDelTwitterInfo,
   fetchRootDataInfo,
@@ -7,10 +12,9 @@ import {
   fetchTwitterInfoNew,
   convertNewDataToKolData,
   convertNewDataToPopularityInfo,
-  fetchTwRenameInfo
+  fetchTwRenameInfo,
 } from '~contents/services/api.ts';
 import { useEffect, useMemo, useState } from 'react';
-import { extractUsernameFromUrl, windowGtag } from '~contents/utils';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import {
   AccountsResponse,
@@ -20,12 +24,15 @@ import {
   NewTwitterUserData,
   PopularityInfoType,
   ProjectMemberData,
-  SupportedToken
+  SupportedToken,
 } from '~types';
-import { getHandeReviewInfo, updateUserInfo } from '~contents/services/review.ts';
+import {
+  getHandeReviewInfo,
+  updateUserInfo,
+} from '~contents/services/review.ts';
 import { ReviewStats, UserInfo } from '~types/review.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { rankService } from '~/utils/rankService';
+import usePlacementTracking from './usePlacementTracking';
 
 export interface MainData {
   currentUrl: string;
@@ -59,29 +66,47 @@ const defaultRequestConfig = {
   manual: true,
   debounceLeading: true,
   debounceTrailing: false,
-}
+};
 
 const useMainData = (): MainData => {
-  const currentUrl = useCurrentUrl();
-  const [userId, setUserId] = useState('');
+  // const currentUrl = useCurrentUrl();
   const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const [token] = useLocalStorage('@xhunt/token', '');
-  const [username] = useLocalStorage('@xhunt/current-username', '');
-  const userNameRef = useLatest(username);
+  const {
+    currentUrl,
+    twitterId,
+    handler: userId,
+    loading: isLoadingHtml,
+  } = usePlacementTracking();
+  const isProfileHtmlReady =
+    !isLoadingHtml && Boolean(twitterId) && Boolean(userId);
 
-  const { data: deletedTweets = [] as DeletedTweet[], run: fetchDelData, loading: loadingDel } = useRequest(() => fetchDelTwitterInfo(userId), {
-    refreshDeps: [userId],
-    ...defaultRequestConfig
+  //删推信息,已改成twid查询
+  const {
+    data: deletedTweets = [] as DeletedTweet[],
+    run: fetchDelData,
+    loading: loadingDel,
+  } = useRequest(() => fetchDelTwitterInfo(twitterId), {
+    refreshDeps: [twitterId, isProfileHtmlReady],
+    ready: isProfileHtmlReady,
+    ...defaultRequestConfig,
   });
 
-  // 🆕 使用新接口获取用户信息
-  const { data: newTwitterData = null, run: fetchTwitterData, loading: loadingTwInfo, error } = useRequest(() => fetchTwitterInfoNew(userId), {
-    refreshDeps: [userId],
+  //使用新接口获取用户信息,已改成twid查询
+  const {
+    data: newTwitterData = null,
+    run: fetchTwitterData,
+    loading: loadingTwInfo,
+    error,
+  } = useRequest(() => fetchTwitterInfoNew(twitterId), {
+    refreshDeps: [twitterId, isProfileHtmlReady],
+    ready: isProfileHtmlReady,
     debounceWait: 50,
     debounceMaxWait: 50,
     manual: true,
     debounceLeading: true,
     debounceTrailing: true,
+    retryCount: 3,
   });
 
   // 🆕 转换新数据为旧格式
@@ -96,102 +121,118 @@ const useMainData = (): MainData => {
     return convertNewDataToPopularityInfo(newTwitterData);
   }, [newTwitterData]);
 
-  const { data: rootData = null, run: fetchRootData, loading: loadingRootData } = useRequest(() => fetchRootDataInfo(userId), {
-    refreshDeps: [userId],
-    ...defaultRequestConfig
+  /** root data 暂时只能用handler查询 */
+  const {
+    data: rootData = null,
+    run: fetchRootData,
+    loading: loadingRootData,
+  } = useRequest(() => fetchRootDataInfo(userId), {
+    refreshDeps: [userId, isProfileHtmlReady],
+    ready: isProfileHtmlReady,
+    ...defaultRequestConfig,
   });
 
-  const { data: renameInfo = null, run: fetchRenameInfo, loading: loadingRenameInfo } = useRequest(() => fetchTwRenameInfo(userId), {
-    refreshDeps: [userId],
-    ...defaultRequestConfig
+  /** 改名 暂时只能用handler查询 */
+  const {
+    data: renameInfo = null,
+    run: fetchRenameInfo,
+    loading: loadingRenameInfo,
+  } = useRequest(() => fetchTwRenameInfo(userId), {
+    refreshDeps: [userId, isProfileHtmlReady],
+    ready: isProfileHtmlReady,
+    ...defaultRequestConfig,
   });
 
-  const { data: reviewInfo = null, run: fetchReviewInfo, loading: loadingReviewInfo, refreshAsync: refreshAsyncReviewInfo } = useRequest(() => getHandeReviewInfo(userId, reviewOnlyKol), {
-    refreshDeps: [userId, reviewOnlyKol],
-    ...defaultRequestConfig
+  /** 已经改成twid了，在统一请求中，handler兜底 */
+  const {
+    data: reviewInfo = null,
+    run: fetchReviewInfo,
+    loading: loadingReviewInfo,
+    refreshAsync: refreshAsyncReviewInfo,
+  } = useRequest(() => getHandeReviewInfo(userId, reviewOnlyKol), {
+    refreshDeps: [userId, isProfileHtmlReady, reviewOnlyKol],
+    ready: isProfileHtmlReady,
+    ...defaultRequestConfig,
   });
 
-  const { data: userInfo = null, run: fetchUserInfo, loading: loadingUserInfo, refreshAsync: refreshAsyncUserInfo } = useRequest(() => updateUserInfo(), {
+  /** 更新个人信息，无需当前浏览页面的userid/twid */
+  const {
+    data: userInfo = null,
+    run: fetchUserInfo,
+    loading: loadingUserInfo,
+    refreshAsync: refreshAsyncUserInfo,
+  } = useRequest(() => updateUserInfo(), {
     refreshDeps: [token],
-    ...defaultRequestConfig
+    ...defaultRequestConfig,
   });
 
-  const { data: supportedTokens = null, run: fetchSupportedTokensData, loading: loadingSupportedTokens } = useRequest(fetchSupportedTokens, {
-    ...defaultRequestConfig
+  /** 查询支持的token，无需当前浏览页面的userid/twid */
+  const {
+    data: supportedTokens = null,
+    run: fetchSupportedTokensData,
+    loading: loadingSupportedTokens,
+  } = useRequest(fetchSupportedTokens, {
+    ...defaultRequestConfig,
   });
 
-  const { data: projectMemberData = null, run: fetchProjectMemberData, loading: loadingProjectMember } = useRequest(() => fetchProjectMember(userId), {
-    refreshDeps: [userId],
-    ...defaultRequestConfig
+  /** 已改成twid查询 */
+  const {
+    data: projectMemberData = null,
+    run: fetchProjectMemberData,
+    loading: loadingProjectMember,
+  } = useRequest(() => fetchProjectMember(twitterId), {
+    refreshDeps: [twitterId, isProfileHtmlReady],
+    ...defaultRequestConfig,
   });
 
-  const { run: loadData } = useDebounceFn(async () => {
-    fetchDelData();
-    fetchTwitterData();
-    fetchRootData();
-    fetchRenameInfo();
-    fetchReviewInfo();
-  }, {
-    wait: 1000,
-    leading: true,
-    trailing: false
-  });
+  const { run: loadData } = useDebounceFn(
+    async () => {
+      fetchDelData();
+      fetchTwitterData();
+      fetchRootData();
+      fetchRenameInfo();
+      fetchReviewInfo();
+    },
+    {
+      wait: 20,
+      leading: false,
+      trailing: true,
+    }
+  );
 
   useEffect(() => {
-    /** 至少1个字符的id **/
-    if (!userId || String(userId).length < 1) return;
+    if (!isProfileHtmlReady) return;
     fetchReviewInfo();
-    refreshAsyncUserInfo().then(r => r);
-  }, [reviewOnlyKol, token]);
+    refreshAsyncUserInfo().then((r) => r);
+  }, [reviewOnlyKol, token, isProfileHtmlReady]);
 
   useEffect(() => {
-    if (!userId || String(userId).length < 1) return;
-    loadData()
-    windowGtag('event', 'loadMainData', {
-      value: `${userNameRef.current} | ${userId}`
-    })
-  }, [userId]);
+    if (!isProfileHtmlReady) return;
+    loadData();
+  }, [isProfileHtmlReady]);
 
   // 单独处理项目成员数据请求 - 只有当用户是项目时才请求
   useEffect(() => {
-    if (!userId || String(userId).length < 1) return;
+    if (!isProfileHtmlReady) return;
     if (!twInfo) return; // 等待 twInfo 加载完成
 
     // 只有当 classification 是 'project' 时才请求项目成员数据
     if (twInfo?.basicInfo?.classification === 'project') {
       fetchProjectMemberData();
     }
-  }, [userId, twInfo?.basicInfo?.classification]);
+  }, [twInfo?.basicInfo?.classification, isProfileHtmlReady]);
   useEffect(() => {
     fetchUserInfo();
     fetchSupportedTokensData();
-  }, [])
-
-  useDebounceEffect(() => {
-    const uid = extractUsernameFromUrl(currentUrl);
-    setUserId(uid);
-  }, [currentUrl], { wait: 100, maxWait: 500, leading: true });
-
-  // // 监听 kolRank20W 变化并更新排名缓存
-  // useDebounceEffect(() => {
-  //   if (userId && twInfo?.kolFollow?.kolRank20W !== undefined) {
-  //     // 预加载当前用户的排名到缓存
-  //     rankService.preloadRanks([userId]);
-  //   }
-  // }, [twInfo?.kolFollow?.kolRank20W], {
-  //   wait: 1000,
-  //   maxWait: 5000,
-  //   leading: false,
-  //   trailing: true
-  // });
+  }, []);
 
   // 将 newTwitterData 暴露给其他组件使用
   const projectMemberDataProxy = useMemo(() => {
-    if (twInfo?.basicInfo?.classification === 'project' && userId) {
+    if (twInfo?.basicInfo?.classification === 'project' && isProfileHtmlReady) {
       return projectMemberData;
     }
     return null;
-  }, [projectMemberData, userId])
+  }, [projectMemberData, isProfileHtmlReady]);
 
   return {
     currentUrl,
@@ -217,8 +258,8 @@ const useMainData = (): MainData => {
     loadingSupportedTokens,
     projectMemberData: projectMemberDataProxy,
     loadingProjectMember,
-    newTwitterData // 🆕 暴露 newTwitterData 供其他组件使用
-  }
-}
+    newTwitterData,
+  };
+};
 
 export default useMainData;

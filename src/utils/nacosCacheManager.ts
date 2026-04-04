@@ -1,6 +1,8 @@
 // Nacos Cache Manager - Efficient caching for Nacos configuration data
 import packageJson from '../../package.json';
-import { kbPrefix } from '~contents/services/api.ts';
+// import { kbPrefix } from '~contents/services/api.ts';
+import { localStorageInstance } from '~storage/index.ts';
+const kbPrefix = 'https://kb.xhunt.ai';
 
 // Constants
 const DEFAULT_GROUP = 'DEFAULT_GROUP';
@@ -21,10 +23,10 @@ export interface NacosCacheEntry<T> {
 
 // Cache configuration interface
 export interface NacosCacheConfig {
-  defaultTTL: number;        // Default time-to-live in milliseconds
-  maxEntries: number;        // Maximum number of entries in the cache
-  cleanupInterval: number;   // Interval for cleanup in milliseconds
-  storagePrefix: string;     // Prefix for localStorage keys
+  defaultTTL: number; // Default time-to-live in milliseconds
+  maxEntries: number; // Maximum number of entries in the cache
+  cleanupInterval: number; // Interval for cleanup in milliseconds
+  storagePrefix: string; // Prefix for localStorage keys
 }
 
 /**
@@ -46,11 +48,11 @@ class NacosCacheManager {
   constructor(config: Partial<NacosCacheConfig> = {}) {
     // Default configuration
     this.config = {
-      defaultTTL: 5 * 60 * 1000,  // 5 minutes default TTL
-      maxEntries: 50,             // Store up to 50 entries
+      defaultTTL: 1 * 60 * 1000, // 5 minutes default TTL
+      maxEntries: 50, // Store up to 50 entries
       cleanupInterval: 10 * 60 * 1000, // Clean up every 10 minutes
       storagePrefix: 'xhunt-nacos-cache',
-      ...config
+      ...config,
     };
   }
 
@@ -59,7 +61,10 @@ class NacosCacheManager {
    */
   public init(): void {
     if (this.isInitialized) {
-      devLog('warn', `[v${packageJson.version}] NacosCacheManager already initialized`);
+      devLog(
+        'warn',
+        `[v${packageJson.version}] NacosCacheManager already initialized`
+      );
       return;
     }
 
@@ -71,9 +76,16 @@ class NacosCacheManager {
       this.startCleanupTimer();
 
       this.isInitialized = true;
-      devLog('log', `🗄️ [v${packageJson.version}] NacosCacheManager initialized`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] NacosCacheManager initialized`
+      );
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to initialize NacosCacheManager:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to initialize NacosCacheManager:`,
+        error
+      );
     }
   }
 
@@ -84,10 +96,7 @@ class NacosCacheManager {
    * @param ttl - Custom TTL in milliseconds (optional)
    * @returns The cached or freshly fetched data
    */
-  public async fetchWithCache<T>(
-    dataId: string,
-    ttl?: number
-  ): Promise<T> {
+  public async fetchWithCache<T>(dataId: string, ttl?: number): Promise<T> {
     if (!this.isInitialized) {
       this.init();
     }
@@ -96,14 +105,20 @@ class NacosCacheManager {
 
     // Check if we already have a pending request for this key
     if (this.pendingRequests.has(cacheKey)) {
-      devLog('log', `🗄️ [v${packageJson.version}] Reusing pending request for ${dataId}`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Reusing pending request for ${dataId}`
+      );
       return this.pendingRequests.get(cacheKey)!;
     }
 
     // Check memory cache first
     const cachedEntry = this.memoryCache.get(cacheKey);
     if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
-      devLog('log', `🗄️ [v${packageJson.version}] Cache hit for ${dataId} (memory)`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Cache hit for ${dataId} (memory)`
+      );
       return cachedEntry.data;
     }
 
@@ -112,13 +127,16 @@ class NacosCacheManager {
     if (storedEntry && Date.now() < storedEntry.expiresAt) {
       // Update memory cache with data from localStorage
       this.memoryCache.set(cacheKey, storedEntry);
-      devLog('log', `🗄️ [v${packageJson.version}] Cache hit for ${dataId} (localStorage)`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Cache hit for ${dataId} (localStorage)`
+      );
       return storedEntry.data;
     }
 
     // If not in cache or expired, fetch from API
     const fetchPromise = this.fetchFromNacos<T>(dataId)
-      .then(data => {
+      .then((data) => {
         // Calculate expiration time
         const effectiveTTL = ttl || this.config.defaultTTL;
         const expiresAt = Date.now() + effectiveTTL;
@@ -127,14 +145,18 @@ class NacosCacheManager {
         const entry: NacosCacheEntry<T> = {
           data,
           timestamp: Date.now(),
-          expiresAt
+          expiresAt,
         };
 
         // Update both caches
         this.memoryCache.set(cacheKey, entry);
         this.saveToStorage(cacheKey, entry);
 
-        devLog('log', `🗄️ [v${packageJson.version}] Cached ${dataId} (expires in ${effectiveTTL/1000}s)`);
+        devLog(
+          'log',
+          `🗄️ [v${packageJson.version}] Cached ${dataId} (expires in ${effectiveTTL / 1000
+          }s)`
+        );
 
         return data;
       })
@@ -154,7 +176,10 @@ class NacosCacheManager {
    */
   private async fetchFromNacos<T>(dataId: string): Promise<T> {
     try {
-      devLog('log', `🗄️ [v${packageJson.version}] Fetching ${dataId} from Nacos API`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Fetching ${dataId} from Nacos API`
+      );
 
       const url = `${kbPrefix}/nacos-configs?dataId=${dataId}&group=${DEFAULT_GROUP}`;
       const response = await fetch(url);
@@ -165,7 +190,11 @@ class NacosCacheManager {
 
       return await response.json();
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to fetch ${dataId} from Nacos:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to fetch ${dataId} from Nacos:`,
+        error
+      );
       throw error;
     }
   }
@@ -181,17 +210,8 @@ class NacosCacheManager {
    * Get an entry from localStorage
    */
   private getFromStorage<T>(key: string): NacosCacheEntry<T> | null {
-    try {
-      const storageKey = `${this.config.storagePrefix}:${key}`;
-      const stored = localStorage.getItem(storageKey);
-
-      if (!stored) return null;
-
-      return JSON.parse(stored);
-    } catch (error) {
-      devLog('warn', `[v${packageJson.version}] Failed to get from localStorage:`, error);
-      return null;
-    }
+    // 仅使用内存缓存作为同步来源；不进行同步存储读取
+    return null;
   }
 
   /**
@@ -200,9 +220,16 @@ class NacosCacheManager {
   private saveToStorage<T>(key: string, entry: NacosCacheEntry<T>): void {
     try {
       const storageKey = `${this.config.storagePrefix}:${key}`;
-      localStorage.setItem(storageKey, JSON.stringify(entry));
+      // 仅写入 Plasmo Storage（异步，不阻塞）
+      try {
+        void localStorageInstance.set(storageKey, entry as any);
+      } catch { }
     } catch (error) {
-      devLog('warn', `[v${packageJson.version}] Failed to save to localStorage:`, error);
+      devLog(
+        'warn',
+        `[v${packageJson.version}] Failed to save to storage:`,
+        error
+      );
       // If storage fails, try to clear some space
       this.clearOldEntries();
     }
@@ -214,42 +241,30 @@ class NacosCacheManager {
   private loadFromStorage(): void {
     try {
       const prefix = this.config.storagePrefix + ':';
-      const now = Date.now();
-      let loadedCount = 0;
-
-      // Iterate through localStorage keys
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-
-        if (key && key.startsWith(prefix)) {
+      // 仅：尝试从 Plasmo Storage 恢复常用键（如 xhunt_config），不阻塞主线程
+      try {
+        const specialKey = `${prefix}${this.generateCacheKey(
+          'xhunt_config',
+          DEFAULT_GROUP
+        )}`;
+        void (async () => {
           try {
-            const entry = JSON.parse(localStorage.getItem(key)!);
-
-            // Skip expired entries
-            if (entry.expiresAt < now) {
-              localStorage.removeItem(key);
-              continue;
+            const entry = (await localStorageInstance.get(specialKey)) as any;
+            if (entry && entry.expiresAt && entry.data) {
+              if (entry.expiresAt > Date.now()) {
+                const cacheKey = specialKey.substring(prefix.length);
+                this.memoryCache.set(cacheKey, entry);
+              }
             }
-
-            // Add to memory cache
-            const cacheKey = key.substring(prefix.length);
-            this.memoryCache.set(cacheKey, entry);
-            loadedCount++;
-
-            // Limit the number of entries
-            if (loadedCount >= this.config.maxEntries) {
-              break;
-            }
-          } catch (parseError) {
-            // Remove invalid entries
-            localStorage.removeItem(key);
-          }
-        }
-      }
-
-      devLog('log', `🗄️ [v${packageJson.version}] Loaded ${loadedCount} entries from localStorage`);
+          } catch { }
+        })();
+      } catch { }
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to load from localStorage:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to load from storage:`,
+        error
+      );
     }
   }
 
@@ -261,11 +276,18 @@ class NacosCacheManager {
       clearInterval(this.cleanupTimer);
     }
 
-    this.cleanupTimer = window.setInterval(() => {
-      this.cleanup();
-    }, this.config.cleanupInterval);
+    this.cleanupTimer =
+      (typeof window !== 'undefined' &&
+        window.setInterval(() => {
+          this.cleanup();
+        }, this.config.cleanupInterval)) ||
+      null;
 
-    devLog('log', `🗄️ [v${packageJson.version}] Cleanup timer started (interval: ${this.config.cleanupInterval/1000}s)`);
+    devLog(
+      'log',
+      `🗄️ [v${packageJson.version}] Cleanup timer started (interval: ${this.config.cleanupInterval / 1000
+      }s)`
+    );
   }
   /**
    * Clear old entries when storage is full
@@ -273,38 +295,23 @@ class NacosCacheManager {
   private clearOldEntries(): void {
     try {
       const prefix = this.config.storagePrefix + ':';
-      const entries: {key: string, timestamp: number}[] = [];
-
-      // Collect all our entries
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-
-        if (key && key.startsWith(prefix)) {
-          try {
-            const entry = JSON.parse(localStorage.getItem(key)!);
-            entries.push({
-              key,
-              timestamp: entry.timestamp
-            });
-          } catch (error) {
-            // Remove invalid entries
-            localStorage.removeItem(key);
-          }
-        }
-      }
-
-      // Sort by timestamp (oldest first)
-      entries.sort((a, b) => a.timestamp - b.timestamp);
-
-      // Remove oldest entries (keep half)
-      const toRemove = Math.ceil(entries.length / 2);
-      for (let i = 0; i < toRemove; i++) {
-        localStorage.removeItem(entries[i].key);
-      }
-
-      devLog('log', `🗄️ [v${packageJson.version}] Cleared ${toRemove} old entries from localStorage`);
+      const specialKey = `${prefix}${this.generateCacheKey(
+        'xhunt_config',
+        DEFAULT_GROUP
+      )}`;
+      try {
+        void localStorageInstance.remove(specialKey);
+      } catch { }
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Cleared old entries (best-effort)`
+      );
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to clear old entries:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to clear old entries:`,
+        error
+      );
     }
   }
 
@@ -317,14 +324,23 @@ class NacosCacheManager {
     // Remove from memory cache
     this.memoryCache.delete(cacheKey);
 
-    // Remove from localStorage
+    // Remove from storage
     try {
       const storageKey = `${this.config.storagePrefix}:${cacheKey}`;
-      localStorage.removeItem(storageKey);
+      try {
+        void localStorageInstance.remove(storageKey);
+      } catch { }
 
-      devLog('log', `🗄️ [v${packageJson.version}] Invalidated cache for ${dataId}`);
+      devLog(
+        'log',
+        `🗄️ [v${packageJson.version}] Invalidated cache for ${dataId}`
+      );
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to invalidate cache:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to invalidate cache:`,
+        error
+      );
     }
   }
 
@@ -336,22 +352,23 @@ class NacosCacheManager {
       // Clear memory cache
       this.memoryCache.clear();
 
-      // Clear localStorage (only our keys)
+      // Best-effort: clear our known special key
       const prefix = this.config.storagePrefix + ':';
-      const keysToRemove: string[] = [];
+      const specialKey = `${prefix}${this.generateCacheKey(
+        'xhunt_config',
+        DEFAULT_GROUP
+      )}`;
+      try {
+        void localStorageInstance.remove(specialKey);
+      } catch { }
 
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(prefix)) {
-          keysToRemove.push(key);
-        }
-      }
-
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-
-      devLog('log', `🗄️ [v${packageJson.version}] Cleared all cache entries (${keysToRemove.length} items)`);
+      devLog('log', `🗄️ [v${packageJson.version}] Cleared all cache entries`);
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to clear all cache:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to clear all cache:`,
+        error
+      );
     }
   }
 
@@ -364,7 +381,7 @@ class NacosCacheManager {
     let validCount = 0;
 
     // Count expired and valid entries
-    this.memoryCache.forEach(entry => {
+    this.memoryCache.forEach((entry) => {
       if (entry.expiresAt < now) {
         expiredCount++;
       } else {
@@ -379,7 +396,7 @@ class NacosCacheManager {
       pendingRequests: this.pendingRequests.size,
       isInitialized: this.isInitialized,
       config: { ...this.config },
-      version: packageJson.version
+      version: packageJson.version,
     };
   }
 
@@ -407,8 +424,9 @@ export const nacosCacheManager = new NacosCacheManager();
 nacosCacheManager.init();
 
 // Clean up on page unload
-window.addEventListener('beforeunload', () => {
-  nacosCacheManager.cleanup();
-});
+typeof window !== 'undefined' &&
+  window.addEventListener('beforeunload', () => {
+    nacosCacheManager.cleanup();
+  });
 
 export default NacosCacheManager;

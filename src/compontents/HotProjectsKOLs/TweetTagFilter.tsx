@@ -691,9 +691,10 @@ export function TweetTagFilter(props: {
               };
               return createPortal(
                 <div
-                  className='rounded-xl border theme-border p-2 shadow-lg'
+                  className='rounded-xl border p-2 shadow-lg'
                   style={{
-                    backgroundColor: 'var(--xhunt-web-bg)',
+                    backgroundColor: theme === 'dark' ? '#15202b' : '#ffffff',
+                    borderColor: theme === 'dark' ? '#374151' : '#eff3f4',
                     backgroundImage: 'none',
                     ...fixedStyle,
                   }}
@@ -716,9 +717,21 @@ export function TweetTagFilter(props: {
                           key={c.id}
                           type='button'
                           className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] transition-colors ${active
-                            ? 'bg-zinc-500/40 border-zinc-500/50 text-[var(--text-primary)] font-semibold'
-                            : 'theme-bg-tertiary/20 theme-border-soft theme-text-primary hover:theme-bg-tertiary/40'
+                            ? 'font-semibold'
+                            : ''
                             }`}
+                          style={active
+                            ? {
+                                backgroundColor: 'rgba(161, 161, 170, 0.4)',
+                                borderColor: 'rgba(161, 161, 170, 0.5)',
+                                color: theme === 'dark' ? '#ffffff' : '#000000',
+                              }
+                            : {
+                                backgroundColor: theme === 'dark' ? 'rgba(30, 39, 50, 0.2)' : 'rgba(243, 244, 246, 0.2)',
+                                borderColor: theme === 'dark' ? 'rgba(163, 172, 184, 0.4)' : 'rgba(107, 114, 128, 0.2)',
+                                color: theme === 'dark' ? '#ffffff' : '#000000',
+                              }
+                          }
                           onClick={() => {
                             onChange({
                               type: 'domain',

@@ -150,6 +150,15 @@ type ServerCampaign = {
     avatar: string;
     reward: string;
   }>;
+  // 自定义标签配置
+  tags?: Array<{
+    colorScheme: 'green' | 'purple' | 'yellow' | 'blue' | 'gray' | 'gold' | 'red' | 'pink' | 'cyan' | 'orange';
+    icon: string;
+    label: string;
+    label_en: string;
+    hoverTips?: string;
+    hoverTips_en?: string;
+  }>;
   // 兼容中文键名
   [key: string]: any;
 };
@@ -280,6 +289,7 @@ const transformServerCampaign = (
     essayContestAmount: c.essayContestAmount,
     essayContestWinnerCount: c.essayContestWinnerCount,
     essayContestWinners: c.essayContestWinners,
+    tags: c.tags,
   } as HunterCampaignConfig;
 };
 

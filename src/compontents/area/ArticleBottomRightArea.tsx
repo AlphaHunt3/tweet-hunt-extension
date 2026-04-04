@@ -17,33 +17,60 @@ import useCurrentUrl from '~contents/hooks/useCurrentUrl';
 import { extractStatusIdFromUrl } from '~contents/utils';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import type { TwitterInitialStateCurrentUser } from '~types';
+import { useLocalStorage } from '~storage/useLocalStorage';
 
-const ARTICLE_SELECTOR = "article[data-testid='tweet'][tabindex='-1']";
+// 首选选择器（更精确，但可能在其他语言下不工作）
+const ARTICLE_SELECTOR_PRIMARY = "article[data-testid='tweet'][tabindex='-1'] div.css-175oi2r.r-k4xj1c.r-18u37iz.r-1wtj0ep:has(time)";
 
 function _ArticleBottomRightArea() {
   const { t } = useI18n();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const currentUrl = useCurrentUrl();
-  const { isEnabled } = useCrossPageSettings();
+  const { isEnabled, isTesterFor } = useCrossPageSettings();
+  const isBoostTester = isTesterFor('showArticleBottomRightArea');
+  const isEnabledCurrentArea = isEnabled('showArticleBottomRightArea');
   const articleId = useMemo(
     () => String(extractStatusIdFromUrl(currentUrl)).toLocaleLowerCase(),
     [currentUrl]
   );
+  const [_currentUsername] = useLocalStorage('@xhunt/current-username', '');
+  const [userInfo] = useLocalStorage<TwitterInitialStateCurrentUser | null>(
+    '@xhunt/initial-state-current-user',
+    null
+  );
+
+  const currentUsername = useMemo(() => {
+    return userInfo?.screen_name || _currentUsername;
+  }, [userInfo, _currentUsername]);
+
+  // 从 URL 中提取推特用户名 (如 https://x.com/0xVeryBigOrange/status/xxx 中提取 0xVeryBigOrange)
+  const urlUsername = useMemo(() => {
+    if (!currentUrl) return null;
+    const match = currentUrl.match(/x\.com\/([^/]+)\/status\//);
+    return match ? match[1].toLowerCase() : null;
+  }, [currentUrl]);
+
+  // 只有是当前用户的推文才显示
+  const isOwnTweet = useMemo(() => {
+    if (!urlUsername || !currentUsername) return false;
+    return urlUsername === currentUsername.toLowerCase();
+  }, [urlUsername, currentUsername]);
+
+  const isShow = useMemo(() => {
+    return isBoostTester || (isEnabledCurrentArea && isOwnTweet);
+  }, [isEnabledCurrentArea, isBoostTester, isOwnTweet]);
+
+
   const shadowRoot = useShadowContainer({
-    selector: ARTICLE_SELECTOR,
+    selector: ARTICLE_SELECTOR_PRIMARY,
     styleText: cssText,
     useSiblings: true,
     siblingsPosition: 'beforeend',
-    siblingsStyle:
-      'position:absolute;bottom:63px;right:18px;pointer-events:none;z-index:99;',
     autoZIndex: false,
-    onShadowCreated: (_, target) => {
-      const baseEl = target.parentElement as HTMLElement | null;
-      const hasThumb = !!baseEl?.querySelector('div[data-testid="thumbnail"]');
-      (target as HTMLElement).style.bottom = hasThumb ? '187px' : '63px';
-    },
   });
+
   const portalHost = usePersistentPortalHost(shadowRoot);
 
   const baseBtnClass =
@@ -79,7 +106,7 @@ function _ArticleBottomRightArea() {
     };
   }, []);
 
-  if (!shadowRoot || !articleId || !isEnabled('showArticleBottomRightArea')) {
+  if (!shadowRoot || !articleId || !isShow) {
     return null;
   }
 
@@ -109,11 +136,10 @@ function _ArticleBottomRightArea() {
         />
       </svg>
       <span
-        className={`tracking-wide whitespace-nowrap transition-all duration-200 ${
-          isPanelOpen
-            ? 'ml-2 max-w-[120px] opacity-100'
-            : 'ml-0 max-w-0 opacity-0 group-hover:ml-2 group-hover:max-w-[120px] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[120px] group-focus-visible:opacity-100'
-        }`}
+        className={`tracking-wide whitespace-nowrap transition-all duration-200 ${isPanelOpen
+          ? 'ml-2 max-w-[120px] opacity-100'
+          : 'ml-0 max-w-0 opacity-0 group-hover:ml-2 group-hover:max-w-[120px] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[120px] group-focus-visible:opacity-100'
+          }`}
       >
         {t('xhuntBoost')}
       </span>

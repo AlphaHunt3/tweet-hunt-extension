@@ -40,6 +40,22 @@ export interface HunterCampaignTaskDefinition {
   autoComplete?: boolean;
 }
 
+// Custom task state for refresh cooldown tracking
+export interface CustomTaskState {
+  lastRefreshAt: number;
+  completed?: boolean;
+  completedAt?: string;
+}
+
+// Extended task type that includes custom task specific properties
+export interface CustomTask extends Task {
+  type: 'custom';
+  onRefresh?: () => void;
+  canRefresh?: boolean;
+  refreshCooldown?: number;
+  isLoading?: boolean;
+}
+
 export interface HunterCampaignLogo {
   image: string;
   url: string;
@@ -135,4 +151,35 @@ export interface HunterCampaignConfig {
     avatar: string;
     reward: string;
   }>;
+  // 征文大赛奖励单位（选填，不填则使用 rewardUnit）
+  essayContestUnit?: string;
+  // ===== POW 排行榜相关字段 =====
+  // 是否启用 POW 排行榜
+  enablePowLeaderboard?: boolean;
+  // POW 奖池金额
+  powAmount?: number;
+  // POW 分配方式: workshare / 其他
+  powDistributionType?: string;
+  // POW 获奖人数
+  powWinnerCount?: number;
+  // POW 奖励单位
+  powUnit?: string;
+  // ===== 自定义标签配置（可选，配置后优先使用） =====
+  tags?: CampaignTag[];
+}
+
+// 自定义标签配置
+export interface CampaignTag {
+  // 色系：green | purple | yellow | blue | gray | gold | red | pink | cyan | orange
+  colorScheme: 'green' | 'purple' | 'yellow' | 'blue' | 'gray' | 'gold' | 'red' | 'pink' | 'cyan' | 'orange';
+  // Lucide 图标名称（如：Gift, Trophy, FileText 等）
+  icon: string;
+  // 中文标签文本
+  label: string;
+  // 英文标签文本
+  label_en: string;
+  // 中文 hover 提示（可选，支持换行用 \n）
+  hoverTips?: string;
+  // 英文 hover 提示（可选，支持换行用 \n）
+  hoverTips_en?: string;
 }

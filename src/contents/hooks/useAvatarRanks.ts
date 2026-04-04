@@ -4,6 +4,9 @@ import { useAvatarElements } from './useAvatarElements';
 import { rankService } from '~/utils/rankService';
 import useCurrentUrl from './useCurrentUrl';
 import packageJson from '../../../package.json';
+import usePlacementTracking from './usePlacementTracking';
+import { useDebounceEffect } from 'ahooks';
+import { formatRank } from '~js/utils';
 
 const HIGH_RANK_THRESHOLD = 10000;
 
@@ -54,6 +57,7 @@ class AvatarStyler {
     container: HTMLElement,
     rank: number,
     isLoading: boolean,
+    avatarRankMode: 'influence' | 'composite',
     isSpecialCase: boolean = false,
     isLarge: boolean = false,
     username: string = '',
@@ -88,6 +92,7 @@ class AvatarStyler {
       badge.classList.toggle('loading', isLoading);
       badge.innerHTML = `<span class="xhunt-avatar-rank-text">${formatRank(
         Number(rank),
+        avatarRankMode,
         username
       )}</span>`;
     } catch (error) {
@@ -198,70 +203,18 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
   }
 }
 
-function formatRank(rank: number, username: string): string {
-  if (rank === -2 && username) return '~';
-  if (rank < 0) return '-';
-  let trophy = '#';
-  if (rank < 2000) {
-    trophy = '<span class="gold-trophy">&#x1F3C6;</span>';
-  } else if (rank < 10000) {
-    trophy = '<span class="silver-trophy">&#x1F3C6;</span>';
-  } else if (rank < 100000) {
-    trophy = '<span class="bronze-trophy">&#x1F3C6;</span>';
-  }
-  return `${trophy}${rank.toLocaleString()}`;
-}
-
-// 🆕 安全的 Chrome API 调用包装器
-async function safeChromeCaller<T>(
-  apiCall: () => Promise<T> | T,
-  fallback: T,
-  operationName: string = 'Chrome API'
-): Promise<T> {
-  try {
-    // 检查扩展上下文是否有效
-    if (
-      typeof chrome === 'undefined' ||
-      !chrome.runtime ||
-      !chrome.runtime.id
-    ) {
-      devLog(
-        'warn',
-        `📊 [v${packageJson.version}] ${operationName} skipped: Extension context invalid`
-      );
-      return fallback;
-    }
-
-    // 尝试访问 runtime.getManifest，如果失败说明上下文无效
-    chrome.runtime.getManifest();
-
-    const result = await apiCall();
-    return result;
-  } catch (error) {
-    // 检查是否是上下文失效错误
-    if (
-      error instanceof Error &&
-      error.message.includes('Extension context invalidated')
-    ) {
-      devLog(
-        'warn',
-        `📊 [v${packageJson.version}] ${operationName} failed: Extension context invalidated`
-      );
-    } else {
-      devLog(
-        'warn',
-        `📊 [v${packageJson.version}] ${operationName} failed:`,
-        error
-      );
-    }
-    return fallback;
-  }
-}
-
 export function useAvatarRanks() {
   const avatarElements = useAvatarElements();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const [showAvatarRank, , { isLoading: isShowAvatarRankLoading }] =
+    useLocalStorage('@settings/showAvatarRank', true);
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const currentUrl = useCurrentUrl();
+  const { twitterId, loading: isLoadingHtml } = usePlacementTracking();
   const preUrlRef = useRef('');
   const hasCredibilityBadgeRef = useRef<undefined | boolean>(undefined);
   const [loadingUsernames, setLoadingUsernames] = useState<Set<string>>(
@@ -272,6 +225,13 @@ export function useAvatarRanks() {
   useEffect(() => {
     rankService.init();
 
+    // 当 showAvatarRank 为 false 时，清理所有已插入的徽章
+    if (!showAvatarRank) {
+      document
+        .querySelectorAll('.xhunt-avatar-rank-badge')
+        .forEach((el) => el.remove());
+    }
+
     // 添加状态回调监听
     const removeCallback = rankService.addStatusCallback((loadingUsernames) => {
       setLoadingUsernames(loadingUsernames);
@@ -280,7 +240,7 @@ export function useAvatarRanks() {
     return () => {
       removeCallback();
     };
-  }, []);
+  }, [isAvatarRankModeLoading]);
 
   const processAvatars = async (targetElements = avatarElements) => {
     try {
@@ -327,7 +287,10 @@ export function useAvatarRanks() {
       }
 
       // 使用排名服务获取排名
-      const ranks = await rankService.getRanks(usernamesToCheck);
+      const ranks = await rankService.getRanks(
+        usernamesToCheck,
+        avatarRankMode
+      );
 
       // 处理排名结果并更新UI（批量读写，减少布局抖动）
       const writeTasks: Array<() => void> = [];
@@ -381,6 +344,7 @@ export function useAvatarRanks() {
                 grandParent,
                 rank,
                 isLoading,
+                avatarRankMode,
                 false,
                 isLarge,
                 username,
@@ -394,7 +358,7 @@ export function useAvatarRanks() {
             }
             const expectedBorder = `${
               size > 120 ? '5px' : '3px'
-            } solid rgba(96, 165, 250, 0.5)`;
+            } solid var(--xhunt-avatar-outer-border-color)`;
             if (el.style.border !== expectedBorder) {
               el.style.border = expectedBorder;
             }
@@ -405,6 +369,7 @@ export function useAvatarRanks() {
               el,
               rank,
               isLoading,
+              avatarRankMode,
               true,
               isLarge,
               username,
@@ -436,34 +401,63 @@ export function useAvatarRanks() {
     }
   };
 
-  useEffect(() => {
-    hasCredibilityBadgeRef.current = !!document.querySelector(
-      '.credibility-badge-wrapper'
-    );
-    const largeAvatars = (useAvatarElements as any).getLargeAvatars();
-    const resetAvatar = (useAvatarElements as any).resetAvatar;
-    const processedNodesRef = (useAvatarElements as any).processedNodes;
+  useDebounceEffect(
+    () => {
+      if (isLoadingHtml || isAvatarRankModeLoading || isShowAvatarRankLoading)
+        return;
 
-    if (preUrlRef.current !== currentUrl && largeAvatars?.size > 0) {
-      const elementsToReprocess = new Set<HTMLElement>();
-
-      largeAvatars.forEach((trackedAvatar: any) => {
-        resetAvatar(trackedAvatar.element);
-        elementsToReprocess.add(trackedAvatar.element);
-        processedNodesRef.current.delete(trackedAvatar.element);
-      });
-
-      if (elementsToReprocess.size > 0) {
-        requestAnimationFrame(() => {
-          processAvatars(Array.from(elementsToReprocess));
-        });
+      // 如果关闭显示，则清理所有徽章并返回
+      if (!showAvatarRank) {
+        document
+          .querySelectorAll('.xhunt-avatar-rank-badge')
+          .forEach((el) => el.remove());
+        return;
       }
-      preUrlRef.current = currentUrl;
+      hasCredibilityBadgeRef.current = !!document.querySelector(
+        '.credibility-badge-wrapper'
+      );
+      const largeAvatars = (useAvatarElements as any).getLargeAvatars();
+      const resetAvatar = (useAvatarElements as any).resetAvatar;
+      const processedNodesRef = (useAvatarElements as any).processedNodes;
+
+      if (preUrlRef.current !== currentUrl && largeAvatars?.size > 0) {
+        const elementsToReprocess = new Set<HTMLElement>();
+
+        largeAvatars.forEach((trackedAvatar: any) => {
+          resetAvatar(trackedAvatar.element);
+          elementsToReprocess.add(trackedAvatar.element);
+          processedNodesRef.current.delete(trackedAvatar.element);
+        });
+
+        if (elementsToReprocess.size > 0) {
+          requestAnimationFrame(() => {
+            processAvatars(Array.from(elementsToReprocess));
+          });
+        }
+        preUrlRef.current = currentUrl;
+      }
+      requestAnimationFrame(() => {
+        processAvatars();
+      });
+    },
+    [
+      avatarElements,
+      currentUrl,
+      theme,
+      isLoadingHtml,
+      twitterId,
+      avatarRankMode,
+      isAvatarRankModeLoading,
+      showAvatarRank,
+      isShowAvatarRankLoading,
+    ],
+    {
+      wait: 80,
+      maxWait: 150,
+      leading: true,
+      trailing: true,
     }
-    requestAnimationFrame(() => {
-      processAvatars();
-    });
-  }, [avatarElements, currentUrl, theme]);
+  );
 
   // 🆕 返回缓存管理方法供调试使用
   return {

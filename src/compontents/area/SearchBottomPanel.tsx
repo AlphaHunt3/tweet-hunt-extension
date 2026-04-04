@@ -18,14 +18,14 @@ function _SearchBottomPanel({
   newTwitterData,
   loadingTwInfo,
 }: MainData) {
-  const handleShadowCreated = useCallback(() => {
-    const r1h3ijdo = document.querySelector(
-      "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1h3ijdo']"
-    );
-    if (r1h3ijdo && r1h3ijdo instanceof HTMLElement) {
-      r1h3ijdo.style.display = 'none';
-    }
-  }, []);
+  // const handleShadowCreated = useCallback(() => {
+  //   const r1h3ijdo = document.querySelector(
+  //     "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1h3ijdo']"
+  //   );
+  //   if (r1h3ijdo && r1h3ijdo instanceof HTMLElement) {
+  //     r1h3ijdo.style.display = 'none';
+  //   }
+  // }, []);
 
   const shadowOptions = useMemo(
     () => ({
@@ -36,9 +36,9 @@ function _SearchBottomPanel({
       useSiblings: true,
       siblingsPosition: 'beforebegin' as InsertPosition,
       siblingsStyle: 'width:auto;height:auto;max-width:100%;z-index:0',
-      onShadowCreated: handleShadowCreated,
+      // onShadowCreated: handleShadowCreated,
     }),
-    [handleShadowCreated]
+    []
   );
 
   const shadowRoot = useShadowContainer(shadowOptions);
@@ -61,9 +61,18 @@ function _SearchBottomPanel({
       return false;
     }
   }, [currentUrl]);
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   // 检测搜索框是否存在来决定marginTop
   const searchInput = useWaitForElement(
     "div[data-testid='sidebarColumn'] input[data-testid='SearchBox_Search_Input']",
+    [userId, currentUrl, isLoadingHtml]
+  );
+  const r1h3ijdoDom = useWaitForElement(
+    "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1h3ijdo']",
     [userId, currentUrl, isLoadingHtml]
   );
   const dynamicMarginTop = useMemo(() => {
@@ -72,8 +81,20 @@ function _SearchBottomPanel({
 
   // 计算是否应该显示组件
   const shouldShow = useMemo(() => {
-    return !isPremiumRoute && !isLoadingHtml && shadowRoot && !error;
-  }, [isPremiumRoute, isLoadingHtml, shadowRoot, error]);
+    return (
+      !isPremiumRoute &&
+      !isLoadingHtml &&
+      shadowRoot &&
+      !error &&
+      !isAvatarRankModeLoading
+    );
+  }, [
+    isPremiumRoute,
+    isLoadingHtml,
+    shadowRoot,
+    error,
+    isAvatarRankModeLoading,
+  ]);
 
   // 控制显示/隐藏的状态，用于平滑过渡（不卸载，始终保留以缓存状态）
   const [isVisible, setIsVisible] = useState(false);
@@ -89,11 +110,23 @@ function _SearchBottomPanel({
     }
   }, [shouldShow]);
 
+  useEffect(() => {
+    if (
+      shouldShow &&
+      r1h3ijdoDom &&
+      r1h3ijdoDom instanceof HTMLElement &&
+      !r1h3ijdoDom?.innerHTML
+    ) {
+      r1h3ijdoDom.style.display = 'none';
+    }
+  }, [r1h3ijdoDom, shouldShow]);
+
   return ReactDOM.createPortal(
     <div
       data-theme={theme}
       data-xhunt-exclude={'true'}
       className='search-bottom-panel-transition'
+      data-xhunt-avatar-rank-mode={avatarRankMode}
       style={{
         marginTop: dynamicMarginTop,
         opacity: isVisible ? 1 : 0,

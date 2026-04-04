@@ -8,11 +8,11 @@ import { PanelNavigator } from '~/compontents/navigation/PanelNavigator';
 import { HomePage } from '~/compontents/pages/HomePage';
 import { MessagesPage } from '~/compontents/pages/MessagesPage';
 import SettingsPage from '~/compontents/pages/SettingsPage';
-import { navigationService } from '~/compontents/navigation/NavigationService';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { PanelContextProvider } from '~/compontents/navigation/PanelContext';
 import { useDebounce } from 'ahooks';
 import iconUrl from 'url:~/assets/icon.png';
+import avatarCssText from 'data-text:~/css/avatar-rank.css';
 
 function _FixedTwitterPanel({
   twInfo,
@@ -235,6 +235,7 @@ function _FixedTwitterPanel({
             <UserAuthPanel userInfo={userInfo} />
           </div>
         </div>
+        <style dangerouslySetInnerHTML={{ __html: avatarCssText }} />
       </div>
     </DraggablePanel>
   );

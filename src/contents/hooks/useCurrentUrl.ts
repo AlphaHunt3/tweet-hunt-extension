@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useDebounceFn } from 'ahooks';
+import { subscribeToMutation } from './useGlobalMutationObserver';
 
 // 模块级共享状态
 let currentUrlRef = { current: window.location.href };
 let observers = new Set<(url: string) => void>();
-let mutationObserverRef = { current: null as MutationObserver | null };
+let mutationUnsubscribeRef = { current: null as (() => void) | null }; // 存储取消订阅函数
 let refCount = 0;
 
 // 原始 history 方法备份
@@ -25,18 +26,22 @@ const notifyObservers = () => {
 
 // 初始化全局监听器
 const setupGlobalObserver = () => {
-  if (!mutationObserverRef.current && debouncedNotifyRef.current) {
-    // 1. MutationObserver：用于监听 DOM 变化（如某些动态加载内容）
-    mutationObserverRef.current = new MutationObserver(() => {
-      debouncedNotifyRef.current!();
-    });
-
-    mutationObserverRef.current.observe(document.body, {
-      subtree: true,
-      childList: true,
-      attributes: false,
-      characterData: false
-    });
+  if (!mutationUnsubscribeRef.current && debouncedNotifyRef.current) {
+    // 1. MutationObserver：使用全局 MutationObserver 监听 DOM 变化
+    mutationUnsubscribeRef.current = subscribeToMutation(
+      () => {
+        debouncedNotifyRef.current!();
+      },
+      {
+        subtree: true,
+        childList: true,
+        attributes: false,
+        characterData: false,
+      },
+      {
+        debugName: 'useCurrentUrl',
+      }
+    );
 
     // 2. popstate / hashchange：用于 SPA 路由变化
     window.addEventListener('popstate', debouncedNotifyRef.current);
@@ -62,9 +67,10 @@ const setupGlobalObserver = () => {
 
 // 清理全局监听器
 const teardownGlobalObserver = () => {
-  if (mutationObserverRef.current) {
-    mutationObserverRef.current.disconnect();
-    mutationObserverRef.current = null;
+  // 取消 MutationObserver 订阅
+  if (mutationUnsubscribeRef.current) {
+    mutationUnsubscribeRef.current();
+    mutationUnsubscribeRef.current = null;
   }
 
   if (debouncedNotifyRef.current) {
@@ -90,7 +96,7 @@ const useCurrentUrl = () => {
     wait: 100,
     maxWait: 100,
     leading: true,
-    trailing: true
+    trailing: true,
   });
 
   // 更新模块级 ref，确保 setupGlobalObserver 能访问到当前有效的 debouncedNotify

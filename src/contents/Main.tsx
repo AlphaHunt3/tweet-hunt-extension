@@ -14,15 +14,15 @@ import ErrorBoundary from '~compontents/ErrorBoundary.tsx';
 import { useVerifyLoginStatus } from '~contents/hooks/useVerifyLoginStatus.ts';
 import { useHighlightTokens } from '~contents/hooks/useHighlightTokens.ts';
 import { TickerTips } from '~compontents/area/TickerTips.tsx';
-import { AiAnalysisTips } from '~compontents/area/AiAnalysisTips.tsx';
+import { AiAnalysisTips } from '~compontents/AiAnalysisTips.tsx';
 import { SearchBottomPanel } from '~compontents/area/SearchBottomPanel.tsx';
 import { useAvatarRanks } from '~contents/hooks/useAvatarRanks.ts';
 import { GlobalInjector } from '~compontents/area/GlobalInjector.tsx';
-// useMainData is now provided via context
 import { UICheckSection } from '~compontents/UICheckSection.tsx';
 import { useSystemInitialization } from '~contents/hooks/useSystemInitialization.ts';
 import TweetDetailButton from '~compontents/area/TweetDetailButton.tsx';
 import ArticleBottomRightArea from '~compontents/area/ArticleBottomRightArea.tsx';
+import GhostFollowingPanel from '~compontents/area/GhostFollowingPanel.tsx';
 import useThemeWatcher from '~contents/hooks/useThemeWatcher.ts';
 import useOpenSettingsHandler from '~contents/hooks/useOpenSettingsHandler.ts';
 import useInitialStateScript from '~contents/hooks/useInitialStateScript.ts';
@@ -30,11 +30,18 @@ import SoundPlayer from '~compontents/area/SoundPlayer.tsx';
 import { LeaderProvider } from '~contents/contexts/LeaderContext.tsx';
 import RealtimeNotification from '~compontents/RealtimeNotification.tsx';
 import ArticleBoostPanel from '~compontents/ArticleBoostPanel.tsx';
+import FanTipPanel from '~compontents/FanTipPanel.tsx';
 import { PlacementTrackingProvider } from '~contents/contexts/PlacementTrackingContext.tsx';
 import {
   MainDataProvider,
   useMainDataContext,
 } from '~contents/contexts/MainDataContext.tsx';
+import {
+  useAvatarSkinInitializer,
+} from '~contents/hooks/useAvatarSkin.ts';
+// import { ComposeModalDetectButton, InlineReplyDetectButton, HomeTimelineDetectButton } from '~compontents/area/ComposeModalDetectButton.tsx';
+import { AiDetectTips } from '~compontents/AiDetectTips.tsx';
+import { PrivacyConsent } from '~compontents/PrivacyConsent.tsx';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -49,23 +56,28 @@ export const getStyle = () => {
 const Main = () => {
   // 等待页面加载完成后再初始化插件
   const isPageReady = usePageReady();
-
   // 所有 hooks 必须在条件返回之前调用（React Hooks 规则）
   const [theme, , { isLoading: isThemeStoreLoading }] = useLocalStorage(
     '@xhunt/theme',
     'dark'
   );
-
+  const [token, , { isLoading: isTokenStoreLoading }] = useLocalStorage('@xhunt/token', '');
+  const [language, , { isLoading: isLanguageStoreLoading }] = useLocalStorage('@settings/language1', '');
+  // 初始化皮肤样式
+  const { avatarRankMode, isLoading: isAvatarSkinLoading } =
+    useAvatarSkinInitializer();
   // Early guard: do not run hooks/components on non-x.com pages
   if (
     typeof window !== 'undefined' &&
     !window.location.href.includes('x.com')
   ) {
     return <></>;
+  } else {
+    window._xhunt_language = language;
   }
 
   // 页面未就绪时，不渲染任何内容
-  if (!isPageReady || isThemeStoreLoading) {
+  if (!isPageReady || isThemeStoreLoading || isAvatarSkinLoading || isTokenStoreLoading || isLanguageStoreLoading) {
     return <></>;
   }
 
@@ -73,7 +85,7 @@ const Main = () => {
     <PlacementTrackingProvider>
       <MainDataProvider>
         <LeaderProvider>
-          <MainContent theme={theme} />
+          <MainContent theme={theme} avatarRankMode={avatarRankMode} token={token} />
         </LeaderProvider>
       </MainDataProvider>
     </PlacementTrackingProvider>
@@ -81,7 +93,15 @@ const Main = () => {
 };
 
 // 内部组件，可以安全使用 useLeader
-function MainContent({ theme }: { theme: string }) {
+function MainContent({
+  theme,
+  avatarRankMode,
+  token,
+}: {
+  theme: string;
+  avatarRankMode: 'influence' | 'composite';
+  token: string;
+}) {
   usePresencePort();
   useSystemInitialization();
   useThemeWatcher();
@@ -97,7 +117,9 @@ function MainContent({ theme }: { theme: string }) {
   return (
     <div
       data-theme={theme}
+      data-xhunt-avatar-rank-mode={avatarRankMode}
       data-xhunt-exclude={'true'}
+      key={`${theme}-${avatarRankMode}-${token}-main-content`}
       style={{
         display: 'contents',
       }}
@@ -156,6 +178,14 @@ function MainContent({ theme }: { theme: string }) {
         <ArticleBoostPanel />
       </ErrorBoundary>
 
+      <ErrorBoundary name='FanTipPanel'>
+        <FanTipPanel />
+      </ErrorBoundary>
+
+      <ErrorBoundary name='GhostFollowingPanel'>
+        <GhostFollowingPanel />
+      </ErrorBoundary>
+
       {/* <ErrorBoundary name='ProfileFollowButtonArea'>
         <ProfileFollowButtonArea {...mainData} />
       </ErrorBoundary>
@@ -164,7 +194,20 @@ function MainContent({ theme }: { theme: string }) {
         <AiChatDialog />
       </ErrorBoundary> */}
 
-      {/* 实时通知组件 */}
+      {/* <ErrorBoundary name='AvatarRankHoverPanel'>
+        <AvatarRankHoverPanel />
+      </ErrorBoundary> */}
+
+      {/* <ErrorBoundary name='ComposeModal-InlineReply-HomeTimeline-Detect'>
+        <ComposeModalDetectButton />
+        <InlineReplyDetectButton />
+        <HomeTimelineDetectButton />
+      </ErrorBoundary> */}
+
+      <ErrorBoundary name='AiDetectTips'>
+        <AiDetectTips />
+      </ErrorBoundary>
+
       <ErrorBoundary name='RealtimeNotification'>
         <RealtimeNotification
           getTargetElement={() => {
@@ -175,6 +218,11 @@ function MainContent({ theme }: { theme: string }) {
           offset={{ x: 0, y: 0 }}
         />
       </ErrorBoundary>
+
+      <ErrorBoundary name='PrivacyConsent'>
+        <PrivacyConsent />
+      </ErrorBoundary>
+
     </div>
   );
 }

@@ -40,7 +40,7 @@ class MessageManager {
   private lastReadTimestamp: string = '0';
   private isLoading: boolean = true;
   private error: string | null = null;
-  private readonly MESSAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for messages
+  private readonly MESSAGE_CACHE_TTL = 1 * 60 * 1000; // 5 minutes cache for messages
   private lastChecked: number = 0;
   private callbacks: Set<MessageStateChangeCallback> = new Set();
   private checkInterval: number | null = null;
@@ -50,7 +50,7 @@ class MessageManager {
   private readonly FETCH_DEBOUNCE_MS = 800;
   private readonly STORAGE_KEY = '@xhunt/cached-messages';
   private readonly LAST_READ_KEY = '@xhunt/last-read-message';
-  private readonly CHECK_INTERVAL_MS = 60000; // 1分钟检查一次
+  private readonly CHECK_INTERVAL_MS = 40000; // 40s检查一次
 
   // 初始化消息管理器
   public async init(): Promise<void> {
@@ -199,7 +199,7 @@ class MessageManager {
           if (token) {
             const privateList = await fetchPrivateMessages({
               page: 1,
-              limit: 10,
+              limit: 50,
               type: 'received',
               token: token,
             });
@@ -305,8 +305,7 @@ class MessageManager {
 
     devLog(
       'log',
-      `📨 [v${packageJson.version}] Started periodic message check (${
-        this.CHECK_INTERVAL_MS / 1000
+      `📨 [v${packageJson.version}] Started periodic message check (${this.CHECK_INTERVAL_MS / 1000
       }s interval)`
     );
   }
@@ -322,12 +321,14 @@ class MessageManager {
     }, this.FETCH_DEBOUNCE_MS);
   }
 
-  // 标记所有消息为已读
+  // 标记所有消息为已读（使用最后一条消息的时间戳，相等即视为已读）
   public async markAllAsRead(): Promise<void> {
     try {
-      const now = Date.now().toString();
-      this.lastReadTimestamp = now;
-      await localStorageInstance.set(this.LAST_READ_KEY, now);
+      const lastMessage = this.messages[0]; // 已按时间倒序，第一条即最新
+      const timestamp =
+        lastMessage?.created ?? Date.now().toString();
+      this.lastReadTimestamp = timestamp;
+      await localStorageInstance.set(this.LAST_READ_KEY, timestamp);
       this.notifyStateChange();
       devLog('log', `📨 [v${packageJson.version}] Marked all messages as read`);
     } catch (error) {

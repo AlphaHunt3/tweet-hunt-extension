@@ -1,7 +1,11 @@
 // 排名服务类 - 统一管理所有排名请求，包括缓存和请求合并
 import packageJson from '../../package.json';
-import { fetchTwitterRankBatchNew, convertNewRankDataToOldFormat } from '~contents/services/api';
-import { RankCacheManager } from './rankCacheManager';
+import {
+  fetchTwitterRankBatchNew,
+  fetchTwitterCompositeRankBatchMock,
+  convertNewRankDataToOldFormat,
+} from '~contents/services/api';
+import { RankCacheManager, type RankCacheNamespace } from './rankCacheManager';
 import RequestMerger from './requestMerger';
 
 // 开发环境日志函数
@@ -22,46 +26,73 @@ export interface RankRequestResult {
   [username: string]: number; // username -> kolRank
 }
 
+export type AvatarRankMode = RankCacheNamespace;
+
 // 排名请求状态回调
 export type RankStatusCallback = (loadingUsernames: Set<string>) => void;
 
 class RankService {
   private statusCallbacks: Set<RankStatusCallback> = new Set();
-  private batchRankFetcher: ((usernames: string[]) => Promise<RankData[]>) | null = null;
+  private batchRankFetcher:
+    | ((usernames: string[]) => Promise<RankData[]>)
+    | null = null;
   private isInitialized: boolean = false;
 
   // 初始化排名服务
   public init(): void {
     if (this.isInitialized) {
-      devLog('warn', `[v${packageJson.version}] RankService already initialized`);
+      devLog(
+        'warn',
+        `[v${packageJson.version}] RankService already initialized`
+      );
       return;
     }
 
     try {
       // 创建批量排名请求函数
       // @ts-ignore
-      this.batchRankFetcher = RequestMerger.createBatchRequest<string, RankData>({
-        mergeWindowMs: 400,        // 600ms内的请求会被合并
-        maxBatchSize: 55,          // 单次最大请求55个用户名
+      this.batchRankFetcher = RequestMerger.createBatchRequest<
+        string,
+        RankData
+      >({
+        mergeWindowMs: 400, // 600ms内的请求会被合并
+        maxBatchSize: 55, // 单次最大请求55个用户名
         requestKey: 'twitter-ranks',
-        batchFetcher: this.fetchRanksFromAPI.bind(this)
+        batchFetcher: async (usernames) =>
+          this.fetchRanksFromAPI(usernames, 'influence'),
       });
 
       this.isInitialized = true;
       devLog('log', `📊 [v${packageJson.version}] RankService initialized`);
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to initialize RankService:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to initialize RankService:`,
+        error
+      );
     }
   }
 
   // 从API批量获取排名数据
-  private async fetchRanksFromAPI(usernames: string[]): Promise<RankData[]> {
+  private async fetchRanksFromAPI(
+    usernames: string[],
+    mode: AvatarRankMode
+  ): Promise<RankData[]> {
     try {
-      devLog('log', `📊 [v${packageJson.version}] Fetching ranks from API for ${usernames.length} usernames`);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Fetching ranks from API for ${usernames.length} usernames`
+      );
 
-      const newData = await fetchTwitterRankBatchNew(usernames);
+      const newData =
+        mode === 'composite'
+          ? await fetchTwitterCompositeRankBatchMock(usernames)
+          : await fetchTwitterRankBatchNew(usernames);
       if (!newData) {
-        devLog('warn', `📊 [v${packageJson.version}] No data returned from API`);
+        devLog(
+          'warn',
+          `📊 [v${packageJson.version}] No data returned from API`
+        );
         return [];
       }
 
@@ -74,44 +105,64 @@ class RankService {
         if (rank && rank.kolRank !== undefined) {
           rankData.push({
             username,
-            kolRank: rank.kolRank
+            kolRank: rank.kolRank,
           });
         }
       });
 
-      devLog('log', `📊 [v${packageJson.version}] Successfully fetched ${rankData.length} ranks from API`);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Successfully fetched ${rankData.length} ranks from API`
+      );
       return rankData;
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to fetch ranks from API:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to fetch ranks from API:`,
+        error
+      );
       return [];
     }
   }
 
   // 获取单个用户排名
-  public async getRank(username: string): Promise<number | null> {
+  public async getRank(
+    username: string,
+    mode: AvatarRankMode
+  ): Promise<number | null> {
     if (!this.isInitialized) {
       this.init();
     }
 
     try {
       // 先检查缓存
-      const cachedEntry = await RankCacheManager.get(username);
+      const cachedEntry = await RankCacheManager.get(username, mode);
       if (cachedEntry) {
-        devLog('log', `📊 [v${packageJson.version}] Cache hit for ${username}: ${cachedEntry.kolRank}`);
+        devLog(
+          'log',
+          `📊 [v${packageJson.version}] Cache hit for ${username}: ${cachedEntry.kolRank}`
+        );
         return cachedEntry.kolRank;
       }
 
       // 缓存未命中，通过批量请求获取
-      const results = await this.getRanks([username]);
+      const results = await this.getRanks([username], mode);
       return results[username] ?? null;
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to get rank for ${username}:`, error);
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to get rank for ${username}:`,
+        error
+      );
       return null;
     }
   }
 
   // 批量获取用户排名
-  public async getRanks(usernames: string[]): Promise<RankRequestResult> {
+  public async getRanks(
+    usernames: string[],
+    mode: AvatarRankMode
+  ): Promise<RankRequestResult> {
     if (!this.isInitialized) {
       this.init();
     }
@@ -123,14 +174,13 @@ class RankService {
     try {
       // 通知状态回调：开始加载
       this.notifyStatusCallbacks(new Set(usernames));
-
       // 1. 批量检查缓存
-      const cachedRanks = await RankCacheManager.getBatch(usernames);
+      const cachedRanks = await RankCacheManager.getBatch(usernames, mode);
       const result: RankRequestResult = {};
       const uncachedUsernames: string[] = [];
 
       // 2. 处理缓存结果
-      usernames.forEach(username => {
+      usernames.forEach((username) => {
         const cachedEntry = cachedRanks[username.toLowerCase()];
         if (cachedEntry) {
           result[username] = cachedEntry.kolRank;
@@ -139,16 +189,24 @@ class RankService {
         }
       });
 
-      devLog('log', `📊 [v${packageJson.version}] Cache results: ${Object.keys(result).length} cached, ${uncachedUsernames.length} uncached`);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Cache results: ${
+          Object.keys(result).length
+        } cached, ${uncachedUsernames.length} uncached`
+      );
 
       // 3. 如果有未缓存的用户名，批量请求
       if (uncachedUsernames.length > 0 && this.batchRankFetcher) {
         try {
-          const fetchedRanks = await this.batchRankFetcher(uncachedUsernames);
+          const fetchedRanks =
+            mode === 'influence'
+              ? await this.batchRankFetcher(uncachedUsernames)
+              : await this.fetchRanksFromAPI(uncachedUsernames, mode);
 
           // 4. 处理API返回的数据
           const fetchedRankMap: Record<string, number> = {};
-          fetchedRanks.forEach(rankData => {
+          fetchedRanks.forEach((rankData) => {
             if (rankData && rankData.kolRank !== undefined) {
               result[rankData.username] = rankData.kolRank;
               fetchedRankMap[rankData.username] = rankData.kolRank;
@@ -157,12 +215,20 @@ class RankService {
 
           // 5. 批量更新缓存
           if (Object.keys(fetchedRankMap).length > 0) {
-            await RankCacheManager.setBatch(fetchedRankMap);
-            devLog('log', `📊 [v${packageJson.version}] Updated cache with ${Object.keys(fetchedRankMap).length} new ranks`);
+            await RankCacheManager.setBatch(fetchedRankMap, mode);
+            devLog(
+              'log',
+              `📊 [v${packageJson.version}] Updated cache with ${
+                Object.keys(fetchedRankMap).length
+              } new ranks`
+            );
           }
-
         } catch (error) {
-          devLog('error', `[v${packageJson.version}] Failed to fetch uncached ranks:`, error);
+          devLog(
+            'error',
+            `[v${packageJson.version}] Failed to fetch uncached ranks:`,
+            error
+          );
         }
       }
 
@@ -190,22 +256,53 @@ class RankService {
 
   // 通知所有状态回调
   private notifyStatusCallbacks(loadingUsernames: Set<string>): void {
-    this.statusCallbacks.forEach(callback => {
+    this.statusCallbacks.forEach((callback) => {
       try {
         callback(loadingUsernames);
       } catch (error) {
-        devLog('error', `[v${packageJson.version}] Error in rank status callback:`, error);
+        devLog(
+          'error',
+          `[v${packageJson.version}] Error in rank status callback:`,
+          error
+        );
       }
     });
   }
 
-  // 预加载排名（用于预热缓存）
-  public async preloadRanks(usernames: string[]): Promise<void> {
+  // 从外部数据更新排名缓存（用于强制刷新后同步缓存）
+  public async updateRanks(
+    usernameRankMap: Record<string, number>,
+    mode: AvatarRankMode = 'influence'
+  ): Promise<void> {
+    if (Object.keys(usernameRankMap).length === 0) return;
     try {
-      await this.getRanks(usernames);
-      devLog('log', `📊 [v${packageJson.version}] Preloaded ranks for ${usernames.length} usernames`);
+      await RankCacheManager.setBatch(usernameRankMap, mode);
     } catch (error) {
-      devLog('error', `[v${packageJson.version}] Failed to preload ranks:`, error);
+      devLog(
+        'error',
+        `📊 [v${packageJson.version}] Failed to update ranks:`,
+        error
+      );
+    }
+  }
+
+  // 预加载排名（用于预热缓存）
+  public async preloadRanks(
+    usernames: string[],
+    mode: AvatarRankMode
+  ): Promise<void> {
+    try {
+      await this.getRanks(usernames, mode);
+      devLog(
+        'log',
+        `📊 [v${packageJson.version}] Preloaded ranks for ${usernames.length} usernames`
+      );
+    } catch (error) {
+      devLog(
+        'error',
+        `[v${packageJson.version}] Failed to preload ranks:`,
+        error
+      );
     }
   }
 
@@ -214,9 +311,9 @@ class RankService {
     return {
       isInitialized: this.isInitialized,
       statusCallbackCount: this.statusCallbacks.size,
-      cacheStats: RankCacheManager.getStats(),
+      cacheStats: RankCacheManager.getStats('influence'),
       requestMergerStats: RequestMerger.getStats(),
-      version: packageJson.version
+      version: packageJson.version,
     };
   }
 

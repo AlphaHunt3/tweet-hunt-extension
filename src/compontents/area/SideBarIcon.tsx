@@ -3,7 +3,13 @@ import ReactDOM from 'react-dom';
 import indexText from 'data-text:~/css/index.css';
 import { useDebounceFn } from 'ahooks';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { navigationService } from '~/compontents/navigation/NavigationService';
 import { messageManager } from '~/utils/messageManager';
@@ -12,6 +18,7 @@ import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
 import { useGlobalResize } from '~contents/hooks/useGlobalResize';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import useCurrentUrl from '~contents/hooks/useCurrentUrl';
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
@@ -33,7 +40,8 @@ function _SideBarIcon() {
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [isCheckingMessages, setIsCheckingMessages] = useState(true);
   const initialCheckDoneRef = useRef(false);
-  const sidebar = useWaitForElement('nav[role]', [theme]);
+  const currentUrl = useCurrentUrl();
+  const sidebar = useWaitForElement('nav[role]', [theme, currentUrl]);
   const [isExpanded, setIsExpanded] = useState(true);
   const { lang } = useI18n();
   const langRef = useRef(lang);
@@ -46,8 +54,8 @@ function _SideBarIcon() {
     const parentElement = sidebar.parentElement;
     const width = parentElement.getBoundingClientRect().width || 0;
     // 根据宽度判断是否展开（宽度大于 72px 时展开）
-    setIsExpanded(width > 72);
-  }, [sidebar]);
+    setIsExpanded(width > 72 && !currentUrl.includes('/i/chat'));
+  }, [sidebar, currentUrl]);
 
   // 防抖处理宽度获取和计算
   const { run: debouncedUpdateIsExpanded } = useDebounceFn(updateIsExpanded, {

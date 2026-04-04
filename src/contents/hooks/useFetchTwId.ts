@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { subscribeToMutation } from './useGlobalMutationObserver';
 
 /**
  * 基于页面可见性/焦点变更监听来获取 twid Cookie 的 Hook
@@ -15,7 +16,7 @@ function useFetchTwId() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
-    let observer: MutationObserver | null = null;
+    let unsubscribe: (() => void) | null = null;
     let stopped = false;
 
     const checkCookie = () => {
@@ -44,7 +45,7 @@ function useFetchTwId() {
         setIsLoggedIn(true);
         // 一旦拿到 twid，停止进一步观察与检查
         stopped = true;
-        observer?.disconnect();
+        unsubscribe?.();
         document.removeEventListener('readystatechange', onReadyStateChange);
       } else {
         setData(null);
@@ -70,7 +71,7 @@ function useFetchTwId() {
       checkCookie();
     }
 
-    // 使用 MutationObserver 监听页面结构变化，触发复查
+    // 使用全局 MutationObserver 监听页面结构变化，触发复查
     // 说明：无法直接监听 cookie 变化，但登录/登出通常伴随 DOM 变化
     let scheduled = false;
     const scheduleCheck = () => {
@@ -82,18 +83,24 @@ function useFetchTwId() {
       });
     };
 
-    const newObserver = new MutationObserver(() => {
-      scheduleCheck();
-    });
-    newObserver.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-    observer = newObserver;
+    // 使用全局 MutationObserver 替换原来的独立实例
+    // 注意：全局观察器观察 document.body，但会捕获所有子元素的变化
+    unsubscribe = subscribeToMutation(
+      () => {
+        scheduleCheck();
+      },
+      {
+        childList: true,
+        subtree: true,
+      },
+      {
+        debugName: 'useFetchTwId',
+      }
+    );
 
     return () => {
       document.removeEventListener('readystatechange', onReadyStateChange);
-      observer?.disconnect();
+      unsubscribe?.();
     };
   }, []);
 

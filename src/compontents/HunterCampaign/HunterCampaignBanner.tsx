@@ -5,14 +5,14 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import { useLockFn, useRequest } from 'ahooks';
-import { MessageCircle } from 'lucide-react';
+import { useDebounceEffect, useLockFn, useRequest } from 'ahooks';
+import { MessageCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import { cleanErrorMessage } from '~/utils/dataValidation';
-import { getTwitterAuthUrl } from '~contents/services/api.ts';
+import { getTwitterAuthUrl, getCustomTaskLink, getCustomTaskStatus } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
 import { ActivityHeader } from './ActivityHeader';
 import { HunterCampaignCaptain } from './HunterCampaignCaptain';
@@ -24,6 +24,7 @@ import type {
   Task,
   HunterCampaignBannerProps,
   HunterCampaignTaskDefinition,
+  CustomTaskState,
 } from './types';
 import { updateUserInfo } from '~contents/services/review.ts';
 import { StoredUserInfo } from '~types/review.ts';
@@ -94,6 +95,118 @@ export function HunterCampaignBanner({
     Record<string, boolean>
   >(tasksKey || `${taskStorageBase}:guest`, {});
 
+  // Custom task states: refresh cooldown and loading states
+  const customTaskStorageKey = useMemo(() => {
+    if (!xhuntUser?.id) return '';
+    return `@xhunt/customTask:${campaignConfig.campaignKey}:${xhuntUser.id}`;
+  }, [xhuntUser?.id, campaignConfig.campaignKey]);
+
+  const [customTaskStates, setCustomTaskStates, { isLoading: isLoadingTaskStates }] = useLocalStorage<Record<string, CustomTaskState>>(
+    customTaskStorageKey || '@xhunt/customTask:guest',
+    {}
+  );
+
+  // Loading states for custom task status checks
+  const [customTaskLoading, setCustomTaskLoading] = useState<Record<string, boolean>>({});
+
+  // Migrate guest custom task states to per-user key
+  useEffect(() => {
+    if (!customTaskStorageKey) return;
+    (async () => {
+      try {
+        const guestKey = '@xhunt/customTask:guest';
+        const guestStates = await localStorageInstance.get(guestKey);
+        if (guestStates && typeof guestStates === 'object') {
+          await localStorageInstance.set(customTaskStorageKey, guestStates);
+          await localStorageInstance.remove(guestKey);
+        }
+      } catch { }
+    })();
+  }, [customTaskStorageKey]);
+
+  // Refresh cooldown time in seconds (15 seconds)
+  const REFRESH_COOLDOWN = 15;
+
+  // Check if a custom task can be refreshed
+  const canRefreshCustomTask = useCallback((taskId: string): boolean => {
+    if (isLoadingTaskStates) return false;
+    const state = customTaskStates?.[taskId];
+    if (!state?.lastRefreshAt) return true;
+    const elapsed = (Date.now() - state.lastRefreshAt) / 1000;
+    return elapsed >= REFRESH_COOLDOWN;
+  }, [customTaskStates, isLoadingTaskStates]);
+
+  // Get remaining cooldown seconds for a custom task
+  const getRefreshCooldown = useCallback((taskId: string): number => {
+    const state = customTaskStates?.[taskId];
+    if (!state?.lastRefreshAt) return 0;
+    const elapsed = (Date.now() - state.lastRefreshAt) / 1000;
+    const remaining = Math.ceil(REFRESH_COOLDOWN - elapsed);
+    return Math.max(0, remaining);
+  }, [customTaskStates]);
+
+  // Handle custom task link click
+  const handleCustomTaskClick = useCallback(async (taskDef: HunterCampaignTaskDefinition) => {
+    if (!isLoggedIn || isLoadingTaskStates) return;
+
+    const res = await getCustomTaskLink({
+      campaign: campaignConfig.campaignKey,
+      taskId: taskDef.id,
+    });
+
+    if (res?.success && res.link) {
+      openNewTab(res.link);
+    } else {
+      setTips({ text: t('customTaskLinkError') || '获取任务链接失败', type: 'fail' });
+    }
+  }, [isLoggedIn, campaignConfig.campaignKey, setTips, t, isLoadingTaskStates]);
+
+  // Handle custom task status refresh
+  const handleCustomTaskRefresh = useCallback(async (taskDef: HunterCampaignTaskDefinition) => {
+    if (!isLoggedIn || !canRefreshCustomTask(taskDef.id)) return;
+
+    setCustomTaskLoading(prev => ({ ...prev, [taskDef.id]: true }));
+
+    try {
+      const res = await getCustomTaskStatus({
+        campaign: campaignConfig.campaignKey,
+        taskId: taskDef.id,
+      });
+
+      if (res?.success) {
+        // Update task progress based on completed status
+        if (res.completed) {
+          setTaskProgress(prev => ({
+            ...(prev || {}),
+            [taskDef.id]: true,
+          }));
+        }
+
+        // Update custom task state with refresh timestamp
+        setCustomTaskStates(prev => ({
+          ...(prev || {}),
+          [taskDef.id]: {
+            lastRefreshAt: Date.now(),
+            completed: res.completed,
+            completedAt: res.completedAt,
+          },
+        }));
+
+        if (res.completed) {
+          setTips({ text: t('customTaskCompleted') || '任务已完成', type: 'suc' });
+        } else {
+          setTips({ text: t('customTaskNotCompleted') || '任务尚未完成', type: 'default' });
+        }
+      } else {
+        setTips({ text: t('customTaskStatusError') || '查询任务状态失败', type: 'fail' });
+      }
+    } catch {
+      setTips({ text: t('customTaskStatusError') || '查询任务状态失败', type: 'fail' });
+    } finally {
+      setCustomTaskLoading(prev => ({ ...prev, [taskDef.id]: false }));
+    }
+  }, [isLoggedIn, campaignConfig.campaignKey, canRefreshCustomTask, setTaskProgress, setCustomTaskStates, setTips, t, isLoadingTaskStates]);
+
   // Migrate guest progress to per-user key once user info is available
   useEffect(() => {
     if (!tasksKey) return;
@@ -158,29 +271,52 @@ export function HunterCampaignBanner({
         icon = <XLogo className='w-4 h-4' />;
       } else if (taskDef.type === 'telegram') {
         icon = <MessageCircle className='w-4 h-4' />;
+      } else if (taskDef.type === 'custom') {
+        icon = <Sparkles className='w-4 h-4' />;
       } else {
         icon = <MessageCircle className='w-4 h-4' />;
       }
+
+      // For custom tasks, use handleCustomTaskClick instead of direct open
+      const isCustomTask = taskDef.type === 'custom';
+
+      // For custom tasks, check both local progress and server state
+      const isCompleted = isCustomTask
+        ? Boolean(progress?.[taskDef.id]) || Boolean(customTaskStates?.[taskDef.id]?.completed)
+        : Boolean(progress?.[taskDef.id]);
 
       return {
         id: taskDef.id,
         title: taskDef.title,
         icon,
-        completed: Boolean(progress?.[taskDef.id]),
+        completed: isCompleted,
         action: () => {
           try {
-            if (taskDef.autoComplete) {
+            if (taskDef.autoComplete && !isCustomTask) {
               setTaskProgress((prev) => ({
                 ...(prev || {}),
                 [taskDef.id]: true,
               }));
             }
           } catch { }
-          openTaskAndCompleteOnReturn(taskDef.id, taskDef.url);
+
+          if (isCustomTask) {
+            handleCustomTaskClick(taskDef);
+          } else {
+            openTaskAndCompleteOnReturn(taskDef.id, taskDef.url);
+          }
         },
-      };
+        // Custom task specific properties (using type assertion for extended properties)
+        ...({
+          type: taskDef.type,
+          onRefresh: isCustomTask ? () => handleCustomTaskRefresh(taskDef) : undefined,
+          canRefresh: isCustomTask ? canRefreshCustomTask(taskDef.id) : undefined,
+          refreshCooldown: isCustomTask ? getRefreshCooldown(taskDef.id) : undefined,
+          isLoading: isCustomTask ? customTaskLoading[taskDef.id] : undefined,
+        } as any),
+      } as Task;
     },
-    [openTaskAndCompleteOnReturn, setTaskProgress]
+    [openTaskAndCompleteOnReturn, setTaskProgress, customTaskStates, handleCustomTaskClick, handleCustomTaskRefresh, canRefreshCustomTask, getRefreshCooldown, customTaskLoading]
   );
 
   // =========================================
@@ -275,7 +411,28 @@ export function HunterCampaignBanner({
         createTaskFromDefinition(taskDef, taskProgress || {})
       )
     );
-  }, [campaignConfig, taskProgress, createTaskFromDefinition]);
+  }, [campaignConfig, taskProgress, customTaskStates, createTaskFromDefinition]);
+
+  // Update tasks periodically to refresh cooldown display for custom tasks
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render to update cooldown display
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => {
+          if ((task as any).type === 'custom') {
+            return {
+              ...task,
+              canRefresh: canRefreshCustomTask(task.id),
+              refreshCooldown: getRefreshCooldown(task.id),
+            } as Task;
+          }
+          return task;
+        })
+      );
+    }, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, [canRefreshCustomTask, getRefreshCooldown, customTaskStates]);
 
   const allRequiredTasksCompleted =
     tasks.every((task) => task.completed) && !!evmAddress;
@@ -296,7 +453,36 @@ export function HunterCampaignBanner({
   const isContentVisible = effectiveExpanded;
 
   // =========================================
-  // 8) Data fetching (registration info)
+  // 8) Auto refresh custom tasks when panel is expanded
+  // =========================================
+  useDebounceEffect(() => {
+    if (!isContentVisible || !isLoggedIn || isRegisteredState || isLoadingTaskStates) return;
+
+    // Find custom tasks that are not completed (check both local and server state)
+    const customTasks = campaignConfig.tasks.filter((task) => {
+      if (task.type !== 'custom') return false;
+      // Skip if completed locally
+      if (taskProgress?.[task.id]) return false;
+      // Skip if completed on server
+      if (customTaskStates?.[task.id]?.completed) return false;
+      return true;
+    });
+
+    customTasks.forEach((taskDef) => {
+      // Only refresh if cooldown has passed
+      if (canRefreshCustomTask(taskDef.id)) {
+        handleCustomTaskRefresh(taskDef);
+      }
+    });
+  }, [isContentVisible, isLoggedIn, isRegisteredState, campaignConfig.tasks, taskProgress, customTaskStates, canRefreshCustomTask, handleCustomTaskRefresh, isLoadingTaskStates], {
+    wait: 800,
+    maxWait: 1000,
+    leading: false,
+    trailing: true
+  });
+
+  // =========================================
+  // 9) Data fetching (registration info)
   // =========================================
   const { loading: regLoading, refresh: refreshRegistration } = useRequest(
     () => campaignConfig.api.fetchRegistration(xhuntUser?.id || ''),

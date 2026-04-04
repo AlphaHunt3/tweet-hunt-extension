@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useDebounceFn } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
+import { subscribeToMutation } from './useGlobalMutationObserver';
 
 // Interface for tracking large avatars
 interface TrackedAvatar {
@@ -14,6 +15,9 @@ export function useAvatarElements() {
   const controllerRef = useRef<AbortController | null>(null);
   const processedNodesRef = useRef(new WeakSet());
   const largeAvatarsRef = useRef(new Map<HTMLElement, TrackedAvatar>());
+  const AVATAR_SELECTOR = '[data-testid^="UserAvatar-Container-"]';
+
+  // Simple cache for querySelectorAll results keyed by selector, invalidated via version
 
   const { run: findAvatarElements } = useDebounceFn(
     () => {
@@ -23,28 +27,20 @@ export function useAvatarElements() {
       }
 
       const matchedElements = new Set<HTMLElement>();
-      const elements = document.querySelectorAll(
-        '[data-testid^="UserAvatar-Container-"]'
-      );
+      const elements = Array.from(
+        document.querySelectorAll(AVATAR_SELECTOR)
+      ) as HTMLElement[];
 
       elements.forEach((element) => {
-        if (
-          element instanceof HTMLElement &&
-          !processedNodesRef.current.has(element)
-        ) {
-          let parent = element.parentElement;
-          let shouldExclude = false;
+        if (!processedNodesRef.current.has(element)) {
+          // Exclusion using closest traversal
+          const excludedAncestor = element.closest('[data-xhunt-exclude]');
+          let shouldExclude = !!excludedAncestor;
 
-          while (parent) {
-            if (parent.hasAttribute('data-xhunt-exclude')) {
-              shouldExclude = true;
-              break;
-            }
-            parent = parent.parentElement;
-          }
-
-          const rect = element.getBoundingClientRect();
-          if (rect.width < 33 || rect.height < 33) {
+          // Size check via offset dimensions
+          const w = (element as HTMLElement).offsetWidth;
+          const h = (element as HTMLElement).offsetHeight;
+          if (w < 33 || h < 33) {
             shouldExclude = true;
           }
 
@@ -53,7 +49,7 @@ export function useAvatarElements() {
             processedNodesRef.current.add(element);
 
             // Track large avatars
-            if (rect.width > 120 || rect.height > 120) {
+            if (w > 120 || h > 120) {
               const testId = element.getAttribute('data-testid');
               const username =
                 testId?.replace('UserAvatar-Container-', '') || '';
@@ -69,7 +65,8 @@ export function useAvatarElements() {
       setAvatarElements(Array.from(matchedElements));
     },
     {
-      wait: 300,
+      wait: 80,
+      maxWait: 150,
       leading: false,
       trailing: true,
     }
@@ -119,46 +116,62 @@ export function useAvatarElements() {
 
     findAvatarElements();
 
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList') {
-          const hasNewAvatars = Array.from(mutation.addedNodes).some((node) => {
-            if (node instanceof HTMLElement) {
-              return (
-                node.matches?.('[data-testid^="UserAvatar-Container-"]') ||
-                node.querySelector('[data-testid^="UserAvatar-Container-"]') !==
-                  null
-              );
-            }
-            return false;
-          });
+    // 使用全局 MutationObserver 替换原来的独立实例
+    const unsubscribe = subscribeToMutation(
+      (mutations) => {
+        // 检查是否有新的 avatars 被添加
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList') {
+            const addedHasAvatars = Array.from(mutation.addedNodes).some(
+              (node) => {
+                if (node instanceof HTMLElement) {
+                  return (
+                    node.matches?.(AVATAR_SELECTOR) ||
+                    node.querySelector(AVATAR_SELECTOR) !== null
+                  );
+                }
+                return false;
+              }
+            );
 
-          if (hasNewAvatars) {
-            if (controllerRef.current) {
-              controllerRef.current.abort();
-            }
-            controllerRef.current = new AbortController();
+            const removedHasAvatars = Array.from(mutation.removedNodes).some(
+              (node) => {
+                if (node instanceof HTMLElement) {
+                  return (
+                    node.matches?.(AVATAR_SELECTOR) ||
+                    node.querySelector(AVATAR_SELECTOR) !== null
+                  );
+                }
+                return false;
+              }
+            );
 
-            // Coalesce bursts of mutations
-            requestIdleCallback(() => findAvatarElements(), { timeout: 300 });
-            break;
+            if (addedHasAvatars || removedHasAvatars) {
+              if (controllerRef.current) {
+                controllerRef.current.abort();
+              }
+              controllerRef.current = new AbortController();
+
+              // Coalesce bursts of mutations
+              requestIdleCallback(() => findAvatarElements(), { timeout: 50 });
+              break;
+            }
           }
         }
+      },
+      {
+        childList: true,
+        subtree: true,
+      },
+      {
+        // 使用 filter 只处理 childList 类型的 mutations
+        filter: (mutation) => mutation.type === 'childList',
+        debugName: 'useAvatarElements', // 调试名称
       }
-    });
-
-    // Narrow observer root to the main content area to reduce global overhead
-    const targetNode =
-      document.querySelector('main[role]') ||
-      document.querySelector('.avatar-container') ||
-      document.body;
-    observer.observe(targetNode, {
-      childList: true,
-      subtree: true,
-    });
+    );
 
     return () => {
-      observer.disconnect();
+      unsubscribe();
       if (controllerRef.current) {
         controllerRef.current.abort();
       }

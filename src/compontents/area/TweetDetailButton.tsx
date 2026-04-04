@@ -9,7 +9,7 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLockFn } from 'ahooks';
 import { fetchAiContent, getTwitterAuthUrl } from '~contents/services/api';
 import { AiContentResponse } from '~types';
-import { AI_ANALYSIS_EVENT, AiAnalysisDetail } from './AiAnalysisTips.tsx';
+import { AI_ANALYSIS_EVENT, AiAnalysisDetail } from '../AiAnalysisTips.tsx';
 import { openNewTab } from '~contents/utils';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 
@@ -17,7 +17,7 @@ interface TweetDetailButtonProps {
   // 可以添加其他props
 }
 
-function _TweetDetailButton({}: TweetDetailButtonProps) {
+function _TweetDetailButton({ }: TweetDetailButtonProps) {
   const shadowRoot = useShadowContainer({
     selector:
       "article[data-testid='tweet'][tabindex='-1'] button[data-testid='caret']",
@@ -117,10 +117,10 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
         typeof err === 'string'
           ? err
           : err && typeof err === 'object' && 'message' in err
-          ? typeof (err as { message?: unknown }).message === 'string'
-            ? ((err as { message?: unknown }).message as string)
-            : ''
-          : '';
+            ? typeof (err as { message?: unknown }).message === 'string'
+              ? ((err as { message?: unknown }).message as string)
+              : ''
+            : '';
 
       if (rawMessage) {
         // 移除所有版本号前缀，获取实际的错误消息
@@ -432,16 +432,14 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
         onMouseEnter={handleMouseEnter}
         disabled={isLoading}
         aria-label={getButtonText()}
-        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] text-white mr-3 shadow-sm hover:opacity-90 overflow-hidden ${
-          isLoading && hasProgressStarted
+        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] text-white mr-3 shadow-sm hover:opacity-90 overflow-hidden ${isLoading && hasProgressStarted
             ? 'bg-slate-500'
             : 'bg-gradient-to-r from-blue-500 to-purple-500'
-        } ${isLoading ? 'cursor-not-allowed pointer-events-none' : ''} ${
-          isLoading && hasProgressStarted ? 'pr-10' : ''
-        }`}
+          } ${isLoading ? 'cursor-not-allowed pointer-events-none' : ''} ${isLoading && hasProgressStarted ? 'pr-10' : ''
+          }`}
         style={{ overflow: 'hidden' }}
-        // title={getButtonText()}
-        // aria-label={getButtonText()}
+      // title={getButtonText()}
+      // aria-label={getButtonText()}
       >
         {/* Progress fill (behind content) */}
         {isLoading && hasProgressStarted ? (
@@ -490,11 +488,10 @@ function _TweetDetailButton({}: TweetDetailButtonProps) {
             />
           </svg>
           <span
-            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
-              isPanelOpen
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${isPanelOpen
                 ? 'ml-2 min-w-0 max-w-[120px] opacity-100'
                 : 'ml-0 min-w-0 max-w-0 opacity-0 group-hover:ml-2 group-hover:max-w-[120px] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[120px] group-focus-visible:opacity-100'
-            }`}
+              }`}
           >
             {getButtonText()}
           </span>

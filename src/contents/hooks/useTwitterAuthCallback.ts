@@ -8,6 +8,7 @@ import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
 import { useLockFn } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { applyLoginState } from '~contents/utils/auth.ts';
+import { StoredUserInfo } from '~types/review.ts';
 
 /**
  * Twitter OAuth 回调处理 Hook
@@ -15,7 +16,10 @@ import { applyLoginState } from '~contents/utils/auth.ts';
 const useTwitterAuthCallback = () => {
   const currentUrl = useCurrentUrl();
   const [, setToken] = useLocalStorage('@xhunt/token', '');
-  const [, setUser] = useLocalStorage('@xhunt/user', null);
+  const [, setUser] = useLocalStorage<StoredUserInfo | null | ''>(
+    '@xhunt/user',
+    null
+  );
   const [, setTips] = useGlobalTips();
   const { t } = useI18n();
   const isCallbackUrl = currentUrl.includes('account/xhunt');
@@ -31,7 +35,7 @@ const useTwitterAuthCallback = () => {
   );
   const hadSetDom = useRef(false);
   const strLoggingIn = t('loggingIn');
-  // const strLoginSuccess = t('loginSuccess');
+  const strLoginSuccess = t('loginSuccess');
   const handleAuthCallback = useLockFn(async (code: string, state: string) => {
     try {
       const response = await postTwitterCallback({
@@ -47,7 +51,7 @@ const useTwitterAuthCallback = () => {
       // @ts-ignore
       setUser(user);
       setTips({
-        text: '登录成功',
+        text: strLoginSuccess,
         type: 'suc',
       });
       try {

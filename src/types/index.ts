@@ -504,6 +504,52 @@ export interface AiContentResponse {
   promotional_tendency: string;
 }
 
+// AI Detect 探测功能相关类型
+export interface AiDetectShadowbanRisk {
+  level_cn: string; // 风险等级: 低/中/高
+  level_en: string; // 风险等级: Low/Medium/High
+  score: number; // 风险分数: 0-100
+  issues_cn: string[]; // 风险问题列表(中文)
+  issues_en: string[]; // 风险问题列表(英文)
+  advice_cn: string; // 风险建议(中文)
+  advice_en: string; // 风险建议(英文)
+}
+
+export interface AiDetectCompliance {
+  commercial_prob: number; // 商业推广概率: 0.0-1.0
+  commercial_reason_cn: string;
+  commercial_reason_en: string;
+  ai_prob: number; // AI生成概率: 0.0-1.0
+  ai_reason_cn: string;
+  ai_reason_en: string;
+}
+
+export interface AiDetectContentAdvice {
+  hook_cn: string;
+  hook_en: string;
+  body_cn: string;
+  body_en: string;
+  error_check_cn: string;
+  error_check_en: string;
+  media_cn: string;
+  media_en: string;
+  content_quality_score?: number; // 内容质量分数，分数越高内容质量越高，传播力越强
+}
+
+export interface AiDetectResponse {
+  shadowban_risk: AiDetectShadowbanRisk;
+  compliance: AiDetectCompliance;
+  content_advice: AiDetectContentAdvice;
+}
+
+export interface AiDetectQuota {
+  isVip: boolean;
+  total: number;
+  used: number;
+  remaining: number;
+  resetTime: number;
+}
+
 // AI聊天相关类型
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -619,3 +665,146 @@ export interface PrivateMessagesResponse {
     pagination?: any;
   };
 }
+
+// ==================== Ghost Following 类型定义 ====================
+
+// 额度信息
+export interface GhostFollowingQuota {
+  total: number;
+  remaining: number;
+  used: number;
+}
+
+// Analyze 额度
+export interface GhostFollowingAnalyzeQuotaDetail {
+  status: 'none' | 'cooldown' | 'active' | 'exhausted' | 'expired';
+  quota: GhostFollowingQuota;
+  appliedAt: number;
+  expiresAt: number;
+  nextApplyAt: number | null;
+  waitDays: number;
+  canApplyNow: boolean;
+  expiresInDays: number;
+}
+
+// Following 额度
+export interface GhostFollowingFollowingQuotaDetail {
+  status: 'none' | 'cooldown' | 'active' | 'exhausted' | 'expired';
+  quota: GhostFollowingQuota;
+  resetAt: number;
+  expiresInDays: number;
+}
+
+// 关注用户 Profile
+export interface GhostFollowingProfile {
+  created_at: string;
+  description: string;
+  followers_count: number;
+  following_count: number;
+  id: string;
+  is_blue_verified: boolean;
+  listed_count: number;
+  location: string;
+  name: string;
+  pinned_tweet_id: string[];
+  profile_banner_url: string;
+  profile_image_url: string;
+  protected: boolean;
+  tweets_count: number;
+  url: string;
+  username: string;
+  verified: boolean;
+}
+
+// 推文分析结果
+export interface GhostFollowingAnalyzeResult {
+  id: string | null;
+  create_time: string | null;
+  html: string | null;
+  twitter_user_id: string;
+  message?: string;
+}
+
+// 额度错误数据
+export interface GhostFollowingQuotaErrorData {
+  total: number;
+  used: number;
+  nextApplyAt: number;
+  waitDays: number;
+  waitHours: number;
+}
+
+// 关注列表额度耗尽错误数据
+export interface GhostFollowingFollowingQuotaErrorData {
+  total: number;
+  used: number;
+  remaining: number;
+  resetAt: number;
+  waitDays: number;
+}
+
+// API 响应 - 查询额度（包含 analyze 和 following 两个额度）
+export interface GhostFollowingQuotaResponse {
+  success: boolean;
+  data: {
+    isVip: boolean;
+    analyze: GhostFollowingAnalyzeQuotaDetail;
+    following: GhostFollowingFollowingQuotaDetail;
+  };
+}
+
+// API 响应 - 分析推文
+export interface GhostFollowingAnalyzeResponse {
+  success: boolean;
+  data?: {
+    quota: GhostFollowingAnalyzeQuotaDetail & { isNewQuota?: boolean };
+    result: GhostFollowingAnalyzeResult;
+  };
+  error?: {
+    code: string;
+    message: string;
+    data: GhostFollowingQuotaErrorData;
+  };
+}
+
+// API 响应 - 获取关注列表
+export interface GhostFollowingListData {
+  quota: GhostFollowingFollowingQuotaDetail;
+  result: {
+    next: string;
+    previous: string;
+    profiles: GhostFollowingProfile[];
+  };
+}
+
+export interface GhostFollowingListResponse {
+  success: boolean;
+  data?: GhostFollowingListData;
+  error?: {
+    code: string;
+    message: string;
+    data: GhostFollowingFollowingQuotaErrorData;
+  };
+}
+
+// 分析记录中的用户信息（带活跃时间）
+export interface GhostFollowingRecordUser extends GhostFollowingProfile {
+  lastActiveTime: string | null; // ISO 8601 格式，null 表示无推文
+  isAnalyzed: boolean; // 是否已完成分析
+}
+
+// 单次分析记录
+export interface GhostFollowingRecord {
+  id: string; // 记录 ID
+  createdAt: number; // 创建时间戳
+  totalFollowing: number; // 关注总数
+  inactiveCount: number; // 不活跃用户数
+  threshold: number; // 不活跃阈值（月）
+  users: GhostFollowingRecordUser[]; // 用户列表
+  analyzedUserIds: string[]; // 已分析的用户ID列表，用于继续分析功能
+  isContinued?: boolean; // 是否是继续分析产生的记录
+  parentRecordId?: string; // 父记录ID（如果是继续分析产生的）
+}
+
+// 本地存储的分析记录列表（最多3条）
+export type GhostFollowingRecords = GhostFollowingRecord[];

@@ -67,9 +67,11 @@ export function RegisteredContent({
   );
   const [showRankTooltip, setShowRankTooltip] = useState(false);
   const [showEvmTooltip, setShowEvmTooltip] = useState(false);
+  // 排名 Tab 切换：'mindshare' | 'pow'
+  const [rankTab, setRankTab] = useState<'mindshare' | 'pow'>('mindshare');
 
   // 底部按钮展示状态
-  const hasLeaderboard = campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url);
+  const hasLeaderboard = campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url) && !campaignConfig?.links?.activeUrl.includes('/leaderboard');
   const hasOfficial = isUrlValid(campaignConfig?.links?.activeUrl);
   const hasGuide = isUrlValid(campaignConfig?.links?.guideUrl);
   const linkCount = (hasLeaderboard ? 1 : 0) + (hasOfficial ? 1 : 0) + (hasGuide ? 1 : 0);
@@ -132,19 +134,45 @@ export function RegisteredContent({
         <div className='absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-purple-500/[0.03] to-pink-500/[0.03] pointer-events-none rounded-lg' />
         <div className='absolute inset-0 bg-gradient-to-br from-transparent via-white/[0.01] to-transparent pointer-events-none rounded-lg' />
 
-        {/* Mindshare Rank */}
+        {/* Mindshare/POW Rank */}
         <div className='py-2 rounded-lg bg-white/[0.02] transition-all duration-200 relative group z-10 hover:bg-white/[0.04]'>
-          <div className='text-[9px] theme-text-secondary mb-0.5 font-medium text-center'>
-            {t('mantleHunterStatusRank')}
-          </div>
+          {/* Tab 切换按钮 */}
+          {campaignConfig?.enablePowLeaderboard ? (
+            <div className='flex items-center justify-center gap-1 mb-0.5'>
+              <button
+                onClick={() => setRankTab('mindshare')}
+                className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors ${rankTab === 'mindshare'
+                  ? 'bg-blue-500/20 text-blue-300'
+                  : 'theme-text-secondary hover:text-blue-300/70'
+                  }`}
+              >
+                POI
+              </button>
+              <button
+                onClick={() => setRankTab('pow')}
+                className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors ${rankTab === 'pow'
+                  ? 'bg-amber-500/20 text-amber-300'
+                  : 'theme-text-secondary hover:text-amber-300/70'
+                  }`}
+              >
+                POW
+              </button>
+            </div>
+          ) : (
+            <div className='text-[9px] theme-text-secondary mb-0.5 font-medium text-center'>
+              {t('mantleHunterStatusRank')}
+            </div>
+          )}
           <div
             className='text-xs theme-text-primary font-bold text-center cursor-pointer leading-tight'
             onMouseEnter={() => setShowRankTooltip(true)}
             onMouseLeave={() => setShowRankTooltip(false)}
           >
             <div className='flex items-center justify-center gap-1'>
-              <span className='text-blue-300'>
-                #{hunterDataState?.mindshare?.rank ?? '999+'}
+              <span className={rankTab === 'mindshare' ? 'text-blue-300' : 'text-amber-300'}>
+                #{rankTab === 'mindshare'
+                  ? (hunterDataState?.mindshare?.rank ?? '999+')
+                  : (hunterDataState?.workshare?.rank ?? '999+')}
               </span>
             </div>
           </div>
@@ -159,6 +187,14 @@ export function RegisteredContent({
                     Mindshare: #{hunterDataState?.mindshare?.rank ?? '999+'}
                   </span>
                 </div>
+                {campaignConfig?.enablePowLeaderboard && (
+                  <div className='flex items-center gap-2'>
+                    <div className='w-3 h-3 rounded-full bg-amber-300'></div>
+                    <span>
+                      Workshare: #{hunterDataState?.workshare?.rank ?? '999+'}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-900'></div>
             </div>
@@ -224,7 +260,7 @@ export function RegisteredContent({
               }}
             >
               <Globe className='w-3.5 h-3.5 shrink-0 opacity-70' />
-              <span className='leading-none truncate'>{goToOfficialButtonText}</span>
+              <span className='leading-none truncate'>{campaignConfig?.links?.activeUrl.includes('/leaderboard') ? t('viewLeaderboard') : goToOfficialButtonText}</span>
             </a>
           )}
           {hasGuide && (

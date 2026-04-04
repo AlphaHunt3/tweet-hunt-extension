@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRequest } from 'ahooks';
 import { Heart, Repeat, Eye } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -22,9 +22,13 @@ export function CampaignLeaderboard({
   campaignConfig,
 }: CampaignLeaderboardProps) {
   const { t, lang } = useI18n();
+
+  // 判断是否开启 POW 排行榜
+  const hasPowLeaderboard = campaignConfig?.enablePowLeaderboard === true;
+
   const [activeTab, setActiveTab] = useState<
-    'mindshare' | 'hotTweets' | 'articleContest'
-  >('mindshare');
+    'poi' | 'pow' | 'articleContest'
+  >(hasPowLeaderboard ? 'pow' : 'poi');
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
@@ -165,17 +169,17 @@ export function CampaignLeaderboard({
     };
   };
   // 获取热门推文数据
-  const { data: hotTweetsData, loading: hotTweetsLoading } = useRequest(
-    () =>
-      campaignConfig.api.fetchHotTweets
-        ? campaignConfig.api.fetchHotTweets()
-        : Promise.resolve(undefined),
-    {
-      manual: false,
-      debounceWait: 300,
-      refreshDeps: [campaignConfig],
-    }
-  );
+  // const { data: hotTweetsData, loading: hotTweetsLoading } = useRequest(
+  //   () =>
+  //     campaignConfig.api.fetchHotTweets
+  //       ? campaignConfig.api.fetchHotTweets()
+  //       : Promise.resolve(undefined),
+  //   {
+  //     manual: false,
+  //     debounceWait: 300,
+  //     refreshDeps: [campaignConfig],
+  //   }
+  // );
 
   // 获取排行榜数据
   const { data: leaderboardData, loading: leaderboardLoading } = useRequest(
@@ -190,7 +194,7 @@ export function CampaignLeaderboard({
     }
   );
 
-  // 转换API数据为组件需要的格式
+  // 转换API数据为组件需要的格式 - POI 榜 (mindshare)
   const mindshareData = useMemo(() => {
     if (!leaderboardData?.mindshare) return [];
     return leaderboardData.mindshare.map((item: any) => ({
@@ -204,16 +208,32 @@ export function CampaignLeaderboard({
     }));
   }, [leaderboardData?.mindshare]);
 
-  // 已移除 Workshare 展示
+  // 转换API数据为组件需要的格式 - POW 榜 (workshare)
+  const workshareData = useMemo(() => {
+    if (!leaderboardData?.workshare) return [];
+    return leaderboardData.workshare.map((item: any) => ({
+      rank: item.rank,
+      username: item.username,
+      displayName: item.name,
+      avatar: item.image,
+      share: item.share || 0,
+      change: undefined,
+      isVerified: false,
+    }));
+  }, [leaderboardData?.workshare]);
 
   // 获取头像排名（xhunt rank）
   useEffect(() => {
     if (isAvatarRankModeLoading) return;
 
-    // 在 mindshare 和 articleContest 标签下获取用户排名；hotTweets 不需要
+    // 在 poi、pow 和 articleContest 标签下获取用户排名
     let usernames: string[] = [];
-    if (activeTab === 'mindshare') {
+    if (activeTab === 'poi') {
       usernames = (mindshareData
+        .map((i: LeaderboardItem) => i.username)
+        .filter(Boolean) as string[]);
+    } else if (activeTab === 'pow') {
+      usernames = (workshareData
         .map((i: LeaderboardItem) => i.username)
         .filter(Boolean) as string[]);
     } else if (activeTab === 'articleContest') {
@@ -238,6 +258,8 @@ export function CampaignLeaderboard({
   }, [
     activeTab,
     mindshareData,
+    workshareData,
+    hasPowLeaderboard,
     campaignConfig.essayContestWinners,
     avatarRankMode,
     isAvatarRankModeLoading,
@@ -464,83 +486,83 @@ export function CampaignLeaderboard({
     );
   };
 
-  // 渲染热门推文 - 类似推文卡片的紧凑设计
-  const renderHotTweet = (tweetData: any) => {
-    const tweet = tweetData.tweet;
-    const profile = tweet.profile;
-    const statistic = tweet.statistic;
-    const info = tweetData.info;
+  // // 渲染热门推文 - 类似推文卡片的紧凑设计
+  // const renderHotTweet = (tweetData: any) => {
+  //   const tweet = tweetData.tweet;
+  //   const profile = tweet.profile;
+  //   const statistic = tweet.statistic;
+  //   const info = tweetData.info;
 
-    return (
-      <a
-        key={tweet.id}
-        href={info.link}
-        target='_blank'
-        rel='noopener noreferrer'
-        className='block px-3 py-2.5 rounded-md theme-hover transition-colors border-l-2 border-transparent hover:border-l-2 hover:border-blue-400/50'
-      >
-        {/* 推文头部 */}
-        <div className='flex items-start gap-2.5 mb-2'>
-          <img
-            src={
-              profile.profile_image_url ||
-              'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
-            }
-            alt={profile.name}
-            className='w-8 h-8 rounded-full flex-shrink-0'
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
-            }}
-          />
-          <div className='flex-1 min-w-0'>
-            <div className='flex items-center gap-1 mb-0.5'>
-              <span className='font-medium text-sm theme-text-primary truncate'>
-                {profile.name}
-              </span>
-              {profile.is_blue_verified && (
-                <svg
-                  className='w-4 h-4 text-[#1d9bf0] flex-shrink-0'
-                  viewBox='0 0 22 22'
-                  fill='currentColor'
-                >
-                  <path d='M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z'></path>
-                </svg>
-              )}
-              <span className='text-xs theme-text-secondary'>
-                @{profile.username}
-              </span>
-              <span className='text-xs theme-text-secondary'>·</span>
-              <span className='text-xs theme-text-secondary'>
-                {formatTime(tweet.create_time)}
-              </span>
-            </div>
+  //   return (
+  //     <a
+  //       key={tweet.id}
+  //       href={info.link}
+  //       target='_blank'
+  //       rel='noopener noreferrer'
+  //       className='block px-3 py-2.5 rounded-md theme-hover transition-colors border-l-2 border-transparent hover:border-l-2 hover:border-blue-400/50'
+  //     >
+  //       {/* 推文头部 */}
+  //       <div className='flex items-start gap-2.5 mb-2'>
+  //         <img
+  //           src={
+  //             profile.profile_image_url ||
+  //             'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
+  //           }
+  //           alt={profile.name}
+  //           className='w-8 h-8 rounded-full flex-shrink-0'
+  //           onError={(e) => {
+  //             (e.target as HTMLImageElement).src =
+  //               'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+  //           }}
+  //         />
+  //         <div className='flex-1 min-w-0'>
+  //           <div className='flex items-center gap-1 mb-0.5'>
+  //             <span className='font-medium text-sm theme-text-primary truncate'>
+  //               {profile.name}
+  //             </span>
+  //             {profile.is_blue_verified && (
+  //               <svg
+  //                 className='w-4 h-4 text-[#1d9bf0] flex-shrink-0'
+  //                 viewBox='0 0 22 22'
+  //                 fill='currentColor'
+  //               >
+  //                 <path d='M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z'></path>
+  //               </svg>
+  //             )}
+  //             <span className='text-xs theme-text-secondary'>
+  //               @{profile.username}
+  //             </span>
+  //             <span className='text-xs theme-text-secondary'>·</span>
+  //             <span className='text-xs theme-text-secondary'>
+  //               {formatTime(tweet.create_time)}
+  //             </span>
+  //           </div>
 
-            {/* 推文内容 */}
-            <div className='text-sm theme-text-primary leading-relaxed line-clamp-5'>
-              {tweet.text}
-            </div>
+  //           {/* 推文内容 */}
+  //           <div className='text-sm theme-text-primary leading-relaxed line-clamp-5'>
+  //             {tweet.text}
+  //           </div>
 
-            {/* 推文统计 */}
-            <div className='flex items-center gap-4 mt-2 text-xs theme-text-secondary'>
-              <div className='flex items-center gap-1'>
-                <Heart className='w-3 h-3' />
-                <span>{formatNumber(statistic.likes || 0)}</span>
-              </div>
-              <div className='flex items-center gap-1'>
-                <Repeat className='w-3 h-3' />
-                <span>{formatNumber(statistic.retweet_count || 0)}</span>
-              </div>
-              <div className='flex items-center gap-1'>
-                <Eye className='w-3 h-3' />
-                <span>{formatNumber(statistic.views || 0)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </a>
-    );
-  };
+  //           {/* 推文统计 */}
+  //           <div className='flex items-center gap-4 mt-2 text-xs theme-text-secondary'>
+  //             <div className='flex items-center gap-1'>
+  //               <Heart className='w-3 h-3' />
+  //               <span>{formatNumber(statistic.likes || 0)}</span>
+  //             </div>
+  //             <div className='flex items-center gap-1'>
+  //               <Repeat className='w-3 h-3' />
+  //               <span>{formatNumber(statistic.retweet_count || 0)}</span>
+  //             </div>
+  //             <div className='flex items-center gap-1'>
+  //               <Eye className='w-3 h-3' />
+  //               <span>{formatNumber(statistic.views || 0)}</span>
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </a>
+  //   );
+  // };
 
   const handleViewMore = () => {
     const url = campaignConfig.links.getActiveUrl();
@@ -560,83 +582,112 @@ export function CampaignLeaderboard({
       maximumFractionDigits: 1,
     }).format(amount);
     const poolLabel = lang === 'zh' ? '奖池' : 'Prize pool ';
-    return `${poolLabel}${formattedAmount}${unit ? ` ${unit}` : ''}`.trim();
+    return `${poolLabel}${formattedAmount}${unit ? ` (${unit})` : ''}`.trim();
   };
 
   // 使用 Tabs 组件：短标签展示，长文本（含奖池）hover 展示，避免换行
   const leaderboardTabs = useMemo(() => {
-    const tabs: { id: string; label: string; tooltip?: string }[] = [
-      {
-        id: 'mindshare',
-        label: t('mantleHunterTabMindshare'),
-        tooltip:
-          campaignConfig.rewardAmount
-            ? `${t('mantleHunterTabMindshare')}（${getRewardText(
-              campaignConfig.rewardAmount,
-              campaignConfig.rewardUnit
-            )}）`
-            : undefined,
-      },
-    ];
-    if (campaignConfig.enableEssayContest) {
+    const tabs: { id: string; label: string; tooltip?: string }[] = [];
+
+    // POI Tab（始终展示）
+    tabs.push({
+      id: 'poi',
+      label: 'POI',
+      tooltip: `POI ${lang === 'zh' ? '榜单' : 'Leaderboard'}`,
+    });
+
+    // POW Tab（仅开启 POW 时展示）
+    if (hasPowLeaderboard) {
+      tabs.push({
+        id: 'pow',
+        label: 'POW',
+        tooltip: `POW ${lang === 'zh' ? '榜单' : 'Leaderboard'}`,
+      });
+    }
+
+    // 征文大赛 Tab（开启且有名单时展示）
+    if (
+      campaignConfig.enableEssayContest &&
+      campaignConfig.essayContestWinners &&
+      campaignConfig.essayContestWinners.length > 0
+    ) {
       tabs.push({
         id: 'articleContest',
         label: t('mantleHunterTabArticleContest'),
-        tooltip:
-          campaignConfig.essayContestAmount
-            ? `${t('mantleHunterTabArticleContest')}（${getRewardText(
-              campaignConfig.essayContestAmount,
-              campaignConfig.rewardUnit
-            )}）`
-            : t('mantleHunterTabArticleContest'),
+        tooltip: t('mantleHunterTabArticleContest'),
       });
     }
-    tabs.push({
-      id: 'hotTweets',
-      label: t('mantleHunterTabHotTweets'),
-      tooltip: t('mantleHunterTabHotTweets'),
-    });
+
     return tabs;
   }, [
     campaignConfig.rewardAmount,
     campaignConfig.rewardUnit,
     campaignConfig.enableEssayContest,
     campaignConfig.essayContestAmount,
+    campaignConfig.essayContestWinners,
+    campaignConfig.enablePowLeaderboard,
+    campaignConfig.powAmount,
+    campaignConfig.powUnit,
     lang,
     t,
   ]);
+
+  // 处理主 tab 切换
+  const handleTabChange = (id: string) => {
+    setActiveTab(id as typeof activeTab);
+  };
 
   return (
     <div className='space-y-1.5'>
       <Tabs
         tabs={leaderboardTabs}
         activeTab={activeTab}
-        onChange={(id) => setActiveTab(id as typeof activeTab)}
+        onChange={handleTabChange}
         zhMaxRow={Math.min(3, leaderboardTabs.length)}
         enMaxRow={Math.min(3, leaderboardTabs.length)}
         labelClassName='text-xs'
+      // tooltipMaxWidth={230}
       />
 
       {/* Tab Content - 固定高度，查看更多按钮固定在底部 */}
-      <div className='relative'>
+      <div className='relative' data-theme={theme}>
         <div className={`max-h-[290px] overflow-y-auto custom-scrollbar ${showLeaderboardLink ? 'pb-10' : ''}`}>
           <div className='space-y-2 py-2'>
-            {activeTab === 'mindshare' &&
-              (leaderboardLoading ? (
-                <div className='flex items-center justify-center py-4'>
-                  <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
-                </div>
-              ) : mindshareData.length > 0 ? (
-                mindshareData.map(renderLeaderboardItem)
-              ) : (
-                <div className='flex items-center justify-center py-4 theme-text-secondary'>
-                  <span className='text-xs'>
-                    {t('mantleHunterNoLeaderboard')}
-                  </span>
-                </div>
-              ))}
-            {/* 已移除 Workshare 内容 */}
-            {activeTab === 'hotTweets' &&
+            {activeTab === 'poi' && (
+              <div className='space-y-2'>
+                {leaderboardLoading ? (
+                  <div className='flex items-center justify-center py-4'>
+                    <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
+                  </div>
+                ) : mindshareData.length > 0 ? (
+                  mindshareData.map(renderLeaderboardItem)
+                ) : (
+                  <div className='flex items-center justify-center py-4 theme-text-secondary'>
+                    <span className='text-xs'>
+                      {t('mantleHunterNoLeaderboard')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === 'pow' && (
+              <div className='space-y-2'>
+                {leaderboardLoading ? (
+                  <div className='flex items-center justify-center py-4'>
+                    <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
+                  </div>
+                ) : workshareData.length > 0 ? (
+                  workshareData.map(renderLeaderboardItem)
+                ) : (
+                  <div className='flex items-center justify-center py-4 theme-text-secondary'>
+                    <span className='text-xs'>
+                      {t('mantleHunterNoLeaderboard')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* {activeTab === 'hotTweets' &&
               (hotTweetsLoading ? (
                 <div className='flex items-center justify-center py-4'>
                   <div className='w-5 h-5 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin' />
@@ -649,7 +700,7 @@ export function CampaignLeaderboard({
                     {t('mantleHunterNoHotTweets')}
                   </span>
                 </div>
-              ))}
+              ))} */}
             {activeTab === 'articleContest' &&
               (campaignConfig.essayContestWinners &&
                 campaignConfig.essayContestWinners.length > 0 ? (

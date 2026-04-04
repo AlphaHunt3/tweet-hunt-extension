@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import { Sparkles } from 'lucide-react';
-import { AI_CHAT_EVENT } from './AiChatDialog.tsx';
+import { AI_CHAT_EVENT } from '../AiChatDialog.tsx';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';

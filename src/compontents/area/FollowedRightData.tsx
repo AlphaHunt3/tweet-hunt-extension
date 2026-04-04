@@ -1,21 +1,29 @@
 import cssText from 'data-text:~/css/style.css';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import ReactDOM from 'react-dom';
 import { HoverStatItem } from '~/compontents/HoverStatItem.tsx';
-import { formatNumber } from '~contents/utils';
+import { formatNumber, openNewTab } from '~contents/utils';
 import { KolFollowersSection } from '~/compontents/KolFollowersSection.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import numeral from 'numeral';
 import { ReviewHeader } from '~/compontents/ReviewHeader.tsx';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import ReactDOMServer from 'react-dom/server';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, Ghost, ChevronRight } from 'lucide-react';
+import {
+  GhostFollowingPanelEventDetail,
+  GHOST_FOLLOWING_PANEL_EVENT,
+} from './GhostFollowingPanel';
 import { KolData } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import { getTwitterAuthUrl } from '~contents/services/api.ts';
+import { useLockFn } from 'ahooks';
+
+
 
 const renderRankChange = (change: number | undefined | null) => {
   try {
@@ -78,10 +86,10 @@ const RankTooltip = React.memo(
           !rank || rank <= 0
             ? t('notInTop10kProject')
             : Number(rank) > Number(t('kolProjectRankTotal') || 10000)
-            ? `${t('inTop10kProject1')} >${formatUpperCase(
+              ? `${t('inTop10kProject1')} >${formatUpperCase(
                 Number(t('kolProjectRankTotal'))
               )}`
-            : `${t('inTop10kProject1')} ${rank} ${t('inTop10kProject2')}`;
+              : `${t('inTop10kProject1')} ${rank} ${t('inTop10kProject2')}`;
         tooltip = t('projectInfluenceRankTooltip');
         break;
       case 'chinese':
@@ -92,10 +100,10 @@ const RankTooltip = React.memo(
           !rank || rank <= 0
             ? t('notInTop1k')
             : Number(rank) > Number(t('kolCnRankTotal') || 10000)
-            ? `${t('inTop1k1')} >${formatUpperCase(
+              ? `${t('inTop1k1')} >${formatUpperCase(
                 Number(t('kolCnRankTotal'))
               )}`
-            : `${t('inTop1k1')} ${rank} ${t('inTop1k2')}`;
+              : `${t('inTop1k1')} ${rank} ${t('inTop1k2')}`;
         tooltip = t('chineseInfluenceRankTooltip');
         break;
       case 'english':
@@ -106,10 +114,10 @@ const RankTooltip = React.memo(
           !rank || rank <= 0
             ? t('notInTopEn')
             : Number(rank) > Number(t('kolEnRankTotal') || 10000)
-            ? `${t('inTopEn1')} >${formatUpperCase(
+              ? `${t('inTopEn1')} >${formatUpperCase(
                 Number(t('kolEnRankTotal'))
               )}`
-            : `${t('inTopEn1')} ${rank} ${t('inTopEn2')}`;
+              : `${t('inTopEn1')} ${rank} ${t('inTopEn2')}`;
         tooltip = t('englishInfluenceRankTooltip');
         break;
     }
@@ -124,31 +132,28 @@ const RankTooltip = React.memo(
         <div className='text-xs space-y-2'>
           <div className='flex justify-between items-center mb-4'>
             <button
-              className={`px-2 py-1 rounded transition-colors ${
-                activePeriod === 'day1'
-                  ? 'theme-bg-tertiary theme-text-primary'
-                  : 'theme-text-secondary hover:theme-bg-tertiary'
-              }`}
+              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day1'
+                ? 'theme-bg-tertiary theme-text-primary'
+                : 'theme-text-secondary hover:theme-bg-tertiary'
+                }`}
               onClick={() => setActivePeriod('day1')}
             >
               {t('day1')}
             </button>
             <button
-              className={`px-2 py-1 rounded transition-colors ${
-                activePeriod === 'day7'
-                  ? 'theme-bg-tertiary theme-text-primary'
-                  : 'theme-text-secondary hover:theme-bg-tertiary'
-              }`}
+              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day7'
+                ? 'theme-bg-tertiary theme-text-primary'
+                : 'theme-text-secondary hover:theme-bg-tertiary'
+                }`}
               onClick={() => setActivePeriod('day7')}
             >
               {t('day7')}
             </button>
             <button
-              className={`px-2 py-1 rounded transition-colors ${
-                activePeriod === 'day30'
-                  ? 'theme-bg-tertiary theme-text-primary'
-                  : 'theme-text-secondary hover:theme-bg-tertiary'
-              }`}
+              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day30'
+                ? 'theme-bg-tertiary theme-text-primary'
+                : 'theme-text-secondary hover:theme-bg-tertiary'
+                }`}
               onClick={() => setActivePeriod('day30')}
             >
               {t('day30')}
@@ -189,6 +194,44 @@ function _FollowedRightData({
   refreshAsyncUserInfo,
   loadingReviewInfo,
 }: MainData) {
+  const ghostButtonRef = useRef<HTMLDivElement>(null);
+  const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
+  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const [token] = useLocalStorage('@xhunt/token', '');
+  const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
+  const { t } = useI18n();
+
+  // 登录跳转
+  const redirectToLogin = useLockFn(async () => {
+    try {
+      const ret = await getTwitterAuthUrl();
+      if (ret?.url) {
+        openNewTab(ret.url);
+      }
+    } catch (e) { }
+  });
+
+  // 检查是否登录
+  const isLoggedIn = !!token;
+
+  // 判断是否在当前用户的个人页面
+  const isOwnProfile = useMemo(() => {
+    if (!currentUsername || !userId) return false;
+    return currentUsername.toLowerCase() === userId.toLowerCase();
+  }, [currentUsername, userId]);
+
+  // 监听面板关闭事件
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<GhostFollowingPanelEventDetail>;
+      if (customEvent.detail.source === 'panel') {
+        setIsGhostPanelOpen(customEvent.detail.open);
+      }
+    };
+    window.addEventListener(GHOST_FOLLOWING_PANEL_EVENT, handler);
+    return () => window.removeEventListener(GHOST_FOLLOWING_PANEL_EVENT, handler);
+  }, []);
+
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     siblingsXPath:
@@ -197,7 +240,7 @@ function _FollowedRightData({
     useSiblings: true,
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
-  const { t, lang } = useI18n();
+  const { lang } = useI18n();
 
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
@@ -306,77 +349,132 @@ function _FollowedRightData({
           {/* 影响力排名：中文显示华语；英文显示英文影响力（按条件） */}
           {lang === 'zh'
             ? isEnabled('showCnRank') &&
-              twInfo?.kolFollow?.isCn && (
-                <HoverStatItem
-                  label={`${
-                    !twInfo?.kolFollow?.kolCnRank ||
-                    twInfo?.kolFollow?.kolCnRank <= 0 ||
-                    Number(twInfo?.kolFollow?.kolCnRank) >
-                      Number(t('kolCnRankTotal') || 10000)
-                      ? `>${formatUpperCase(Number(t('kolCnRankTotal')))}`
-                      : numeral(twInfo?.kolFollow?.kolCnRank || 0).format(
-                          '0,0'
-                        ) +
-                        `/${formatUpperCase(Number(t('kolCnRankTotal')))}` +
-                        kolCnRankChangeDom
+            twInfo?.kolFollow?.isCn && (
+              <HoverStatItem
+                label={`${!twInfo?.kolFollow?.kolCnRank ||
+                  twInfo?.kolFollow?.kolCnRank <= 0 ||
+                  Number(twInfo?.kolFollow?.kolCnRank) >
+                  Number(t('kolCnRankTotal') || 10000)
+                  ? `>${formatUpperCase(Number(t('kolCnRankTotal')))}`
+                  : numeral(twInfo?.kolFollow?.kolCnRank || 0).format(
+                    '0,0'
+                  ) +
+                  `/${formatUpperCase(Number(t('kolCnRankTotal')))}` +
+                  kolCnRankChangeDom
                   }`}
-                  value={t('cnRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='chinese' />
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />
-              )
+                value={t('cnRank')}
+                hoverContent={
+                  <RankTooltip twInfo={twInfo} rankType='chinese' />
+                }
+                labelClassName={'font-bold'}
+                valueClassName={'theme-text-secondary'}
+              />
+            )
             : isEnabled('showEnInfluenceRank') &&
-              !!twInfo?.kolFollow?.kolGlobalRank && (
-                <HoverStatItem
-                  label={`${(() => {
-                    const total = Number(t('kolEnRankTotal')) || 10000;
-                    const rank = Number(twInfo?.kolFollow?.kolGlobalRank || 0);
-                    if (!rank || rank <= 0) {
-                      return `>${formatUpperCase(total)}`;
-                    }
-                    if (rank > total) {
-                      return (
-                        `>${formatUpperCase(total)}` + kolGlobalRankChangeDom
-                      );
-                    }
-                    return (
-                      numeral(rank).format('0,0') +
-                      `/${formatUpperCase(total)}` +
-                      kolGlobalRankChangeDom
-                    );
-                  })()}`}
-                  value={t('enInfluenceRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='english' />
+            !!twInfo?.kolFollow?.kolGlobalRank && (
+              <HoverStatItem
+                label={`${(() => {
+                  const total = Number(t('kolEnRankTotal')) || 10000;
+                  const rank = Number(twInfo?.kolFollow?.kolGlobalRank || 0);
+                  if (!rank || rank <= 0) {
+                    return `>${formatUpperCase(total)}`;
                   }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />
-              )}
+                  if (rank > total) {
+                    return (
+                      `>${formatUpperCase(total)}` + kolGlobalRankChangeDom
+                    );
+                  }
+                  return (
+                    numeral(rank).format('0,0') +
+                    `/${formatUpperCase(total)}` +
+                    kolGlobalRankChangeDom
+                  );
+                })()}`}
+                value={t('enInfluenceRank')}
+                hoverContent={
+                  <RankTooltip twInfo={twInfo} rankType='english' />
+                }
+                labelClassName={'font-bold'}
+                valueClassName={'theme-text-secondary'}
+              />
+            )}
 
           {/*项目排名变化 */}
           {isEnabled('showProjectRank') && twInfo?.kolFollow?.isProject && (
             <HoverStatItem
-              label={`${
-                !twInfo?.kolFollow?.kolProjectRank ||
+              label={`${!twInfo?.kolFollow?.kolProjectRank ||
                 twInfo?.kolFollow?.kolProjectRank <= 0 ||
                 Number(twInfo?.kolFollow?.kolProjectRank) >
-                  Number(t('kolProjectRankTotal') || 10000)
-                  ? `>${formatUpperCase(Number(t('kolProjectRankTotal')))}`
-                  : numeral(twInfo?.kolFollow?.kolProjectRank || 0).format(
-                      '0,0'
-                    ) +
-                    `/${formatUpperCase(Number(t('kolProjectRankTotal')))}` +
-                    kolProjectRankChangeDom
-              }`}
+                Number(t('kolProjectRankTotal') || 10000)
+                ? `>${formatUpperCase(Number(t('kolProjectRankTotal')))}`
+                : numeral(twInfo?.kolFollow?.kolProjectRank || 0).format(
+                  '0,0'
+                ) +
+                `/${formatUpperCase(Number(t('kolProjectRankTotal')))}` +
+                kolProjectRankChangeDom
+                }`}
               value={t('projectRank')}
               hoverContent={<RankTooltip twInfo={twInfo} rankType='project' />}
               labelClassName={'font-bold'}
               valueClassName={'theme-text-secondary'}
             />
+          )}
+
+          {/* 检测幽灵following按钮 - 只在当前用户的个人页面显示，且需要开启设置 */}
+          {isOwnProfile && isEnabled('showGhostFollowing') && (
+            <div
+              ref={ghostButtonRef}
+              data-theme={theme}
+              className='relative mr-4 cursor-pointer group'
+              onClick={() => {
+                // 未登录时跳转到登录
+                if (!isLoggedIn) {
+                  redirectToLogin();
+                  return;
+                }
+                const nextState = !isGhostPanelOpen;
+                setIsGhostPanelOpen(nextState);
+                window.dispatchEvent(
+                  new CustomEvent<GhostFollowingPanelEventDetail>(
+                    GHOST_FOLLOWING_PANEL_EVENT,
+                    {
+                      detail: {
+                        open: nextState,
+                        anchor: ghostButtonRef.current || undefined,
+                        source: undefined,
+                      },
+                    }
+                  )
+                );
+              }}
+            >
+              <div className='flex items-center gap-0.5 relative'>
+                <Ghost className='w-4 h-4 theme-text-secondary' />
+                <span className='text-sm theme-text-secondary group-hover:underline'>
+                  {t('detectGhostFollowing')}
+                </span>
+                <span style={{
+                  transform: "translate(-4px, -7px)"
+                }} className='px-0.5 text-[6px] font-semibold leading-none transform'>
+                  <svg
+                    className='w-4 h-[auto]'
+                    viewBox='0 0 1024 1024'
+                    version='1.1'
+                    xmlns='http://www.w3.org/2000/svg'
+                    p-id='10824'
+                    width='64'
+                    height='64'
+                  >
+                    <path
+                      d='M245.76 286.72h552.96c124.928 0 225.28 100.352 225.28 225.28s-100.352 225.28-225.28 225.28H0V532.48c0-135.168 110.592-245.76 245.76-245.76z m133.12 348.16V401.408H348.16v178.176l-112.64-178.176H204.8V634.88h30.72v-178.176L348.16 634.88h30.72z m182.272-108.544v-24.576h-96.256v-75.776h110.592v-24.576h-141.312V634.88h143.36v-24.576h-112.64v-83.968h96.256z m100.352 28.672l-34.816-151.552h-34.816l55.296 233.472H675.84l47.104-161.792 4.096-20.48 4.096 20.48 47.104 161.792h28.672l57.344-233.472h-34.816l-32.768 151.552-4.096 30.72-6.144-30.72-40.96-151.552h-30.72l-40.96 151.552-6.144 30.72-6.144-30.72z'
+                      fill='#EE502F'
+                      p-id='10825'
+                    ></path>
+                  </svg>
+                </span>
+                {/* <ChevronRight className='w-3.5 h-3.5 theme-text-secondary group-hover:translate-x-0.5 transition-transform' /> */}
+              </div>
+            </div>
           )}
         </>
       )}

@@ -85,8 +85,16 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
       }
       const tickersOrCAs = extractTickerOrCA(text);
       if (!tickersOrCAs.length) return null;
+      // Filter to only supported tokens/CAs to reduce regex size and matching work
+      const filtered = tickersOrCAs.filter((tok) => {
+        if (tok.startsWith('$')) {
+          return supportedSymbols.has(tok.slice(1).toLowerCase());
+        }
+        return supportedCAs.has(tok.toLowerCase());
+      });
+      if (!filtered.length) return null;
 
-      const allMatches = findTokenMatches(text, tickersOrCAs);
+      const allMatches = findTokenMatches(text, filtered);
       const validMatches = allMatches.reduce<TokenMatch[]>((acc, curr) => {
         const lastMatch = acc[acc.length - 1];
         if (!lastMatch || curr.index >= lastMatch.index + lastMatch.length) {
@@ -100,14 +108,6 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
 
       for (const match of validMatches) {
         const isTicker = match.text.startsWith('$');
-        const key = isTicker
-          ? match.text.slice(1).toLowerCase()
-          : match.text.toLowerCase();
-        const isSupported = isTicker
-          ? supportedSymbols.has(key)
-          : supportedCAs.has(key);
-
-        if (!isSupported) continue;
 
         if (match.index > lastIndex) {
           fragment.appendChild(

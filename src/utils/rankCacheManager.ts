@@ -1,11 +1,18 @@
 // Rank cache manager - Extracted from useAvatarRanks.ts
 import packageJson from '../../package.json';
+import { localStorageInstance } from '~storage/index.ts';
 
 // Constants
 const MAX_CACHE_SIZE = 800;
 const CACHE_EXPIRATION = 15 * 60 * 60 * 1000; // 15小时
 const RANK_CACHE_KEY_OLD = '@xhunt/rank-cache';
 const RANK_CACHE_KEY = '@xhunt/rank-cache-new';
+
+const buildCacheKey = (namespace: RankCacheNamespace): string => {
+  // influence 保持原 key，确保不影响原来的缓存
+  if (namespace === 'influence') return RANK_CACHE_KEY;
+  return `${RANK_CACHE_KEY}-${namespace}`;
+};
 const BATCH_OPERATION_DELAY = 100; // Delay for batch operations
 
 // Cache management
@@ -26,6 +33,8 @@ const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
   }
 };
 
+export type RankCacheNamespace = 'influence' | 'composite';
+
 export class RankCacheManager {
   private static cleanupTimer: NodeJS.Timeout | null = null;
 
@@ -34,7 +43,8 @@ export class RankCacheManager {
     if (this.cleanupTimer) return;
 
     this.cleanupTimer = setInterval(() => {
-      this.performScheduledCleanup();
+      this.performScheduledCleanup('influence');
+      this.performScheduledCleanup('composite');
     }, interval);
 
     devLog(
@@ -55,9 +65,9 @@ export class RankCacheManager {
   }
 
   // Perform scheduled cleanup
-  private static async performScheduledCleanup() {
+  private static async performScheduledCleanup(namespace: RankCacheNamespace) {
     try {
-      const cache = await this.getCache();
+      const cache = await this.getCache(namespace);
       const now = Date.now();
       let cleanedCount = 0;
 
@@ -70,7 +80,7 @@ export class RankCacheManager {
       }
 
       if (cleanedCount > 0) {
-        await this.setCache(cache);
+        await this.setCache(cache, namespace);
         devLog(
           'log',
           `📊 [v${packageJson.version}] Scheduled cleanup removed ${cleanedCount} expired entries`
@@ -85,11 +95,14 @@ export class RankCacheManager {
     }
   }
 
-  // Get cache from localStorage
-  static async getCache(): Promise<RankCache> {
+  // Get cache from local storage (encrypted wrapper)
+  static async getCache(namespace: RankCacheNamespace): Promise<RankCache> {
     try {
-      const cache = await localStorage.getItem(RANK_CACHE_KEY);
-      return cache ? JSON.parse(cache) : {};
+      const cacheKey = buildCacheKey(namespace);
+      const cache = (await localStorageInstance.get(
+        cacheKey
+      )) as RankCache | null;
+      return cache || {};
     } catch (error) {
       devLog(
         'error',
@@ -100,8 +113,8 @@ export class RankCacheManager {
     }
   }
 
-  // Set cache to localStorage
-  static async setCache(cache: RankCache) {
+  // Set cache to local storage (encrypted wrapper)
+  static async setCache(cache: RankCache, namespace: RankCacheNamespace) {
     try {
       const now = Date.now();
 
@@ -155,7 +168,7 @@ export class RankCacheManager {
         );
       }
 
-      await localStorage.setItem(RANK_CACHE_KEY, JSON.stringify(cache));
+      await localStorageInstance.set(buildCacheKey(namespace), cache);
     } catch (error) {
       devLog(
         'error',
@@ -164,7 +177,7 @@ export class RankCacheManager {
       );
       // If storage fails, try to clear cache
       try {
-        await localStorage.removeItem(RANK_CACHE_KEY);
+        await localStorageInstance.remove(RANK_CACHE_KEY);
         devLog(
           'warn',
           `📊 [v${packageJson.version}] Cache cleared due to storage failure`
@@ -180,9 +193,12 @@ export class RankCacheManager {
   }
 
   // Get a rank from cache
-  static async get(username: string): Promise<RankCacheEntry | null> {
+  static async get(
+    username: string,
+    namespace: RankCacheNamespace
+  ): Promise<RankCacheEntry | null> {
     try {
-      const cache = await this.getCache();
+      const cache = await this.getCache(namespace);
       const entry = cache[username.toLowerCase()];
 
       if (!entry) return null;
@@ -190,14 +206,14 @@ export class RankCacheManager {
       const now = Date.now();
       if (now - entry.timestamp > CACHE_EXPIRATION) {
         delete cache[username.toLowerCase()];
-        await this.setCache(cache);
+        await this.setCache(cache, namespace);
         return null;
       }
 
       // Update last accessed time
       entry.lastAccessed = now;
       cache[username.toLowerCase()] = entry;
-      await this.setCache(cache);
+      await this.setCache(cache, namespace);
 
       return entry;
     } catch (error) {
@@ -211,9 +227,13 @@ export class RankCacheManager {
   }
 
   // Set a rank in cache
-  static async set(username: string, rank: number) {
+  static async set(
+    username: string,
+    rank: number,
+    namespace: RankCacheNamespace
+  ) {
     try {
-      let cache = await this.getCache();
+      let cache = await this.getCache(namespace);
       const now = Date.now();
 
       cache[username.toLowerCase()] = {
@@ -222,7 +242,7 @@ export class RankCacheManager {
         lastAccessed: now,
       };
 
-      await this.setCache(cache);
+      await this.setCache(cache, namespace);
     } catch (error) {
       devLog(
         'error',
@@ -239,10 +259,7 @@ export class RankCacheManager {
       };
 
       try {
-        await localStorage.setItem(
-          RANK_CACHE_KEY,
-          JSON.stringify(minimalCache)
-        );
+        await localStorageInstance.set(buildCacheKey(namespace), minimalCache);
       } catch (fallbackError) {
         devLog(
           'error',
@@ -255,12 +272,13 @@ export class RankCacheManager {
 
   // Set multiple ranks in cache at once (batch operation)
   static async setBatch(
-    usernameRankMap: Record<string, number>
+    usernameRankMap: Record<string, number>,
+    namespace: RankCacheNamespace
   ): Promise<void> {
     try {
       if (Object.keys(usernameRankMap).length === 0) return;
 
-      let cache = await this.getCache();
+      let cache = await this.getCache(namespace);
       const now = Date.now();
 
       // Update all entries in one operation
@@ -272,7 +290,7 @@ export class RankCacheManager {
         };
       });
 
-      await this.setCache(cache);
+      await this.setCache(cache, namespace);
       devLog(
         'log',
         `📊 [v${packageJson.version}] Batch updated ${
@@ -299,10 +317,7 @@ export class RankCacheManager {
           };
         });
 
-        await localStorage.setItem(
-          RANK_CACHE_KEY,
-          JSON.stringify(minimalCache)
-        );
+        await localStorageInstance.set(buildCacheKey(namespace), minimalCache);
         devLog(
           'warn',
           `📊 [v${packageJson.version}] Created minimal cache with ${entries.length} entries`
@@ -319,12 +334,13 @@ export class RankCacheManager {
 
   // Get multiple ranks from cache at once (batch operation)
   static async getBatch(
-    usernames: string[]
+    usernames: string[],
+    namespace: RankCacheNamespace
   ): Promise<Record<string, RankCacheEntry>> {
     try {
       if (usernames.length === 0) return {};
 
-      const cache = await this.getCache();
+      const cache = await this.getCache(namespace);
       const now = Date.now();
       const result: Record<string, RankCacheEntry> = {};
       const cacheUpdates: Record<string, RankCacheEntry> = {};
@@ -359,14 +375,14 @@ export class RankCacheManager {
           try {
             // Only update the cache if there are actual updates
             if (Object.keys(cacheUpdates).length > 0) {
-              const updatedCache = await this.getCache();
+              const updatedCache = await this.getCache(namespace);
 
               // Apply all updates
               Object.entries(cacheUpdates).forEach(([username, entry]) => {
                 updatedCache[username] = entry;
               });
 
-              await this.setCache(updatedCache);
+              await this.setCache(updatedCache, namespace);
               devLog(
                 'log',
                 `📊 [v${packageJson.version}] Updated lastAccessed for ${
@@ -396,9 +412,9 @@ export class RankCacheManager {
   }
 
   // Get cache statistics
-  static async getStats() {
+  static async getStats(namespace: RankCacheNamespace) {
     try {
-      const cache = await this.getCache();
+      const cache = await this.getCache(namespace);
       const now = Date.now();
 
       const stats = {
@@ -431,16 +447,19 @@ export class RankCacheManager {
   }
 
   // Manual cleanup
-  static async manualCleanup() {
-    await this.performScheduledCleanup();
+  static async manualCleanup(namespace: RankCacheNamespace) {
+    await this.performScheduledCleanup(namespace);
   }
 
   // Force clear all cache data
   static async forceClearAll(): Promise<void> {
     try {
-      // Clear localStorage
-      await localStorage.removeItem(RANK_CACHE_KEY);
-      await localStorage.removeItem(RANK_CACHE_KEY_OLD);
+      // Clear storage
+      // influence: 清理新旧缓存
+      await localStorageInstance.remove(buildCacheKey('influence'));
+      await localStorageInstance.remove(RANK_CACHE_KEY_OLD);
+      // composite: 清理独立命名空间缓存
+      await localStorageInstance.remove(buildCacheKey('composite'));
 
       devLog(
         'log',
@@ -457,9 +476,10 @@ export class RankCacheManager {
 }
 
 // Initialize cleanup timer when module is loaded
-RankCacheManager.startCleanupTimer();
+// RankCacheManager.startCleanupTimer();
 
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
-  RankCacheManager.stopCleanupTimer();
-});
+// // Clean up on page unload (guard for non-window contexts)
+// typeof window !== 'undefined' &&
+//   window.addEventListener('beforeunload', () => {
+//     RankCacheManager.stopCleanupTimer();
+//   });

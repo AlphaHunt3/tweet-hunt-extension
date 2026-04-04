@@ -6,21 +6,15 @@ import useWaitForElement from './useWaitForElement';
 import { useDebounceEffect } from 'ahooks';
 import { userLogout } from '~contents/services/review';
 import useCurrentUrl from './useCurrentUrl';
+import { StoredUserInfo } from '~types/review.ts';
 
 export const useVerifyLoginStatus = () => {
   const currentUrl = useCurrentUrl();
-  const [token, setToken] = useLocalStorage('@xhunt/token', '');
-  const [user, setUser] = useLocalStorage<
-    | {
-        avatar: string;
-        displayName: string;
-        username: string;
-        id: string;
-        twitterId: string;
-      }
-    | null
-    | ''
-  >('@xhunt/user', null);
+  const [token] = useLocalStorage('@xhunt/token', '');
+  const [user] = useLocalStorage<StoredUserInfo | null | ''>(
+    '@xhunt/user',
+    null
+  );
   const isCallbackUrl = currentUrl.includes('account/xhunt');
   const { data: twId, loading: loadingTwId } = useFetchTwId();
   const userLink = useWaitForElement('[data-testid="AppTabBar_Profile_Link"]', [
@@ -59,8 +53,6 @@ export const useVerifyLoginStatus = () => {
         );
         (async () => {
           clearAuthState();
-          setToken('');
-          setUser('');
           // 刷新当前页面
           setTimeout(() => {
             window.location.reload();
@@ -70,9 +62,10 @@ export const useVerifyLoginStatus = () => {
     },
     [loadingTwId, user, token, twId, userLink, isCallbackUrl],
     {
-      wait: 100,
-      maxWait: 300,
-      leading: true,
+      wait: 500,
+      maxWait: 1000,
+      trailing: true,
+      leading: false,
     }
   );
 };

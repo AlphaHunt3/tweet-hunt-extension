@@ -1,12 +1,13 @@
-import { useDebounceEffect } from 'ahooks';
+import { useDebounceEffect, useDebounceFn } from 'ahooks';
 import { useEffect, useRef, useCallback } from 'react';
-import useCurrentUrl from '~contents/hooks/useCurrentUrl';
+// import useCurrentUrl from '~contents/hooks/useCurrentUrl';
 import { useLocalStorage } from '~storage/useLocalStorage';
+import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
 
 const THEME_KEY = '@xhunt/theme';
-const RELOAD_GUARD_KEY = '@xhunt/theme-reload-guard';
+// const RELOAD_GUARD_KEY = '@xhunt/theme-reload-guard';
 
-function detectSystemTheme(): 'light' | 'dark' {
+function detectSystemTheme(): 'light' | 'dark' | '' {
   try {
     // 首先尝试通过 color-scheme 检测
     const scheme = (document?.documentElement?.style as any)?.['color-scheme'];
@@ -30,22 +31,23 @@ function detectSystemTheme(): 'light' | 'dark' {
     }
 
     // 默认返回 dark
-    return 'dark';
+    return '';
   } catch {
-    return 'dark';
+    return '';
   }
 }
 
 export function useThemeWatcher() {
-  const currentUrl = useCurrentUrl();
+  // const currentUrl = useCurrentUrl();
   const canReloadRef = useRef(false);
   const [theme, setTheme, { isLoading: isThemeStoreLoading }] = useLocalStorage<
     'light' | 'dark' | ''
-  >(THEME_KEY, '');
+  >(THEME_KEY, 'dark');
 
   const checkAndApplyThemeChange = useCallback(() => {
     if (isThemeStoreLoading) return;
     const newTheme = detectSystemTheme();
+    if (newTheme === '') return;
     const body = document.body;
     if (!body) return;
 
@@ -67,55 +69,50 @@ export function useThemeWatcher() {
     }
   }, [theme, setTheme, isThemeStoreLoading]);
 
-  useDebounceEffect(
-    () => {
-      if (isThemeStoreLoading) return;
-      const timer = setTimeout(() => {
-        checkAndApplyThemeChange();
-      }, 1500);
-      return () => clearTimeout(timer);
-    },
-    [currentUrl, isThemeStoreLoading],
-    { wait: 100, maxWait: 500 }
+  // 使用 ahooks 的防抖函数包装 checkAndApplyThemeChange
+  const { run: debouncedCheckAndApplyThemeChange } = useDebounceFn(
+    checkAndApplyThemeChange,
+    {
+      wait: 300, // 防抖 300ms
+    }
   );
 
+  // 监听 DOM 变化（只监听可能影响主题的关键元素）
   useEffect(() => {
     if (isThemeStoreLoading) return;
-    const intervalId = window.setInterval(() => {
-      checkAndApplyThemeChange();
-    }, 15000);
-    return () => window.clearInterval(intervalId);
-  }, [theme, isThemeStoreLoading]); // 添加 theme 作为依赖项，确保闭包读取最新值
 
-  useEffect(() => {
-    if (isThemeStoreLoading) return;
-    if (canReloadRef.current) {
-      canReloadRef.current = false;
-      // Prevent infinite reload loops
-      try {
-        const raw = sessionStorage.getItem(RELOAD_GUARD_KEY);
-        const parsed = raw
-          ? (JSON.parse(raw) as { theme: string; ts: number })
-          : null;
-        const now = Date.now();
-        const within5s = parsed && now - parsed.ts < 10000;
-        const sameTheme = parsed && parsed.theme === theme;
+    // 使用自定义过滤函数，只关注可能影响主题的变化
+    const unsubscribe = subscribeToMutation(
+      (mutations) => {
+        // 使用防抖后的函数
+        debouncedCheckAndApplyThemeChange();
+      },
+      {
+        attributes: true,
+        attributeFilter: ['style'],
+        subtree: true, // 需要 subtree: true 才能监听到 documentElement 本身的变化（当观察目标是 documentElement 时）
+        childList: false, // 不需要监听子元素变化
+      },
+      {
+        // 不在 subscriptionOptions 中设置 debounce，因为已经使用 useDebounceFn 处理了
+        filter: (mutation) => {
+          // 只关注 documentElement 的 style 属性变化
+          // 因为 color-scheme 是设置在 <html> 元素的 style 属性中的
+          const target = mutation.target;
+          const isDocumentElement = target === document.documentElement;
+          const isStyleAttribute =
+            mutation.type === 'attributes' &&
+            mutation.attributeName === 'style';
 
-        if (!(within5s && sameTheme)) {
-          sessionStorage.setItem(
-            RELOAD_GUARD_KEY,
-            JSON.stringify({ theme: theme, ts: now })
-          );
-          // Full reload so injected DOM re-mounts under new theme
-          setTimeout(() => {
-            window.location.reload();
-          }, 300);
-        }
-      } catch {
-        // window.location.reload();
+          return isDocumentElement && isStyleAttribute;
+        },
+        debugName: 'useThemeWatcher',
       }
-    }
-  }, [theme, isThemeStoreLoading]);
+    );
+    checkAndApplyThemeChange();
+
+    return unsubscribe;
+  }, [debouncedCheckAndApplyThemeChange, isThemeStoreLoading]);
 }
 
 export default useThemeWatcher;

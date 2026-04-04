@@ -10,6 +10,7 @@ import {
   Calendar,
   Trophy,
   Flag,
+  RefreshCw,
 } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
@@ -21,6 +22,11 @@ interface Task {
   icon: React.ReactNode;
   completed: boolean;
   action: () => void;
+  type?: 'twitter' | 'telegram' | 'custom';
+  onRefresh?: () => void;
+  canRefresh?: boolean;
+  refreshCooldown?: number;
+  isLoading?: boolean;
 }
 
 import { HunterCampaignConfig } from './types';
@@ -61,7 +67,7 @@ export function UnregisteredContent({
   isRegisteredState,
   registrationError,
   setUserInviteCode,
-  setEvmAddress, // 添加这个参数
+  setEvmAddress,
   handleWalletVerification,
   handleSubmitRegistration,
   handleGoToActive,
@@ -211,7 +217,9 @@ export function UnregisteredContent({
                 key={task.id}
                 className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${task.completed
                   ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                  : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
+                  : task.type === 'custom'
+                    ? 'bg-white/[0.02] border-amber-400/30 hover:border-amber-400/50 hover:bg-amber-500/[0.03]'
+                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
                   }`}
               >
                 <button
@@ -269,6 +277,20 @@ export function UnregisteredContent({
                       </span>
                     </div>
                   </div>
+
+                  {/* Custom task refresh button */}
+                  {task.type === 'custom' && !task.completed && isLoggedIn && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        task.onRefresh?.();
+                      }}
+                      disabled={!task.canRefresh || task.isLoading}
+                      className='flex items-center justify-center w-5 h-5 rounded transition-all duration-200 disabled:opacity-40 hover:bg-blue-400/10'
+                    >
+                      <RefreshCw className={`w-3 h-3 theme-text-secondary ${task.isLoading ? 'animate-spin' : ''} ${task.canRefresh ? 'hover:text-blue-400' : 'opacity-50'}`} />
+                    </button>
+                  )}
                 </button>
               </div>
             ))}
@@ -282,7 +304,9 @@ export function UnregisteredContent({
                 key={task.id}
                 className={`group relative overflow-hidden rounded-md border transition-all duration-200 ${task.completed
                   ? 'bg-gradient-to-br from-green-800/80 to-green-900/80 border-green-600/60'
-                  : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
+                  : task.type === 'custom'
+                    ? 'bg-white/[0.02] border-amber-400/30 hover:border-amber-400/50 hover:bg-amber-500/[0.03]'
+                    : 'bg-white/[0.02] border-blue-400/15 hover:border-blue-400/30 hover:bg-blue-500/[0.02]'
                   }`}
               >
                 <button
@@ -340,6 +364,20 @@ export function UnregisteredContent({
                       </span>
                     </div>
                   </div>
+
+                  {/* Custom task refresh button */}
+                  {task.type === 'custom' && !task.completed && isLoggedIn && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        task.onRefresh?.();
+                      }}
+                      disabled={!task.canRefresh || task.isLoading}
+                      className='flex items-center justify-center w-5 h-5 rounded transition-all duration-200 disabled:opacity-40 hover:bg-blue-400/10'
+                    >
+                      <RefreshCw className={`w-3 h-3 theme-text-secondary ${task.isLoading ? 'animate-spin' : ''} ${task.canRefresh ? 'hover:text-blue-400' : 'opacity-50'}`} />
+                    </button>
+                  )}
                 </button>
               </div>
             ))}
@@ -593,19 +631,17 @@ export function UnregisteredContent({
           {/* 付费推广政策免责声明（仅未报名、配置开启、活动未结束时显示） */}
           {isLoggedIn && !isRegisteredState && !campaignEnded && campaignConfig?.showSponsoredPolicy && (
             <label
-              className={`group flex items-start gap-2 p-2 rounded-lg border transition-all duration-200 cursor-pointer ${
-                agreedToSponsoredPolicy
-                  ? 'bg-gradient-to-br from-amber-400/5 to-blue-500/5 border-amber-400/20 hover:border-amber-400/30'
-                  : 'bg-amber-400/[0.02] border-amber-400/15 hover:border-amber-400/25 hover:bg-amber-400/[0.04]'
-              }`}
+              className={`group flex items-start gap-2 p-2 rounded-lg border transition-all duration-200 cursor-pointer ${agreedToSponsoredPolicy
+                ? 'bg-gradient-to-br from-amber-400/5 to-blue-500/5 border-amber-400/20 hover:border-amber-400/30'
+                : 'bg-amber-400/[0.02] border-amber-400/15 hover:border-amber-400/25 hover:bg-amber-400/[0.04]'
+                }`}
             >
               {/* 自定义 checkbox */}
               <div
-                className={`relative flex items-center justify-center w-4 h-4 mt-0.5 rounded transition-all duration-200 flex-shrink-0 ${
-                  agreedToSponsoredPolicy
-                    ? 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm shadow-amber-500/20'
-                    : 'border border-dashed border-amber-400/50 group-hover:border-amber-400/70 group-hover:bg-amber-400/5'
-                }`}
+                className={`relative flex items-center justify-center w-4 h-4 mt-0.5 rounded transition-all duration-200 flex-shrink-0 ${agreedToSponsoredPolicy
+                  ? 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm shadow-amber-500/20'
+                  : 'border border-dashed border-amber-400/50 group-hover:border-amber-400/70 group-hover:bg-amber-400/5'
+                  }`}
               >
                 {agreedToSponsoredPolicy && (
                   <Check className='w-2.5 h-2.5 text-white' strokeWidth={3} />
@@ -711,7 +747,7 @@ export function UnregisteredContent({
         isUrlValid(campaignConfig?.links?.guideUrl) ||
         (campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url))) && (
           <div className='flex justify-center items-center gap-3 pb-2 flex-wrap'>
-            {campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url) && (
+            {campaignConfig?.logos && campaignConfig.logos.length > 0 && isUrlValid(campaignConfig.logos[0].url) && !window.location.href.includes(campaignConfig.logos[0].url) && !campaignConfig?.links?.activeUrl.includes('/leaderboard') && (
               <a
                 href={'#'}
                 onClick={(e) => {
@@ -734,7 +770,7 @@ export function UnregisteredContent({
                 className='inline-flex items-center gap-0.5 text-[10px] theme-text-secondary hover:text-blue-400 transition-colors duration-200 underline underline-offset-2 decoration-dotted'
               >
                 <Globe className='w-2.5 h-2.5' />
-                {goToOfficialButtonText}
+                {campaignConfig?.links?.activeUrl.includes('/leaderboard') ? t('viewLeaderboard') : goToOfficialButtonText}
               </a>
             )}
             {isUrlValid(campaignConfig?.links?.guideUrl) && (

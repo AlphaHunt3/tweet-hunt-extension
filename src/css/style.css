@@ -11,6 +11,7 @@ div[data-theme='light'] {
   --text-primary: #000000;
   --text-secondary: #4a5568;
   --border-color: #eff3f4;
+  --border-color-soft: rgba(107, 114, 128, 0.20);
   --hover-bg: #f3f4f6;
   --icon-color: #6b7280;
   --icon-hover-color: #374151;
@@ -23,6 +24,7 @@ div[data-theme='dark'] {
   --text-primary: #ffffff;
   --text-secondary: #a0aec0;
   --border-color: #374151;
+  --border-color-soft: rgba(163, 172, 184, 0.4);
   --hover-bg: #283340;
   --icon-color: #d1d5db;
   --icon-hover-color: #f3f4f6;
@@ -51,6 +53,10 @@ div[data-theme='dark'] {
 
 .theme-border {
   border-color: var(--border-color);
+}
+
+.theme-border-soft {
+  border-color: var(--border-color-soft);
 }
 
 .theme-hover:hover {
@@ -405,4 +411,17 @@ div[data-theme='dark'] {
     animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
       0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-in-right;
   }
+}
+
+/* Normalize brightness for Twitter CDN imageshttps://public.rootdata */
+div[data-xhunt-exclude="true"] img[src^="https://pbs.twimg.com"],
+div[data-xhunt-exclude="true"] img[src^="https://public.rootdata"]
+{
+  filter: brightness(1);
+}
+
+/* 简单的虚拟列表优化 */
+.virtual-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 55px; /* 预估高度 */
 }

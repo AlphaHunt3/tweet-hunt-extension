@@ -1,6 +1,7 @@
 // 配置管理器 - 获取和管理远程配置
 import packageJson from '../../package.json';
 import { nacosCacheManager } from './nacosCacheManager';
+import { localStorageInstance } from '~storage/index.ts';
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
@@ -12,6 +13,22 @@ const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
 export interface TestConfig {
   features: string[];
   testers: string[];
+}
+
+export interface AdBannerItem {
+  id: string; // 广告唯一标识
+  enabled: boolean; // 是否启用
+  type: 'commercial' | 'normal'; // 广告类型：commercial 优先展示
+  daily_limit: number; // 每日展示上限，-1 表示无限
+  visible_to?: string[]; // 可见用户白名单，空数组或不设置则所有人可见
+  // 中文配置
+  image_url_zh: string; // 中文图片地址
+  link_url_zh: string; // 中文跳转链接
+  alt_text_zh?: string; // 中文图片描述
+  // 英文配置
+  image_url_en: string; // 英文图片地址
+  link_url_en: string; // 英文跳转链接
+  alt_text_en?: string; // 英文图片描述
 }
 
 export interface XHuntConfig {
@@ -28,6 +45,11 @@ export interface XHuntConfig {
   realTimeSubscriptionSSE?: boolean; // 是否启用实时订阅的 SSE 功能
   // 🆕 简易灰度策略配置
   testConfig?: TestConfig;
+  flexibleTesting?: {
+    [key: string]: string[];
+  };
+  // 🆕 首页广告轮播配置
+  adBanners?: AdBannerItem[];
 }
 
 export interface DailyLimits {
@@ -50,15 +72,12 @@ class ConfigManager {
     bybitHunterProgramGuide: '',
     bybitHunterProgramActiveURL: '',
     realTimeSubscriptionSSE: true,
-    testConfig: {
-      features: [],
-      testers: [],
-    },
   };
   private configFetched: boolean = false;
   private isInitialized: boolean = false;
-  private localStorageKey = 'xhunt-config';
-  private readonly CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5分钟 cache for config
+  private readonly CONFIG_CACHE_TTL = 1 * 60 * 1000; // 1分钟 cache for config
+  private dailyLimitsCache: DailyLimits | null = null;
+  private lastForceUpdateTimeCache: number = 0;
 
   // 初始化配置管理器
   public async init(): Promise<void> {
@@ -70,8 +89,18 @@ class ConfigManager {
         `📋 [v${packageJson.version}] ConfigManager initializing...`
       );
 
-      // 1. 优先从本地存储加载配置
-      this.loadConfigFromLocalStorage();
+      // 1. 优先从本地存储加载配置（Plasmo Storage 优先）
+      this.config = this.defaultConfig;
+
+      // 异步加载最后强制更新时间缓存
+      try {
+        const stored = (await localStorageInstance.get(
+          '@xhunt/last-force-update-rank'
+        )) as string | number | null;
+        const val =
+          typeof stored === 'string' ? parseInt(stored, 10) : Number(stored);
+        this.lastForceUpdateTimeCache = isNaN(val) ? 0 : val;
+      } catch { }
 
       // 2. 异步获取远程配置并更新本地存储
       this.fetchAndUpdateConfig();
@@ -86,42 +115,6 @@ class ConfigManager {
       this.config = this.defaultConfig;
       this.isInitialized = true;
     }
-  }
-
-  // 从本地存储加载配置
-  private loadConfigFromLocalStorage(): void {
-    try {
-      const stored = localStorage.getItem(this.localStorageKey);
-      if (stored) {
-        const storedConfig = JSON.parse(stored);
-
-        // 验证存储的配置格式
-        if (this.isValidConfig(storedConfig.config)) {
-          this.config = storedConfig.config;
-          this.configFetched = true;
-          devLog(
-            'log',
-            `📋 [v${packageJson.version}] Loaded config from localStorage:`,
-            this.config
-          );
-          return;
-        }
-      }
-    } catch (error) {
-      devLog(
-        'warn',
-        `📋 [v${packageJson.version}] Failed to load config from localStorage:`,
-        error
-      );
-    }
-
-    // 如果本地存储没有有效配置，使用默认配置
-    this.config = this.defaultConfig;
-    devLog(
-      'log',
-      `📋 [v${packageJson.version}] Using default config:`,
-      this.config
-    );
   }
 
   // 异步获取远程配置并更新本地存储
@@ -139,8 +132,6 @@ class ConfigManager {
         // 更新内存中的配置
         this.config = remoteConfig;
         this.configFetched = true;
-        // 保存到本地存储
-        this.saveConfigToLocalStorage(remoteConfig);
 
         // 🆕 检查是否需要强制更新排名缓存
         await this.checkForceUpdateRankCache(remoteConfig);
@@ -203,51 +194,22 @@ class ConfigManager {
     }
   }
 
-  // 保存配置到本地存储
-  private saveConfigToLocalStorage(config: XHuntConfig): void {
-    try {
-      const dataToStore = {
-        config,
-        timestamp: Date.now(),
-        version: packageJson.version,
-      };
-
-      localStorage.setItem(this.localStorageKey, JSON.stringify(dataToStore));
-      devLog(
-        'log',
-        `📋 [v${packageJson.version}] Config saved to localStorage`
-      );
-    } catch (error) {
-      devLog(
-        'error',
-        `📋 [v${packageJson.version}] Failed to save config to localStorage:`,
-        error
-      );
-    }
-  }
-
   // 🆕 获取最后强制更新时间
   private getLastForceUpdateTime(): number {
-    try {
-      const stored = localStorage.getItem('xhunt-last-force-update-rank');
-      return stored ? parseInt(stored, 10) : 0;
-    } catch (error) {
-      devLog(
-        'error',
-        `📋 [v${packageJson.version}] Failed to get last force update time:`,
-        error
-      );
-      return 0;
-    }
+    return this.lastForceUpdateTimeCache || 0;
   }
 
   // 🆕 设置最后强制更新时间
   private setLastForceUpdateTime(timestamp: number): void {
     try {
-      localStorage.setItem(
-        'xhunt-last-force-update-rank',
-        timestamp.toString()
-      );
+      // 异步写入 Plasmo Storage（不阻塞主流程）
+      try {
+        void localStorageInstance.set(
+          '@xhunt/last-force-update-rank',
+          timestamp.toString()
+        );
+      } catch { }
+      this.lastForceUpdateTimeCache = Number(timestamp) || 0;
       devLog(
         'log',
         `📋 [v${packageJson.version}] Last force update time set to: ${timestamp}`
@@ -284,46 +246,52 @@ class ConfigManager {
   // 获取今日限制情况
   public getDailyLimits(): DailyLimits {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    try {
-      const stored = localStorage.getItem('xhunt-daily-limits');
-      if (stored) {
-        const limits = JSON.parse(stored);
-
-        // 如果是今天的数据，返回
-        if (limits.date === today) {
-          return limits;
-        }
-      }
-    } catch (error) {
-      devLog(
-        'error',
-        `[v${packageJson.version}] Failed to load daily limits:`,
-        error
-      );
+    if (this.dailyLimitsCache && this.dailyLimitsCache.date === today) {
+      return this.dailyLimitsCache;
     }
 
-    // 返回新的今日限制
-    const newLimits: DailyLimits = {
-      errors: 0,
-      delays: 0,
-      date: today,
-    };
-
-    this.saveDailyLimits(newLimits);
-    return newLimits;
+    // 默认值并异步从存储加载
+    const defaults: DailyLimits = { errors: 0, delays: 0, date: today };
+    this.dailyLimitsCache = defaults;
+    void this.loadDailyLimitsFromStorage(today);
+    return defaults;
   }
 
   // 保存今日限制
   private saveDailyLimits(limits: DailyLimits): void {
+    this.dailyLimitsCache = limits;
     try {
-      localStorage.setItem('xhunt-daily-limits', JSON.stringify(limits));
+      void localStorageInstance.set('@xhunt/daily-limits', limits as any);
     } catch (error) {
       devLog(
         'error',
         `[v${packageJson.version}] Failed to save daily limits:`,
         error
       );
+    }
+  }
+
+  // 异步从存储加载今日限制
+  private async loadDailyLimitsFromStorage(
+    expectedDate?: string
+  ): Promise<void> {
+    try {
+      const stored = (await localStorageInstance.get(
+        '@xhunt/daily-limits'
+      )) as any;
+      const today = expectedDate || new Date().toISOString().split('T')[0];
+      if (stored && typeof stored === 'object' && stored.date === today) {
+        this.dailyLimitsCache = stored as DailyLimits;
+        return;
+      }
+      // 不存在或过期则写入默认
+      const defaults: DailyLimits = { errors: 0, delays: 0, date: today };
+      this.dailyLimitsCache = defaults;
+      try {
+        await localStorageInstance.set('@xhunt/daily-limits', defaults as any);
+      } catch { }
+    } catch {
+      // 忽略错误，保持默认
     }
   }
 
@@ -449,7 +417,9 @@ class ConfigManager {
     // Invalidate NacosCacheManager cache
     nacosCacheManager.invalidate('xhunt_config');
     this.configFetched = false;
-    localStorage.removeItem(this.localStorageKey);
+    try {
+      void localStorageInstance.remove('@xhunt/config');
+    } catch { }
     devLog('log', `📋 [v${packageJson.version}] Config cache reset`);
   }
 

@@ -1,66 +1,7 @@
-import { useState, useEffect } from 'react';
-
-// ==================== Shared ResizeObserver ====================
-let resizeObserver: ResizeObserver | null = null;
-let resizeCallbacks: Set<() => void> = new Set();
-let resizeTimeoutId: number | null = null;
-
-/**
- * Initialize global resize observer that's shared across all hook instances
- */
-const initGlobalResizeObserver = () => {
-  if (resizeObserver) return;
-
-  resizeObserver = new ResizeObserver(() => {
-    // Use 1 second debounce for window size changes
-    if (resizeTimeoutId !== null) {
-      window.clearTimeout(resizeTimeoutId);
-    }
-
-    resizeTimeoutId = window.setTimeout(() => {
-      resizeCallbacks.forEach((callback) => callback());
-      resizeTimeoutId = null;
-    }, 1000); // 1 second debounce
-  });
-
-  // Observe the entire viewport
-  resizeObserver.observe(document.documentElement);
-};
-
-/**
- * Clean up global resize observer
- */
-const cleanupGlobalResizeObserver = () => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-    resizeCallbacks.clear();
-
-    if (resizeTimeoutId !== null) {
-      window.clearTimeout(resizeTimeoutId);
-      resizeTimeoutId = null;
-    }
-  }
-};
-
-/**
- * Add a resize callback function
- */
-const addResizeCallback = (callback: () => void) => {
-  resizeCallbacks.add(callback);
-
-  // Ensure global observer is initialized
-  initGlobalResizeObserver();
-
-  return () => {
-    resizeCallbacks.delete(callback);
-
-    // If no callbacks left, clean up the observer
-    if (resizeCallbacks.size === 0) {
-      cleanupGlobalResizeObserver();
-    }
-  };
-};
+import { useState } from 'react';
+import { useDebounceEffect } from 'ahooks';
+import { subscribeToResize } from './useGlobalResize';
+import { subscribeToMutation } from './useGlobalMutationObserver';
 
 /**
  * Check if an element is still in the document
@@ -77,13 +18,13 @@ interface Subscription {
   callback: ElementCallback;
   timeout?: number;
   timeoutId?: number;
+  lastFoundElement: HTMLElement | null; // 记录上次找到的元素，避免重复通知
 }
 
-// Global shared MutationObserver
-let globalMutationObserver: MutationObserver | null = null;
+// Global shared subscriptions and cache
 let subscriptions: Map<string, Subscription[]> = new Map();
-let mutationDebounceId: number | null = null;
 let elementCache: Map<string, HTMLElement | null> = new Map();
+let mutationUnsubscribe: (() => void) | null = null;
 
 /**
  * Check all subscriptions for a specific selector
@@ -109,15 +50,18 @@ const checkSelector = (selector: string): HTMLElement | null => {
 };
 
 /**
- * Process all subscriptions (debounced)
+ * Process all subscriptions (使用 requestAnimationFrame 替代 setTimeout)
  */
+let processAnimationFrameId: number | null = null;
 const processSubscriptions = () => {
-  if (mutationDebounceId !== null) {
-    window.clearTimeout(mutationDebounceId);
+  // 如果已经有待执行的 frame，跳过（避免重复执行）
+  if (processAnimationFrameId !== null) {
+    return;
   }
 
-  // Debounce for 16ms (~1 frame)
-  mutationDebounceId = window.setTimeout(() => {
+  // 使用 requestAnimationFrame 在浏览器下一次重绘之前执行
+  // 优势：与渲染周期同步，页面不可见时自动暂停，性能更好
+  processAnimationFrameId = window.requestAnimationFrame(() => {
     // Batch process all selectors
     subscriptions.forEach((subs, selector) => {
       const element = checkSelector(selector);
@@ -125,55 +69,73 @@ const processSubscriptions = () => {
       if (element) {
         // Notify all callbacks for this selector
         subs.forEach((sub) => {
+          // 性能优化：如果找到的元素和上次一样，不重复通知
+          if (sub.lastFoundElement === element) {
+            return;
+          }
+
           try {
             sub.callback(element);
+            // 记录本次找到的元素
+            sub.lastFoundElement = element;
           } catch (error) {
             console.error('Error in element callback:', error);
           }
         });
+      } else {
+        // 元素不存在，清除记录
+        subs.forEach((sub) => {
+          sub.lastFoundElement = null;
+        });
       }
     });
 
-    mutationDebounceId = null;
-  }, 16); // ~1 animation frame delay
+    processAnimationFrameId = null;
+  });
 };
 
 /**
- * Initialize global MutationObserver
+ * Initialize global MutationObserver (使用全局 MutationObserver)
  */
 const initGlobalMutationObserver = () => {
-  if (globalMutationObserver) return;
+  if (mutationUnsubscribe) return;
 
-  globalMutationObserver = new MutationObserver((mutations) => {
-    // Only process if there are actual changes
-    const hasRelevantChanges = mutations.some(
-      (mutation) =>
-        mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0
-    );
+  // 使用全局 MutationObserver
+  mutationUnsubscribe = subscribeToMutation(
+    (mutations) => {
+      // Only process if there are actual changes
+      const hasRelevantChanges = mutations.some(
+        (mutation) =>
+          mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0
+      );
 
-    if (hasRelevantChanges) {
-      processSubscriptions();
+      if (hasRelevantChanges) {
+        processSubscriptions();
+      }
+    },
+    {
+      childList: true,
+      subtree: true,
+    },
+    {
+      filter: (mutation) => mutation.type === 'childList',
+      debugName: 'useWaitForElement',
     }
-  });
-
-  globalMutationObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
+  );
 };
 
 /**
  * Clean up global MutationObserver
  */
 const cleanupGlobalMutationObserver = () => {
-  if (globalMutationObserver) {
-    globalMutationObserver.disconnect();
-    globalMutationObserver = null;
+  if (mutationUnsubscribe) {
+    mutationUnsubscribe();
+    mutationUnsubscribe = null;
   }
 
-  if (mutationDebounceId !== null) {
-    window.clearTimeout(mutationDebounceId);
-    mutationDebounceId = null;
+  if (processAnimationFrameId !== null) {
+    window.cancelAnimationFrame(processAnimationFrameId);
+    processAnimationFrameId = null;
   }
 
   subscriptions.clear();
@@ -193,11 +155,16 @@ const subscribeToElement = (
     selector,
     callback,
     timeout,
+    lastFoundElement: null, // 初始化时没有找到元素
   };
 
   // Set up timeout if specified
+  // 注意：超时机制仍然有意义，用于防止无限等待元素出现
+  // 但如果元素已经找到（通过 lastFoundElement 判断），超时会被取消（在 unsubscribe 中）
   if (timeout && timeout > 0) {
     subscription.timeoutId = window.setTimeout(() => {
+      // 超时后，如果还没找到元素，取消订阅
+      // 注意：如果已经找到元素，unsubscribe 会清除这个 timeout
       unsubscribe();
     }, timeout);
   }
@@ -218,6 +185,8 @@ const subscribeToElement = (
     setTimeout(() => {
       try {
         callback(element);
+        // 记录立即找到的元素
+        subscription.lastFoundElement = element;
       } catch (error) {
         console.error('Error in element callback:', error);
       }
@@ -271,58 +240,63 @@ function useWaitForElement(
 ): HTMLElement | null {
   const [element, setElement] = useState<HTMLElement | null>(null);
 
-  useEffect(() => {
-    let isActive = true; // Flag to prevent state updates after unmount
-    let elementFound = false;
+  useDebounceEffect(
+    () => {
+      let isActive = true; // Flag to prevent state updates after unmount
+      let elementFound = false;
 
-    // Callback when element is found
-    const handleElementFound = (el: HTMLElement) => {
-      if (!isActive || elementFound) return;
+      // Callback when element is found
+      const handleElementFound = (el: HTMLElement) => {
+        if (!isActive || elementFound) return;
 
-      elementFound = true;
-      setElement(el);
+        elementFound = true;
+        setElement(el);
 
-      // Unsubscribe after finding element
-      unsubscribe();
-    };
+        // Unsubscribe after finding element
+        unsubscribe();
+      };
 
-    // Subscribe to element changes using shared observer
-    const unsubscribe = subscribeToElement(
-      selector,
-      handleElementFound,
-      timeout
-    );
+      // Subscribe to element changes using shared observer
+      const unsubscribe = subscribeToElement(
+        selector,
+        handleElementFound,
+        timeout
+      );
 
-    // Set up resize handler to re-check if element disappears
-    const handleResize = () => {
-      if (!isActive) return;
+      // Set up resize handler to re-check if element disappears
+      const handleResize = () => {
+        if (!isActive) return;
 
-      // Check if current element is still in document
-      if (element && !isElementInDocument(element)) {
-        // Element is no longer in document, clear state
-        setElement(null);
-        elementFound = false;
-      } else if (!element) {
-        // No element found yet, try to find it
-        const el = checkSelector(selector);
-        if (el) {
-          handleElementFound(el);
+        // Check if current element is still in document
+        if (element && !isElementInDocument(element)) {
+          // Element is no longer in document, clear state
+          setElement(null);
+          elementFound = false;
+        } else if (!element) {
+          // No element found yet, try to find it
+          const el = checkSelector(selector);
+          if (el) {
+            handleElementFound(el);
+          }
         }
-      }
-    };
+      };
 
-    // Add resize callback
-    const removeResizeCallback = addResizeCallback(handleResize);
+      // 使用全局 Resize 监听（替换原来的 ResizeObserver）
+      // 注意：useGlobalResize 监听的是 window resize 事件，功能类似
+      const removeResizeCallback = subscribeToResize(handleResize);
 
-    // Cleanup function
-    return () => {
-      isActive = false;
-      elementFound = false;
-      unsubscribe();
-      removeResizeCallback();
-      setElement(null);
-    };
-  }, [selector, timeout, ...deps]);
+      // Cleanup function
+      return () => {
+        isActive = false;
+        elementFound = false;
+        unsubscribe();
+        removeResizeCallback();
+        setElement(null);
+      };
+    },
+    [selector, timeout, ...deps],
+    { wait: 100 }
+  );
 
   return element;
 }

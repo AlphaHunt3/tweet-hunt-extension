@@ -1,7 +1,7 @@
 {
   "name": "xhunt",
   "displayName": "XHunt – Your AI Co-pilot on X",
-  "version": "0.2.13",
+  "version": "0.2.21",
   "description": "Your AI Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
@@ -32,6 +32,7 @@
     "d3": "^7.8.5",
     "d3-cloud": "^1.2.5",
     "dayjs": "^1.11.13",
+    "ethers": "^6.16.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.476.0",
     "numeral": "^2.0.6",
@@ -69,5 +70,6 @@
     "postcss": "^8.4.29",
     "typescript": "^5.2.2",
     "xlsx": "^0.18.5"
-  }
+  },
+  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }
