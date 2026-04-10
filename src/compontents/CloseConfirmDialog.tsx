@@ -8,6 +8,8 @@ export interface CloseConfirmDialogProps {
   onConfirm: () => void;
   prefixKey?: string;
   suffixKey?: string;
+  className?: string; // 可选，用于覆盖容器样式
+  style?: React.CSSProperties; // 可选，用于覆盖容器样式
 }
 
 export function CloseConfirmDialog({
@@ -16,19 +18,21 @@ export function CloseConfirmDialog({
   onConfirm,
   prefixKey = 'confirmCloseTrendingPrefix',
   suffixKey = 'confirmCloseTrendingSuffix',
+  className,
+  style,
 }: CloseConfirmDialogProps) {
   const { t } = useI18n();
 
   if (!isOpen) return null;
 
   return (
-    <div className='absolute inset-0 z-[999000] flex items-start justify-center'>
+    <div className={`absolute inset-0 z-[999000] flex items-start justify-center ${className || ''}`}>
       <div
         className='absolute inset-0 z-[999001] theme-bg-secondary'
         style={{ opacity: 0.8 }}
         onClick={onClose}
       />
-      <div className='relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl mt-4'>
+      <div style={style} className={`relative z-[999002] theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[300px] shadow-xl`}>
         <div className='text-sm leading-5'>
           {t(prefixKey)}{' '}
           <button
@@ -38,12 +42,12 @@ export function CloseConfirmDialog({
               try {
                 const openEvt = new CustomEvent('xhunt:open-panel');
                 window.dispatchEvent(openEvt);
-              } catch {}
+              } catch { }
               try {
                 setTimeout(() => {
                   navigationService.navigateTo('main-panel', '/settings');
                 }, 100);
-              } catch {}
+              } catch { }
             }}
           >
             {t('settingsTitle')}

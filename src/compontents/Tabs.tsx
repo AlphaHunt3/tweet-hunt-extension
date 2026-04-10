@@ -8,6 +8,7 @@ interface Tab {
   tooltip?: string; // Optional hover tooltip text; defaults to label
   icon?: React.ComponentType<{ className?: string }>; // Optional leading icon
   badge?: string; // Optional badge text (e.g., "Beta", "测试")
+  isNew?: boolean; // Optional "NEW" badge
 }
 
 interface TabsProps {
@@ -16,6 +17,9 @@ interface TabsProps {
   onChange: (id: string) => void;
   zhMaxRow?: number; // Optional override for max tabs per row in Chinese
   enMaxRow?: number; // Optional override for max tabs per row in non-Chinese
+  /** Optional className to override label text style (e.g. text-xs for smaller) */
+  labelClassName?: string;
+  tooltipMaxWidth?: number; // Optional max width for tooltip (px), enables wrapping when set
 }
 
 export function Tabs({
@@ -24,6 +28,8 @@ export function Tabs({
   onChange,
   zhMaxRow,
   enMaxRow,
+  labelClassName,
+  tooltipMaxWidth
 }: TabsProps) {
   const { lang } = useI18n();
   // 中文：默认每行最多3个；英文：默认每行最多2个（可通过 props 覆盖）
@@ -64,11 +70,10 @@ export function Tabs({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`grow-0 shrink-0 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap text-center group ${
-                activeTab === tab.id
-                  ? 'text-blue-400 tab-button-active'
-                  : 'theme-text-secondary hover:theme-text-primary'
-              }`}
+              className={`grow-0 shrink-0 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap text-center group ${activeTab === tab.id
+                ? 'text-blue-400 tab-button-active'
+                : 'theme-text-secondary hover:theme-text-primary'
+                }`}
               style={{
                 flexBasis: `${tabWidthPct}%`,
                 maxWidth: `${tabWidthPct}%`,
@@ -80,15 +85,33 @@ export function Tabs({
                 <span className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400 tab-indicator' />
               )}
               {/* Content with optional icon + label */}
-              <span className='inline-flex items-center justify-center gap-1.5 max-w-full'>
+              <span className='relative inline-flex items-center justify-center gap-1.5 max-w-full'>
                 {tab.icon ? <tab.icon className='w-4 h-4 shrink-0' /> : null}
                 <span
-                  className={`inline-block max-w-full whitespace-nowrap align-middle ${
-                    lang === 'zh' ? '' : 'overflow-hidden text-ellipsis'
-                  }`}
+                  className={`inline-block max-w-full whitespace-nowrap align-middle ${lang === 'zh' ? '' : 'overflow-hidden text-ellipsis'
+                    } ${labelClassName ?? ''}`.trim()}
                 >
                   {tab.label}
                 </span>
+                {tab.isNew && (
+                  <span className='absolute top-0 right-0 px-1 text-[8px] font-semibold text-white-500 rounded-full leading-none transform translate-x-full -translate-y-1/2'>
+                    <svg
+                      className='w-5 h-[auto]'
+                      viewBox='0 0 1024 1024'
+                      version='1.1'
+                      xmlns='http://www.w3.org/2000/svg'
+                      p-id='10824'
+                      width='64'
+                      height='64'
+                    >
+                      <path
+                        d='M245.76 286.72h552.96c124.928 0 225.28 100.352 225.28 225.28s-100.352 225.28-225.28 225.28H0V532.48c0-135.168 110.592-245.76 245.76-245.76z m133.12 348.16V401.408H348.16v178.176l-112.64-178.176H204.8V634.88h30.72v-178.176L348.16 634.88h30.72z m182.272-108.544v-24.576h-96.256v-75.776h110.592v-24.576h-141.312V634.88h143.36v-24.576h-112.64v-83.968h96.256z m100.352 28.672l-34.816-151.552h-34.816l55.296 233.472H675.84l47.104-161.792 4.096-20.48 4.096 20.48 47.104 161.792h28.672l57.344-233.472h-34.816l-32.768 151.552-4.096 30.72-6.144-30.72-40.96-151.552h-30.72l-40.96 151.552-6.144 30.72-6.144-30.72z'
+                        fill='#EE502F'
+                        p-id='10825'
+                      ></path>
+                    </svg>
+                  </span>
+                )}
               </span>
               {tab.badge && (
                 <span className='tab-badge absolute top-0.5 right-1 px-1 py-0 text-[9px] font-normal scale-75 origin-top-right whitespace-nowrap pointer-events-none'>
@@ -100,10 +123,15 @@ export function Tabs({
               )}
 
               {/* Hover tooltip */}
-              <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-[10px] theme-bg-secondary theme-text-primary rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 shadow-lg theme-border border'>
-                {tab.tooltip || tab.label}
-                <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[var(--border-color)]'></div>
-              </div>
+              {Boolean(tab.tooltip) && (
+                <div
+                  className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-[10px] theme-bg-secondary theme-text-primary rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 shadow-lg theme-border border ${tooltipMaxWidth ? 'whitespace-normal text-left' : 'whitespace-nowrap'}`}
+                  style={tooltipMaxWidth ? { maxWidth: tooltipMaxWidth } : undefined}
+                >
+                  {tab.tooltip || tab.label}
+                  <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[var(--border-color)]'></div>
+                </div>
+              )}
             </button>
           ))}
         </div>

@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { captureReactError } from '~/utils/errorHandler';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -26,9 +25,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     try {
-      // 捕获到全局错误处理器
-      captureReactError(error, errorInfo, this.props.name || 'Unknown ErrorBoundary');
-
       // 调用自定义错误处理器
       if (this.props.onError) {
         this.props.onError(error, errorInfo);

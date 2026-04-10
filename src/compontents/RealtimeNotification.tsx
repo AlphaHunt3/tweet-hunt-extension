@@ -81,6 +81,9 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
     }>
   >([]);
 
+  // 用于去重：记录已处理的通知 timestamp
+  const processedTimestampsRef = useRef<Set<number>>(new Set());
+
   // 监听 storage 变化
   useEffect(() => {
     const handleStorageChange = async (changes: { [key: string]: any }) => {
@@ -89,11 +92,22 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
           changes['xhunt:realtime_notification'].newValue;
 
         if (message.type === 'REALTIME_FEED_UPDATE') {
-          const { dataType, summary, isFirstLoad } = message;
+          const { dataType, summary, isFirstLoad, timestamp } = message;
 
           // 跳过第一次加载的通知
           if (isFirstLoad) {
             return;
+          }
+
+          // 去重检查：如果该 timestamp 已经处理过，直接返回
+          if (processedTimestampsRef.current.has(timestamp)) {
+            return;
+          }
+          // 记录已处理的 timestamp（保留最近 50 个）
+          processedTimestampsRef.current.add(timestamp);
+          if (processedTimestampsRef.current.size > 50) {
+            const first = processedTimestampsRef.current.values().next().value;
+            first && processedTimestampsRef.current.delete(first);
           }
 
           // 检查是否启用了对应的数据类型
@@ -194,7 +208,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
 
   // 处理通知点击
   const handleNotificationClick = (notification: any) => {
-    console.log('[RealtimeNotification] Notification clicked:', notification);
+
 
     if (onNotificationClick) {
       onNotificationClick(notification.dataType, {});
@@ -206,7 +220,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
       dataType: notification.dataType,
       data: {},
     };
-    console.log('[RealtimeNotification] Dispatching event:', event);
+
     notificationEventManager.dispatchEvent(event);
 
     // 滚动到页面顶部
@@ -221,7 +235,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
       } catch (fallbackError) {
-        console.log(
+        console.warn(
           '[RealtimeNotification] Failed to scroll to top:',
           fallbackError
         );

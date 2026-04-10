@@ -153,6 +153,11 @@ export function ProjectMembersSection({
 }: ProjectMembersSectionProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const [memberRanks, setMemberRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
   const [showLoading, setShowLoading] = useState(false);
@@ -344,7 +349,7 @@ export function ProjectMembersSection({
 
   // 获取成员排名
   useEffect(() => {
-    if (!activeMembers.length) return;
+    if (!activeMembers.length || isAvatarRankModeLoading) return;
 
     // 重置排序状态
     setRankingSorted(false);
@@ -373,7 +378,7 @@ export function ProjectMembersSection({
 
     const fetchMemberRanks = async () => {
       try {
-        const ranks = await rankService.getRanks(usernames);
+        const ranks = await rankService.getRanks(usernames, avatarRankMode);
         setMemberRanks((prev) => ({ ...prev, ...ranks }));
       } catch (error) {
         console.log('Failed to fetch member ranks:', error);
@@ -389,7 +394,7 @@ export function ProjectMembersSection({
     };
 
     fetchMemberRanks();
-  }, [activeMembers]);
+  }, [activeMembers, isAvatarRankModeLoading]);
 
   // 按排名排序成员
   const sortedMembers = React.useMemo(() => {

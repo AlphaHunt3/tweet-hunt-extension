@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Info, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Info, X, Ghost } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useRequest } from 'ahooks';
@@ -16,12 +16,19 @@ import { UnfollowInfoPanel } from '~/compontents/UnfollowInfoPanel.tsx';
 import { ProfileChangesPanel } from '~compontents/ProfileChangesPanel.tsx';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
 import { InteractionRankPanel } from '~/compontents/InteractionRankPanel.tsx';
+import {
+  FanTipPanelEventDetail,
+  XHUNT_FAN_TIP_PANEL_EVENT,
+} from '~/compontents/FanTipPanel.tsx';
+import {
+  GhostFollowingPanelEventDetail,
+  GHOST_FOLLOWING_PANEL_EVENT,
+} from './area/GhostFollowingPanel';
 import { FollowRelationData } from '~types';
 import { localStorageInstance } from '~storage/index.ts';
 import { useCrossPageSettings } from '~utils/settingsManager';
 import { CloseConfirmDialog } from './CloseConfirmDialog';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
-import useWaitForElement from '~contents/hooks/useWaitForElement';
 import { ProRequired } from './ProRequired';
 import { StoredUserInfo } from '~types/review.ts';
 import { isLegacyUserActive } from '~/utils/legacyUserCheck.ts';
@@ -50,6 +57,14 @@ export function PersonalAnalysisPanel({
   const userObj = user && typeof user === 'object' ? user : null;
   const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
   const isLegacyUser = isLegacyUserActive(currentUsername);
+  const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
+  const ghostButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 判断是否在当前用户的个人页面
+  const isOwnProfile = useMemo(() => {
+    if (!currentUsername || !userId) return false;
+    return currentUsername.toLowerCase() === userId.toLowerCase();
+  }, [currentUsername, userId]);
   // const isPro = (userObj?.isPro ?? false) || isLegacyUser;
   const [activeTab, setActiveTab] = useState<
     | 'follows'
@@ -78,11 +93,11 @@ export function PersonalAnalysisPanel({
     () =>
       hookUsername
         ? {
-            username: hookUsername,
-            name: hookName,
-            avatar: hookAvatar,
-            source: 'data-testid' as const,
-          }
+          username: hookUsername,
+          name: hookName,
+          avatar: hookAvatar,
+          source: 'data-testid' as const,
+        }
         : null,
     [hookUsername, hookName, hookAvatar]
   );
@@ -217,12 +232,12 @@ export function PersonalAnalysisPanel({
   const handleTabChange = (id: string) => {
     setActiveTab(
       id as
-        | 'follows'
-        | 'followers'
-        | 'unfollowing'
-        | 'profile'
-        | 'deletedTweets'
-        | 'interactionRank'
+      | 'follows'
+      | 'followers'
+      | 'unfollowing'
+      | 'profile'
+      | 'deletedTweets'
+      | 'interactionRank'
     );
   };
 
@@ -233,17 +248,15 @@ export function PersonalAnalysisPanel({
       badge?: string;
       tooltip?: string;
     }> = [
-      { id: 'follows', label: `${t('recentFollows')} (${followsCount})` },
-      { id: 'followers', label: `${t('recentFollowers')} (${followersCount})` },
-    ];
+        { id: 'follows', label: `${t('recentFollows')} (${followsCount})` },
+        { id: 'followers', label: `${t('recentFollowers')} (${followersCount})` },
+      ];
 
     // Add "取关信息" tab only when data exists, and place it before profile
     if (unfollowingCount > 0) {
       baseTabs.push({
         id: 'unfollowing',
         label: `${t('unfollowInfo')} (${unfollowingCount})`,
-        tooltip: t('unfollowInfoTooltip'),
-        badge: t('betaBadge'),
       });
     }
 
@@ -428,6 +441,21 @@ export function PersonalAnalysisPanel({
             loading={loadingInteractionRank}
             selectedDays={interactionRankDays}
             onDaysChange={setInteractionRankDays}
+            onOpenTip={({ anchor }) => {
+              window.dispatchEvent(
+                new CustomEvent<FanTipPanelEventDetail>(
+                  XHUNT_FAN_TIP_PANEL_EVENT,
+                  {
+                    detail: {
+                      open: true,
+                      anchor,
+                      source: 'button',
+                      interactionRankData,
+                    },
+                  }
+                )
+              );
+            }}
           />
         )}
       </div>
@@ -441,7 +469,7 @@ export function PersonalAnalysisPanel({
           setShowCloseConfirm(false);
           try {
             await localStorageInstance.set('@settings/showSearchPanel', false);
-          } catch {}
+          } catch { }
         }}
         prefixKey='confirmCloseTrendingPrefix'
         suffixKey='confirmCloseTrendingSuffix'

@@ -1,7 +1,7 @@
 {
   "name": "xhunt",
   "displayName": "XHunt – Your AI Co-pilot on X",
-  "version": "0.2.21",
+  "version": "0.2.22",
   "description": "Your AI Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
@@ -29,6 +29,8 @@
     "@types/qrcode": "^1.5.6",
     "ahooks": "^3.7.8",
     "axios": "^1.10.0",
+    "baseline-browser-mapping": "^2.10.17",
+    "caniuse-lite": "^1.0.30001787",
     "d3": "^7.8.5",
     "d3-cloud": "^1.2.5",
     "dayjs": "^1.11.13",

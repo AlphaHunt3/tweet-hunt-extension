@@ -5,11 +5,13 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { formatRank } from '~js/utils.ts';
+import AvatarRankBadge from './AvatarRankBadge.tsx';
 import { rankService } from '~/utils/rankService';
 import { ProPanel } from './ProPanel.tsx';
 
 dayjs.extend(relativeTime);
+
+type UnfollowSubTab = 'active' | 'passive';
 
 interface UnfollowInfoPanelProps {
   userId: string;
@@ -36,7 +38,7 @@ interface FollowRelationItemProps {
   rank?: number;
   isLoading?: boolean;
   theme: string;
-  showAvatarRank: boolean;
+  avatarRankMode: 'influence' | 'composite';
 }
 
 function FollowRelationItem({
@@ -45,7 +47,7 @@ function FollowRelationItem({
   rank,
   isLoading = false,
   theme,
-  showAvatarRank,
+  avatarRankMode,
 }: FollowRelationItemProps) {
   const formattedTime = dayjs(timestamp).fromNow();
 
@@ -58,7 +60,7 @@ function FollowRelationItem({
     >
       <div
         className='relative rounded-full'
-        style={{ border: '3px solid #60A5FA80' }}
+        style={{ border: '3px solid var(--xhunt-avatar-outer-border-color)' }}
       >
         <img
           src={user.profile.profile_image_url}
@@ -69,21 +71,12 @@ function FollowRelationItem({
               'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
           }}
         />
-        {showAvatarRank ? (
-          <div
-            className={`xhunt-avatar-rank-badge ${
-              rank && rank > 0 && rank <= 10000 ? 'high-ranked' : ''
-            } ${isLoading ? 'loading' : ''}`}
-            data-theme={theme}
-          >
-            <span
-              className='xhunt-avatar-rank-text'
-              dangerouslySetInnerHTML={{
-                __html: isLoading ? '~' : formatRank(rank),
-              }}
-            ></span>
-          </div>
-        ) : null}
+        <AvatarRankBadge
+          rank={rank}
+          isLoading={isLoading}
+          avatarRankMode={avatarRankMode}
+          theme={theme}
+        />
       </div>
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-1'>
@@ -121,7 +114,13 @@ export function UnfollowInfoPanel({
 }: UnfollowInfoPanelProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const [showAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
+  const [activeSubTab, setActiveSubTab] = useState<UnfollowSubTab>('active');
+
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
 
@@ -130,7 +129,7 @@ export function UnfollowInfoPanel({
 
   // 使用排名服务获取排名
   useEffect(() => {
-    if (!followRelationData || !showAvatarRank) return;
+    if (!followRelationData || isAvatarRankModeLoading) return;
 
     // 分别处理两组数据获取用户名
     const unfollowingUsernames = unfollowingActions
@@ -158,7 +157,7 @@ export function UnfollowInfoPanel({
     });
 
     // 获取排名
-    rankService.getRanks(usernames).then((ranks) => {
+    rankService.getRanks(usernames, avatarRankMode).then((ranks) => {
       setUserRanks(ranks);
     });
 
@@ -167,9 +166,9 @@ export function UnfollowInfoPanel({
     };
   }, [
     followRelationData,
-    showAvatarRank,
     unfollowingActions,
     unfollowedActions,
+    isAvatarRankModeLoading,
   ]);
 
   const loading = !followRelationData;
@@ -197,24 +196,63 @@ export function UnfollowInfoPanel({
   const hasBlurredActiveItems = !isPro && unfollowingActions.length > 0;
   const hasBlurredPassiveItems = !isPro && unfollowedActions.length > 0;
 
+  // 子 tab 数据
+  const subTabs = [
+    {
+      id: 'active' as const,
+      label: t('activeUnfollow'),
+      count: unfollowingActions.length,
+      hasData: hasActiveUnfollows,
+      hasBlurred: hasBlurredActiveItems,
+      actions: unfollowingActions,
+      getUser: (action: any) => followRelationData?.twitter_users[action.following_id],
+      keyPrefix: 'unfollowing',
+      noDataText: t('noActiveUnfollows'),
+    },
+    {
+      id: 'passive' as const,
+      label: t('passiveUnfollowed'),
+      count: unfollowedActions.length,
+      hasData: hasPassiveUnfollows,
+      hasBlurred: hasBlurredPassiveItems,
+      actions: unfollowedActions,
+      getUser: (action: any) => followRelationData?.twitter_users[action.follower_id],
+      keyPrefix: 'unfollowed',
+      noDataText: t('noPassiveUnfollows'),
+    },
+  ];
+
+  const currentTab = subTabs.find(tab => tab.id === activeSubTab) || subTabs[0];
+
   return (
-    <div>
-      {/* 提示条 */}
-      <div className='px-6 py-2 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 border-b border-yellow-200 dark:border-yellow-800/50'>
-        <p className='text-xs'>{t('unfollowInfoTooltip')}</p>
+    <div className='relative'>
+      {/* 子 Tab 切换栏 - 粘性定位 */}
+      <div className='border-b theme-border sticky top-0 z-[99999] theme-bg-primary'>
+        <div className='flex'>
+          {subTabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap text-center ${activeSubTab === tab.id
+                ? 'text-blue-400'
+                : 'theme-text-secondary hover:theme-text-primary'
+                }`}
+              onClick={() => setActiveSubTab(tab.id)}
+            >
+              {activeSubTab === tab.id && (
+                <span className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400' />
+              )}
+              <span>{tab.label} ({tab.count})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* 主动取关部分 */}
-      <div className='space-y-2 mb-1'>
-        <div className='px-6 py-2 theme-bg-secondary/50 border-b border-t theme-border'>
-          <h4 className='text-sm font-medium theme-text-secondary'>
-            {t('activeUnfollow')}
-          </h4>
-        </div>
-        {hasActiveUnfollows ? (
+      {/* 内容区域 */}
+      <div className='space-y-2'>
+        {currentTab.hasData ? (
           <>
-            {hasBlurredActiveItems && (
-              <div className='mb-2'>
+            {currentTab.hasBlurred && (
+              <div className='px-6 pt-2'>
                 <ProPanel
                   isPro={false}
                   show={true}
@@ -225,9 +263,8 @@ export function UnfollowInfoPanel({
                 />
               </div>
             )}
-            {unfollowingActions.map((action, index) => {
-              const user =
-                followRelationData.twitter_users[action.following_id];
+            {currentTab.actions.map((action, index) => {
+              const user = currentTab.getUser(action);
               if (!user) return null;
               if (!isPro && index < BLUR_COUNT) return null;
 
@@ -237,73 +274,21 @@ export function UnfollowInfoPanel({
 
               return (
                 <FollowRelationItem
-                  key={`unfollowing-${action.created_at}-${action.following_id}`}
+                  key={`${currentTab.keyPrefix}-${action.created_at}-${action.following_id || action.follower_id}`}
                   user={user}
                   timestamp={action.created_at}
                   rank={userRank}
                   isLoading={isLoading}
                   theme={theme}
-                  showAvatarRank={showAvatarRank}
+                  avatarRankMode={avatarRankMode}
                 />
               );
             })}
           </>
         ) : (
-          <div className='px-6 py-2'>
+          <div className='px-6 py-4'>
             <p className='text-xs theme-text-secondary'>
-              {t('noActiveUnfollows')}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 被动被取关部分 */}
-      <div className='space-y-2 mb-1'>
-        <div className='px-6 py-2 theme-bg-secondary/50 border-b border-t theme-border'>
-          <h4 className='text-sm font-medium theme-text-secondary'>
-            {t('passiveUnfollowed')}
-          </h4>
-        </div>
-        {hasPassiveUnfollows ? (
-          <>
-            {hasBlurredPassiveItems && (
-              <div className='mb-2'>
-                <ProPanel
-                  isPro={false}
-                  show={true}
-                  className='border border-gray-200 dark:border-gray-800 rounded-md'
-                  enableAnimation={false}
-                  showExtraTitle={t('proRequiredViewFirst5')}
-                  showBenefits={false}
-                />
-              </div>
-            )}
-            {unfollowedActions.map((action, index) => {
-              const user = followRelationData.twitter_users[action.follower_id];
-              if (!user) return null;
-              if (!isPro && index < BLUR_COUNT) return null;
-
-              const username = user.username_raw;
-              const userRank = userRanks[username] || -1;
-              const isLoading = loadingRanks.has(username);
-
-              return (
-                <FollowRelationItem
-                  key={`unfollowed-${action.created_at}-${action.follower_id}`}
-                  user={user}
-                  timestamp={action.created_at}
-                  rank={userRank}
-                  isLoading={isLoading}
-                  theme={theme}
-                  showAvatarRank={showAvatarRank}
-                />
-              );
-            })}
-          </>
-        ) : (
-          <div className='px-6 py-2'>
-            <p className='text-xs theme-text-secondary'>
-              {t('noPassiveUnfollows')}
+              {currentTab.noDataText}
             </p>
           </div>
         )}

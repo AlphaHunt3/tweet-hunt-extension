@@ -356,7 +356,14 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
   // 点击时：若已有数据则直接展示悬浮框；否则触发分析
   const handleButtonClick = async () => {
     if (!isLoggedIn) {
-      await redirectToLogin();
+      // 先询问用户是否保存了草稿，避免登录后刷新丢失
+      const confirmMessage = lang === 'zh'
+        ? '跳转登录前，请确保您已保存推文内容或存储为草稿，避免登录后刷新导致内容丢失。\n\n是否继续跳转登录？'
+        : 'Before redirecting to login, please make sure you have saved your tweet content or stored it as a draft to avoid losing it after the page refreshes.\n\nContinue to login?';
+      
+      if (window.confirm(confirmMessage)) {
+        await redirectToLogin();
+      }
       return;
     }
 
@@ -509,14 +516,26 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
 
 // 原来的 Compose Modal 检测按钮
 function _ComposeModalDetectButton() {
+  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
+  
+  if (!showAiDetectButton) {
+    return null;
+  }
+  
   return <_DetectButton selector={COMPOSE_MODAL_SELECTOR} componentType='compose' />;
 }
 
 // 内联回复检测按钮 - 只在帖子详情页显示 (/status/)
 function _InlineReplyDetectButton() {
   const currentUrl = useCurrentUrl();
+  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
 
   const isStatusPage = useMemo(() => /\/status\/\d+/.test(currentUrl), [currentUrl]);
+
+  // 如果开关关闭，不渲染
+  if (!showAiDetectButton) {
+    return null;
+  }
 
   // 如果不是帖子详情页，不渲染
   if (!isStatusPage) {
@@ -529,7 +548,13 @@ function _InlineReplyDetectButton() {
 // Home Timeline 检测按钮 - 只在首页显示 (/home)
 function _HomeTimelineDetectButton() {
   const currentUrl = useCurrentUrl();
+  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
   const isHomePage = useMemo(() => /\/home/.test(currentUrl), [currentUrl]);
+
+  // 如果开关关闭，不渲染
+  if (!showAiDetectButton) {
+    return null;
+  }
 
   // 如果不是首页，不渲染
   if (!isHomePage) {

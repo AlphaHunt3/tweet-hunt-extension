@@ -11,6 +11,8 @@ interface DraggablePanelProps {
   dragHandleClassName?: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onDragStart?: () => void; // 新增：开始拖动时的回调
+  onDragStop?: () => void; // 新增：停止拖动时的回调
   width: number;
   storageKey?: string; // 新增：用于存储位置的键名
 }
@@ -24,12 +26,15 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
       dragHandleClassName,
       onMouseEnter,
       onMouseLeave,
+      onDragStart,
+      onDragStop,
       width,
       storageKey = 'default-panel', // 默认存储键名
     },
     _ref
   ) => {
     const nodeRef = useRef<HTMLDivElement | null>(null);
+    const hasDraggedRef = useRef(false);
 
     // 使用 localStorage 记住位置，获取加载状态
     // 改为存储距离右边的距离而不是绝对位置
@@ -128,6 +133,11 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
     }, [isLoading, savedPosition, width, position, setSavedPosition]);
 
     const handleDrag = (_e: any, data: { x: number; y: number }) => {
+      // 首次拖动时触发回调
+      if (!hasDraggedRef.current) {
+        hasDraggedRef.current = true;
+        onDragStart?.();
+      }
       // 立即更新UI位置
       setPosition(data);
     };
@@ -141,6 +151,9 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
 
       // 防抖保存到 localStorage（1.5秒后）
       debouncedSavePosition(boundedPosition);
+
+      // 触发停止拖动回调
+      onDragStop?.();
     };
 
     // Use refs to store latest values to avoid stale closures and infinite loops

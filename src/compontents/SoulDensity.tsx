@@ -88,6 +88,11 @@ function SoulDensity({
 }: SoulDensityProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t, lang } = useI18n();
+  
+  // 灵魂指数数据说明话术（写死，从翻译文件读取）
+  const soulFooter = useMemo(() => {
+    return t('soulFooter') || '';
+  }, [t]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(() =>
@@ -632,6 +637,7 @@ function SoulDensity({
               </h4>
               <p className='text-xs theme-text-secondary leading-relaxed'>
                 {lang === 'en' && data.reason_en ? data.reason_en : data.reason}
+                {soulFooter ? <> ({soulFooter})</> : null}
               </p>
             </div>
           </div>

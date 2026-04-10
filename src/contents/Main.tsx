@@ -39,9 +39,12 @@ import {
 import {
   useAvatarSkinInitializer,
 } from '~contents/hooks/useAvatarSkin.ts';
-// import { ComposeModalDetectButton, InlineReplyDetectButton, HomeTimelineDetectButton } from '~compontents/area/ComposeModalDetectButton.tsx';
+import { ComposeModalDetectButton, InlineReplyDetectButton, HomeTimelineDetectButton } from '~compontents/area/ComposeModalDetectButton.tsx';
 import { AiDetectTips } from '~compontents/AiDetectTips.tsx';
-import { PrivacyConsent } from '~compontents/PrivacyConsent.tsx';
+import { KolAiChatButton } from '~compontents/area/KolAiChatButton.tsx';
+import { KolAiChatDialog } from '~compontents/KolAiChatDialog.tsx';
+// import { UserDomainSetupModal } from '~compontents/UserDomainSetupModal.tsx';
+// import { useUserDomain } from '~contents/hooks/useUserDomain.ts';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -186,23 +189,23 @@ function MainContent({
         <GhostFollowingPanel />
       </ErrorBoundary>
 
-      {/* <ErrorBoundary name='ProfileFollowButtonArea'>
-        <ProfileFollowButtonArea {...mainData} />
+      <ErrorBoundary name='KolAiChatButton'>
+        <KolAiChatButton {...mainData} />
       </ErrorBoundary>
 
-      <ErrorBoundary name='AiChatDialog'>
-        <AiChatDialog />
-      </ErrorBoundary> */}
+      <ErrorBoundary name='KolAiChatDialog'>
+        <KolAiChatDialog />
+      </ErrorBoundary>
 
       {/* <ErrorBoundary name='AvatarRankHoverPanel'>
         <AvatarRankHoverPanel />
       </ErrorBoundary> */}
 
-      {/* <ErrorBoundary name='ComposeModal-InlineReply-HomeTimeline-Detect'>
+      <ErrorBoundary name='ComposeModal-InlineReply-HomeTimeline-Detect'>
         <ComposeModalDetectButton />
         <InlineReplyDetectButton />
         <HomeTimelineDetectButton />
-      </ErrorBoundary> */}
+      </ErrorBoundary>
 
       <ErrorBoundary name='AiDetectTips'>
         <AiDetectTips />
@@ -219,12 +222,28 @@ function MainContent({
         />
       </ErrorBoundary>
 
-      <ErrorBoundary name='PrivacyConsent'>
+      {/* <ErrorBoundary name='PrivacyConsent'>
         <PrivacyConsent />
-      </ErrorBoundary>
+      </ErrorBoundary> */}
+
+      {/* <UserDomainSetupWrapper /> */}
 
     </div>
   );
 }
+
+// // 用户领域设置弹框包装组件
+// function UserDomainSetupWrapper() {
+//   const { shouldShowSetup, completeSetup } = useUserDomain();
+
+//   return (
+//     <ErrorBoundary name='UserDomainSetupModal'>
+//       <UserDomainSetupModal
+//         isOpen={shouldShowSetup}
+//         onComplete={completeSetup}
+//       />
+//     </ErrorBoundary>
+//   );
+// }
 
 export default Main;

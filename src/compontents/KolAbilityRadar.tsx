@@ -283,11 +283,11 @@ function KolAbilityRadar({
     () =>
       hookUsername
         ? {
-            username: hookUsername,
-            name: hookName,
-            avatar: hookAvatar,
-            source: 'data-testid' as const,
-          }
+          username: hookUsername,
+          name: hookName,
+          avatar: hookAvatar,
+          source: 'data-testid' as const,
+        }
         : null,
     [hookUsername, hookName, hookAvatar]
   );
@@ -679,28 +679,10 @@ function KolAbilityRadar({
     };
   }, []);
 
+  // 能力模型数据说明话术（写死，从翻译文件读取）
   const abilityFooter = useMemo(() => {
-    try {
-      const mf: any = (newTwitterData as any)?.feature?.multi_field;
-      if (!mf) return '';
-      const updateIso: string | undefined = mf?.update;
-      const daysWindow: number = mf?.days ?? mf?.window_days ?? 45;
-      let formattedDate = '';
-      if (updateIso) {
-        const d = new Date(updateIso);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        formattedDate = `${y}/${m}/${dd}`;
-      }
-      const footer = (t('abilityModelFooter') || '')
-        .replace('{days}', String(daysWindow))
-        .replace('{date}', formattedDate);
-      return footer;
-    } catch {
-      return '';
-    }
-  }, [newTwitterData, t]);
+    return t('abilityModelFooter') || '';
+  }, [t]);
 
   if (isLoading) {
     return (

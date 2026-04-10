@@ -13,6 +13,11 @@ export function MBTISection({ data, isHoverPanel }: MBTISectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const { t } = useI18n();
   const mbtiColor = useMemo(() => getMBTIColor(data.mbti), [data.mbti]);
+  
+  // MBTI 数据说明话术（写死，从翻译文件读取）
+  const mbtiFooter = useMemo(() => {
+    return t('mbtiFooter') || '';
+  }, [t]);
 
   return (
     <div className={`theme-border ${isHoverPanel ? '' : 'border-b'}`}>
@@ -48,6 +53,7 @@ export function MBTISection({ data, isHoverPanel }: MBTISectionProps) {
           </div>
           <p className="text-xs theme-text-secondary leading-relaxed">
             {data.explanation}
+            {mbtiFooter ? <> ({mbtiFooter})</> : null}
           </p>
         </div>
       </div>

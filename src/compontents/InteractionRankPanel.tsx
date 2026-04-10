@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Info, User } from 'lucide-react';
+import { Loader2, Info, User, HeartHandshake } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { InteractionRankItem } from '~contents/services/api.ts';
 import type {
@@ -7,7 +7,7 @@ import type {
   TwitterInitialStateCurrentUser,
 } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { formatRank } from '~js/utils.ts';
+import AvatarRankBadge from './AvatarRankBadge.tsx';
 import { rankService } from '~/utils/rankService';
 import { useEffect, useState } from 'react';
 import { fetchFanByHandle } from '~contents/services/api.ts';
@@ -22,6 +22,7 @@ interface InteractionRankPanelProps {
   loading?: boolean;
   selectedDays: '7' | '30';
   onDaysChange: (days: '7' | '30') => void;
+  onOpenTip?: (payload: { anchor: HTMLElement }) => void;
 }
 
 export function InteractionRankPanel({
@@ -31,10 +32,16 @@ export function InteractionRankPanel({
   loading = false,
   selectedDays,
   onDaysChange,
+  onOpenTip,
 }: InteractionRankPanelProps) {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const [showAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
+
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
   const [currentUserInfo, setCurrentUserInfo] =
@@ -43,7 +50,7 @@ export function InteractionRankPanel({
 
   // 使用排名服务获取排名
   useEffect(() => {
-    if (!interactionRankData || !showAvatarRank) return;
+    if (!interactionRankData || isAvatarRankModeLoading) return;
 
     const usernames = interactionRankData
       .map((item) => item.username_raw)
@@ -57,14 +64,14 @@ export function InteractionRankPanel({
     });
 
     // 获取排名
-    rankService.getRanks(usernames).then((ranks) => {
+    rankService.getRanks(usernames, avatarRankMode).then((ranks) => {
       setUserRanks(ranks);
     });
 
     return () => {
       removeCallback();
     };
-  }, [interactionRankData, showAvatarRank]);
+  }, [interactionRankData, isAvatarRankModeLoading]);
 
   // 获取当前用户名
   useEffect(() => {
@@ -132,9 +139,8 @@ export function InteractionRankPanel({
             <span className='relative group inline-flex items-center'>
               <Info className='w-4 h-4 theme-text-secondary flex-shrink-0 cursor-help' />
               <div
-                className={`absolute ${
-                  lang === 'zh' ? '-left-20' : '-left-32'
-                } top-full mt-2 px-3 py-1.5 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 theme-text-primary theme-border border min-w-80 max-w-md text-left leading-5`}
+                className={`absolute ${lang === 'zh' ? '-left-20' : '-left-32'
+                  } top-full mt-2 px-3 py-1.5 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 theme-text-primary theme-border border min-w-80 max-w-md text-left leading-5`}
               >
                 <div className='space-y-1'>
                   <div className='font-medium whitespace-nowrap'>
@@ -157,38 +163,69 @@ export function InteractionRankPanel({
           </div>
 
           {/* Right side: current user's rank & point against this KOL */}
-          <div
-            className='relative flex items-center gap-1.5 px-2 py-1 rounded-md theme-bg-secondary/50 border theme-border whitespace-nowrap flex-shrink-0'
-            data-days={selectedDays}
-            data-has-onchange={!!onDaysChange}
-          >
-            {fanLoading ? (
-              <div className='flex items-center gap-2'>
-                <Loader2 className='w-3.5 h-3.5 animate-spin theme-text-secondary' />
-                <span className='text-xs theme-text-secondary'>
-                  {t('loading')}
-                </span>
-              </div>
-            ) : (
-              <>
-                <User className='w-3 h-3 theme-text-secondary flex-shrink-0' />
-                <span className='text-xs font-medium theme-text-secondary'>
-                  {t('irMy')}:
-                </span>
-                <span className='text-xs font-medium theme-text-primary'>
-                  {fanStats &&
-                  typeof fanStats.fan_rank === 'number' &&
-                  fanStats.fan_rank > 0
-                    ? t('irRankN').replace('@{n}', String(fanStats.fan_rank))
-                    : t('irNotRanked')}
-                </span>
-                <span className='text-xs theme-text-secondary'>•</span>
-                <span className='text-xs theme-text-secondary'>
-                  {typeof fanStats?.point === 'number' ? fanStats.point : 0}{' '}
-                  {t('points')}
-                </span>
-              </>
-            )}
+          <div className='flex items-center gap-2 flex-shrink-0'>
+            {(currentUserInfo?.id_str === twitterId ||
+              currentUserInfo?.id_str === '1455055533140893696') && (
+                <></>
+                // <button
+                //   type='button'
+                //   className='inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium theme-text-primary border theme-border theme-hover transition-colors'
+                //   onClick={(e) => {
+                //     e.stopPropagation();
+                //     const anchor = e.currentTarget as HTMLElement;
+                //     onOpenTip?.({ anchor });
+                //   }}
+                //   title={t('interactionRankTipButtonLabel')}
+                //   aria-label={t('interactionRankTipButtonLabel')}
+                // >
+                //   <HeartHandshake className='w-3.5 h-3.5 theme-text-primary' />
+                //   <span className='tracking-wide'>
+                //     {t('interactionRankTipButtonLabel')}
+                //   </span>
+                // </button>
+              )}
+
+            {!(
+              currentUserInfo?.id_str === twitterId ||
+              currentUserInfo?.id_str === '1455055533140893696'
+            ) && (
+                <div
+                  className='relative flex items-center gap-1.5 px-2 py-1 rounded-md theme-bg-secondary/50 border theme-border whitespace-nowrap'
+                  data-days={selectedDays}
+                  data-has-onchange={!!onDaysChange}
+                >
+                  {fanLoading ? (
+                    <div className='flex items-center gap-2'>
+                      <Loader2 className='w-3.5 h-3.5 animate-spin theme-text-secondary' />
+                      <span className='text-xs theme-text-secondary'>
+                        {t('loading')}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <User className='w-3 h-3 theme-text-secondary flex-shrink-0' />
+                      <span className='text-xs font-medium theme-text-secondary'>
+                        {t('irMy')}:
+                      </span>
+                      <span className='text-xs font-medium theme-text-primary'>
+                        {fanStats &&
+                          typeof fanStats.fan_rank === 'number' &&
+                          fanStats.fan_rank > 0
+                          ? t('irRankN').replace(
+                            '@{n}',
+                            String(fanStats.fan_rank)
+                          )
+                          : t('irNotRanked')}
+                      </span>
+                      <span className='text-xs theme-text-secondary'>•</span>
+                      <span className='text-xs theme-text-secondary'>
+                        {typeof fanStats?.point === 'number' ? fanStats.point : 0}{' '}
+                        {t('points')}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
           </div>
         </div>
       </div>
@@ -207,11 +244,11 @@ export function InteractionRankPanel({
               rank={userRank}
               isLoading={isLoading}
               theme={theme}
-              showAvatarRank={showAvatarRank}
+              avatarRankMode={avatarRankMode}
               isCurrentUser={
                 currentUserInfo
                   ? item.username_raw?.toLowerCase() ===
-                    currentUserInfo?.screen_name?.toLowerCase()
+                  currentUserInfo?.screen_name?.toLowerCase()
                   : false
               }
             />
@@ -227,7 +264,7 @@ interface InteractionRankItemRowProps {
   rank?: number;
   isLoading?: boolean;
   theme: string;
-  showAvatarRank: boolean;
+  avatarRankMode: 'influence' | 'composite';
   isCurrentUser?: boolean;
 }
 
@@ -236,7 +273,7 @@ function InteractionRankItemRow({
   rank,
   isLoading = false,
   theme,
-  showAvatarRank,
+  avatarRankMode,
   isCurrentUser = false,
 }: InteractionRankItemRowProps) {
   const { t, lang } = useI18n();
@@ -245,15 +282,14 @@ function InteractionRankItemRow({
       href={`https://x.com/${item.username_raw}`}
       target='_blank'
       rel='noopener noreferrer'
-      className={`flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors ${
-        isCurrentUser
+      className={`flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors ${isCurrentUser
           ? 'ring-2 ring-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20 mx-0.5'
           : ''
-      }`}
+        }`}
     >
       <div
         className='relative rounded-full'
-        style={{ border: '3px solid #60A5FA80' }}
+        style={{ border: '3px solid var(--xhunt-avatar-outer-border-color)' }}
       >
         <img
           src={item.profile_image_url}
@@ -264,30 +300,20 @@ function InteractionRankItemRow({
               'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
           }}
         />
-        {showAvatarRank ? (
-          <div
-            className={`xhunt-avatar-rank-badge ${
-              rank && rank > 0 && rank <= 10000 ? 'high-ranked' : ''
-            } ${isLoading ? 'loading' : ''}`}
-            data-theme={theme}
-          >
-            <span
-              className='xhunt-avatar-rank-text'
-              dangerouslySetInnerHTML={{
-                __html: isLoading ? '~' : formatRank(rank),
-              }}
-            ></span>
-          </div>
-        ) : null}
+        <AvatarRankBadge
+          rank={rank}
+          isLoading={isLoading}
+          avatarRankMode={avatarRankMode}
+          theme={theme}
+        />
       </div>
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-1'>
           <p
-            className={`font-medium text-sm truncate ${
-              isCurrentUser
+            className={`font-medium text-sm truncate ${isCurrentUser
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'theme-text-primary'
-            }`}
+              }`}
           >
             {item.name}
           </p>
@@ -299,11 +325,10 @@ function InteractionRankItemRow({
         </div>
         <div className='flex items-center gap-1'>
           <p
-            className={`text-xs truncate ${
-              isCurrentUser
+            className={`text-xs truncate ${isCurrentUser
                 ? 'text-blue-500 dark:text-blue-400'
                 : 'theme-text-secondary'
-            }`}
+              }`}
           >
             @{item.username_raw}
           </p>
@@ -312,7 +337,8 @@ function InteractionRankItemRow({
             {typeof item.point === 'number' && item.point % 1 === 0
               ? item.point
               : item.point.toFixed(2)}{' '}
-            {t('points')}
+            {t('points')} (
+            {Number(Number(item?.mindshare || 0) * 100).toFixed(2)}%)
           </p>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRequest } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { HotProjectsKOLs } from './HotProjectsKOLs';
 import {
@@ -17,7 +18,8 @@ import { ProRequired } from './ProRequired';
 import { LoginRequired } from './LoginRequired';
 import { HunterEarnSection } from './HunterEarnSection';
 import ErrorBoundary from './ErrorBoundary';
-import AnnualReportSection from './AnnualReportSection';
+// import AnnualReportSection from './AnnualReportSection';
+import AdBannerSection from './AdBannerSection';
 
 export interface TwitterHomeRightSidebarProps {
   className?: string;
@@ -34,21 +36,14 @@ export function TwitterHomeRightSidebar({
   const { isEnabled } = useCrossPageSettings();
   const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
 
-  // 获取所有应该显示的活动配置列表（统一管理） - 需在 topTabs 之前定义
-  const [activeHunterCampaigns, setActiveHunterCampaigns] = React.useState(
-    [] as ReturnType<typeof Array.prototype.slice>
+  // 获取所有应该显示的活动配置列表（统一管理）- 每 200s 轮询刷新
+  const { data: activeHunterCampaigns = [] } = useRequest(
+    getActiveHunterCampaignsAsync,
+    {
+      pollingInterval: 200_000,
+      pollingWhenHidden: false,
+    }
   );
-  React.useEffect(() => {
-    let mounted = true;
-    getActiveHunterCampaignsAsync()
-      .then((list) => {
-        if (mounted) setActiveHunterCampaigns(list);
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // RealTimeSubscription 小红点状态管理
   const [
@@ -132,7 +127,7 @@ export function TwitterHomeRightSidebar({
         handleStorageChange({
           'xhunt:realtime_notification': { newValue: msg },
         } as any);
-      } catch {}
+      } catch { }
     };
     (async () => {
       const { localStorageInstance } = await import('~storage/index.ts');
@@ -159,11 +154,11 @@ export function TwitterHomeRightSidebar({
   // 监听通知点击事件
   React.useEffect(() => {
     const handleNotificationClick = (event: NotificationClickEvent) => {
-      console.log('[TwitterHomeRightSidebar] Notification clicked:', event);
+
 
       // 切换到 RealTimeSubscription 标签页
       setActiveTopTab('subs');
-      console.log('[TwitterHomeRightSidebar] Switched to subs tab');
+
 
       // 延迟调用 RealTimeSubscription 的方法
       setTimeout(() => {
@@ -186,6 +181,7 @@ export function TwitterHomeRightSidebar({
     <div
       data-theme={theme}
       className={`rounded-xl theme-border ${className}`}
+      key={`${currentUsername}-${theme}-home-right-sidebar`}
       style={{
         borderWidth: '1px',
         borderStyle: 'solid',
@@ -196,16 +192,16 @@ export function TwitterHomeRightSidebar({
         flexDirection: 'column',
       }}
     >
-      {/* Annual Report section at the very top */}
-      {isEnabled('showAnnualReport') && (
-        <ErrorBoundary name='AnnualReportSection'>
-          <AnnualReportSection />
+      {/* Ad Banner section at the very top (替换原来的年度报告) */}
+      {isEnabled('showAdBanner') && (
+        <ErrorBoundary name='AdBannerSection'>
+          <AdBannerSection />
         </ErrorBoundary>
       )}
 
       {/* Campaign Banner at the very top - 独立控制 */}
       <ErrorBoundary name='HunterEarnSection'>
-        <HunterEarnSection activeHunterCampaigns={activeHunterCampaigns} />
+        <HunterEarnSection activeHunterCampaigns={activeHunterCampaigns} key={currentUsername} />
       </ErrorBoundary>
 
       {/* 顶层 Tab 导航 - 只有在有多个标签页时才显示 */}

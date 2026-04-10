@@ -124,9 +124,8 @@ export function CommentsSection({
       </div>
 
       <div
-        className={`${
-          isExpanded ? '' : 'h-0'
-        } overflow-hidden transition-[height] duration-200`}
+        className={`${isExpanded ? '' : 'h-0'
+          } overflow-hidden transition-[height] duration-200`}
       >
         <div className='p-3 space-y-4'>
           {loading ? (
@@ -148,11 +147,10 @@ export function CommentsSection({
                     setCurrentPage((prev) => Math.max(1, prev - 1));
                   }}
                   disabled={!data.pagination.hasPrevPage}
-                  className={`p-1 rounded-full ${
-                    data.pagination.hasPrevPage
+                  className={`p-1 rounded-full ${data.pagination.hasPrevPage
                       ? 'theme-hover theme-text-primary'
                       : 'opacity-50 cursor-not-allowed theme-text-secondary'
-                  }`}
+                    }`}
                 >
                   <ChevronLeft className='w-4 h-4' />
                 </button>
@@ -170,11 +168,10 @@ export function CommentsSection({
                     );
                   }}
                   disabled={!data.pagination.hasNextPage}
-                  className={`p-1 rounded-full ${
-                    data.pagination.hasNextPage
+                  className={`p-1 rounded-full ${data.pagination.hasNextPage
                       ? 'theme-hover theme-text-primary'
                       : 'opacity-50 cursor-not-allowed theme-text-secondary'
-                  }`}
+                    }`}
                 >
                   <ChevronRight className='w-4 h-4' />
                 </button>
@@ -219,7 +216,7 @@ function CommentItem({ comment }: { comment: Comment }) {
         </div>
         <div className='flex-1'>
           <div className='flex items-center gap-1 min-w-0'>
-            <span className='font-medium text-xs theme-text-primary truncate'>
+            <span className='font-medium text-xs theme-text-primary truncate whitespace-break-spaces'>
               {comment.reviewer.displayName}
             </span>
             {/* {comment.reviewer.isKOL && (
@@ -238,7 +235,7 @@ function CommentItem({ comment }: { comment: Comment }) {
         </div>
         <div className='flex items-center'>
           <a
-            href='https://t.me/xhunt_ai'
+            href='https://docs.google.com/forms/d/e/1FAIpQLSdm_ekrYB57m1xUaYTmgOsQBdWTkc4pzNnLsctJS17O7u1FrA/viewform'
             target='_blank'
             rel='noopener noreferrer'
             className='mr-2 inline-flex items-center justify-center theme-text-secondary hover:text-red-400 relative group opacity-40 hover:opacity-100 transition-opacity'

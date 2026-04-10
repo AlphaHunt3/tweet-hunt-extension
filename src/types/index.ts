@@ -808,3 +808,42 @@ export interface GhostFollowingRecord {
 
 // 本地存储的分析记录列表（最多3条）
 export type GhostFollowingRecords = GhostFollowingRecord[];
+
+// ==================== KOL Chat 类型定义 ====================
+
+export interface KolChatItem {
+  id: string;
+  name: string;
+  twitter_handle: string;
+  description: string;
+  type: 'official' | 'unofficial';
+  perspective_name_zh: string | null;
+  perspective_name_en: string | null;
+}
+
+export interface KolChatListResponse {
+  code: number;
+  message?: string;
+  data?: KolChatItem[];
+}
+
+export interface KolChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface KolChatRequest {
+  kol_id: string;
+  messages: KolChatMessage[];
+}
+
+export interface KolChatResponse {
+  code: number;
+  message?: string;
+  message_en?: string;
+  data?: {
+    kol_id: string;
+    reply: string;
+  };
+  resetTime?: number; // 429 错误时返回的配额重置时间
+}

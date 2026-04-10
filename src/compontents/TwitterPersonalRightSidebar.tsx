@@ -100,7 +100,7 @@ export function TwitterPersonalRightSidebar({
       .then((cfg) => {
         if (mounted) setActiveHunterCampaignConfig(cfg as any);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       mounted = false;
     };
@@ -138,11 +138,11 @@ export function TwitterPersonalRightSidebar({
   // 监听通知点击事件
   React.useEffect(() => {
     const handleNotificationClick = (event: NotificationClickEvent) => {
-      console.log('[TwitterPersonalRightSidebar] Notification clicked:', event);
+
 
       // 切换到 RealTimeSubscription 标签页
       setActiveTopTab('subs');
-      console.log('[TwitterPersonalRightSidebar] Switched to subs tab');
+
 
       // 延迟调用 RealTimeSubscription 的方法
       setTimeout(() => {
@@ -165,6 +165,7 @@ export function TwitterPersonalRightSidebar({
     <div
       data-theme={theme}
       className={`rounded-xl ${className}`}
+      key={`${currentUsername}-${theme}-personal-right-sidebar`}
       style={{
         borderWidth: '1px',
         borderStyle: 'solid',
@@ -172,6 +173,7 @@ export function TwitterPersonalRightSidebar({
       }}
     >
       {/* Campaign Banner at the very top - 独立控制 */}
+      {/* //TEST xhunt eran 本地测试 */}
       {activeHunterCampaignConfig && isEnabled('showHunterCampaign') && (
         <div className='px-3 pt-3'>
           <HunterCampaignBanner
@@ -197,9 +199,8 @@ export function TwitterPersonalRightSidebar({
       {/* 内容区域 */}
       {Boolean(topTabs.length) && (
         <div
-          className={`${
-            topTabs.length > 1 ? 'pt-2' : ''
-          } personal-sidebar-content`}
+          className={`${topTabs.length > 1 ? 'pt-2' : ''
+            } personal-sidebar-content`}
         >
           {activeTopTab === 'analysis' ? (
             <LoginRequired showInCenter={true}>

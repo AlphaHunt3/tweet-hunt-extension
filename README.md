@@ -160,16 +160,9 @@ src/
 
 ### 🔒 隐私和安全
 
-XHunt 严格遵守以下隐私标准，确保用户信息与操作的高度隔离：
-
-- **零 IP 记录**：服务器不采集、不存储用户的 IP 地址，确保用户的网络轨迹处于匿名状态。
-- **不触碰敏感信息**：绝不请求、不读取、不存储助记词、私钥或任何形式的加密资产访问权限。
-- **不读取隐私通讯**：不访问私信（DM）、书签或任何非公开的通讯内容。
-- **不跨站追踪**：不追踪用户在 X (Twitter) 及其相关服务域名之外的任何网络行为。
-- **不读取个人 Cookie**：不采集浏览器 Cookie 记录，确保用户的账户登录状态与 AI 处理流程完全隔离。
-- **不关联与不共享**：本平台承诺绝不将数据与个人身份关联，且不向任何第三方机构出售或共享用户数据。
-
-详情：[https://xhunt.ai/tos_privacy](https://xhunt.ai/tos_privacy)
+- 所有用户数据本地存储，不上传敏感信息
+- 使用 HTTPS 加密传输
+- 实现请求签名验证，防止恶意请求
 
 ### 📄 许可证
 
@@ -330,16 +323,9 @@ Supports both Chinese and English, automatically detecting user browser language
 
 ### 🔒 Privacy and Security
 
-XHunt strictly adheres to the following privacy standards to ensure maximum isolation between user information and operations:
-
-- **Zero IP Logging**: Our servers do not collect or store user IP addresses, ensuring your network footprint remains anonymous.
-- **No Sensitive Info Access**: We never request, read, or store seed phrases, private keys, or any form of crypto-asset access permissions.
-- **No Private Communication Access**: We do not access Direct Messages (DMs), bookmarks, or any non-public communication.
-- **No Cross-Site Tracking**: We do not track user behavior outside of X (Twitter) and its related service domains.
-- **No Personal Cookie Collection**: We do not collect browser cookies, ensuring your account login state remains completely isolated from the AI processing flow.
-- **No Association or Sharing**: We pledge never to associate data with personal identities and will not sell or share user data with third-party organizations.
-
-More details: [https://xhunt.ai/tos_privacy](https://xhunt.ai/tos_privacy)
+- All user data stored locally, no sensitive information uploaded
+- HTTPS encrypted transmission
+- Request signature verification to prevent malicious requests
 
 ### 📄 License
 

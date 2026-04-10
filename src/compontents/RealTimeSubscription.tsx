@@ -172,7 +172,7 @@ export const RealTimeSubscription = React.forwardRef<
       // 监听 BNB feed 数据变化
       if (changes[FEED_STORAGE_KEY]?.newValue) {
         const data = changes[FEED_STORAGE_KEY].newValue;
-        console.log('[RealTimeSubscription] BNB feed updated:', data);
+
         setDataState({
           follow_feed: data.follow_feed,
           tweets_feed: data.tweets_feed || [],
@@ -184,7 +184,7 @@ export const RealTimeSubscription = React.forwardRef<
       // 监听 Gossip 数据变化
       if (changes[GOSSIP_STORAGE_KEY]?.newValue) {
         const data = changes[GOSSIP_STORAGE_KEY].newValue;
-        console.log('[RealTimeSubscription] Gossip data updated:', data);
+
         // 处理新的gossip数据结构
         const gossipData = data.data || data;
         setGossipData(gossipData || []);
@@ -194,7 +194,7 @@ export const RealTimeSubscription = React.forwardRef<
       // 监听 Listing 数据变化
       if (changes[LISTING_STORAGE_KEY]?.newValue) {
         const data = changes[LISTING_STORAGE_KEY].newValue;
-        console.log('[RealTimeSubscription] Listing data updated:', data);
+
         // 处理新的listing数据结构
         const listingData = data.data || data;
         setListingData(listingData || []);
@@ -320,9 +320,7 @@ export const RealTimeSubscription = React.forwardRef<
             const fiveMinutes = 2 * 60; // 2分钟
 
             if (timeDiff > fiveMinutes) {
-              console.log(
-                `[RealTimeSubscription] Last request was ${timeDiff} seconds ago, forcing refresh`
-              );
+
               return true;
             }
           }
@@ -336,7 +334,7 @@ export const RealTimeSubscription = React.forwardRef<
           });
         }
       } catch (e) {
-        console.log('[RealTimeSubscription] Failed to load initial data:', e);
+        console.warn('[RealTimeSubscription] Failed to load initial data:', e);
       }
     };
 
@@ -358,7 +356,7 @@ export const RealTimeSubscription = React.forwardRef<
 
         // 切换到对应的子标签页
         setActiveSubTab(dataType);
-        console.log('[RealTimeSubscription] Switched to tab:', dataType);
+
 
         // 使用 requestAnimationFrame 确保DOM渲染完成
         requestAnimationFrame(() => {
@@ -1417,7 +1415,7 @@ const ListingCard: React.FC<{
   lang?: string;
   type?: string;
 }> = ({ listing, t, isHighlighted = false, lang = 'en', type }) => {
-  console.log(type, '///type==', listing);
+
   const title = listing?.title || '';
   // const link = listing?.link || '#';
   const createdAt = listing?.pubDate;

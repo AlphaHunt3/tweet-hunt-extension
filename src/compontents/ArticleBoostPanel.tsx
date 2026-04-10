@@ -10,7 +10,7 @@ import {
   FloatingContainer,
   FloatingContainerRef,
 } from '~/compontents/FloatingContainer';
-import { Info, Loader2, CheckCircle2 } from 'lucide-react';
+import { Info, CheckCircle2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { sanitizeHtml } from '~/utils/sanitizeHtml';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
@@ -32,10 +32,11 @@ export interface BoostPanelEventDetail {
 export const XHUNT_BOOST_PANEL_EVENT = 'xhunt-boost-panel';
 
 const audienceOptions = [
-  { label: 'none', value: 0 },
+  { label: '50K', value: 50000 },
   { label: '100K', value: 100000 },
   { label: '200K', value: 200000 },
-  { label: '50K', value: 50000 },
+  { label: '200K+Creators', value: -1 },
+  // { label: 'none', value: 0 },
 ];
 
 function ArticleBoostPanel() {
@@ -47,13 +48,19 @@ function ArticleBoostPanel() {
   const targetRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<FloatingContainerRef>(null);
 
-  const [budget, setBudget] = useState(300);
+  const [budget, setBudget] = useState(500);
   const [duration, setDuration] = useState(1);
-  const [audience, setAudience] = useState<number>(0);
+  const [audience, setAudience] = useState<number>(200000);
   const [rewardCount, setRewardCount] = useState(20);
   const [rewardMode, setRewardMode] = useState<'mindshare' | 'equal'>(
     'mindshare'
   );
+
+  const [lang, setLang] = useState<'cn' | 'en' | 'all'>('all');
+  const [retro, setRetro] = useState(false);
+  const [showRetroTooltip, setShowRetroTooltip] = useState(false);
+  const [showLangTooltip, setShowLangTooltip] = useState(false);
+
   const rewardModes = useMemo(
     () => [
       { value: 'mindshare' as const, labelKey: 'boostRewardModeMindshare' },
@@ -127,8 +134,16 @@ function ArticleBoostPanel() {
     async (params: { tweet_id: string }) => {
       return await examineE2ETweet(params);
     },
-    { manual: true }
+    {
+      manual: true,
+      retryCount: 2,
+      retryInterval: 300,
+    }
   );
+
+  const [examineRequested, setExamineRequested] = useState(false);
+  const pendingNextStepRef = useRef(false);
+  const [manualExamineLoading, setManualExamineLoading] = useState(false);
 
   const createCampaign = useRequest(
     async (payload: {
@@ -139,6 +154,8 @@ function ArticleBoostPanel() {
       target: number;
       winners: number;
       type: 'mindshare' | 'equal';
+      lang: 'cn' | 'en' | 'all';
+      retro: boolean;
     }) => {
       return await createE2ECampaign(payload);
     },
@@ -147,10 +164,14 @@ function ArticleBoostPanel() {
 
   const resetPanel = useCallback(
     (preservePayment: boolean = false) => {
+      setExamineRequested(false);
+      pendingNextStepRef.current = false;
+      setManualExamineLoading(false);
+      setOwnerUserId('');
       const atPayment = preservePayment && step === 3 && !!depositAddress;
-      setBudget(300);
+      setBudget(500);
       setDuration(1);
-      setAudience(0);
+      setAudience(200000);
       setRewardCount(20);
       setApiError('');
       if (!atPayment) {
@@ -183,6 +204,48 @@ function ArticleBoostPanel() {
       setCopySuccess(false);
     }
   }, [step]);
+
+  const pollingTimerRef = useRef<number | null>(null);
+
+  // 支付页轮询：每 4s 检查一次是否已到账
+  useEffect(() => {
+    const shouldPoll = step === 3 && !!depositAddress;
+
+    const stopPolling = () => {
+      if (pollingTimerRef.current !== null) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+
+    if (!shouldPoll) {
+      stopPolling();
+      return;
+    }
+
+    const poll = async () => {
+      try {
+        const ret = await activateCampaign.runAsync({
+          address: String(depositAddress),
+        });
+        if (ret?.status) {
+          setStep(4);
+          stopPolling();
+        }
+      } catch {
+        // 轮询失败不打断用户流程；用户仍可手动点击“我已完成付款”重试
+      }
+    };
+
+    // 进入支付页先立即检查一次，并设置定时器
+    if (pollingTimerRef.current === null) {
+      poll(); // 立即执行
+      pollingTimerRef.current = window.setInterval(poll, 5200);
+    }
+
+    // 返回清理函数
+    return stopPolling;
+  }, [step, depositAddress, activateCampaign.runAsync]);
 
   // 生成二维码
   useEffect(() => {
@@ -227,6 +290,10 @@ function ArticleBoostPanel() {
         detail: { open: false, source: 'panel' },
       })
     );
+    if (pollingTimerRef.current !== null) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
   }, [resetPanel]);
 
   useEffect(() => {
@@ -259,6 +326,50 @@ function ArticleBoostPanel() {
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, closePanel]);
 
+  // Prefetch examine info once the panel is opened (step 1)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (step !== 1) return;
+    if (examineRequested) return;
+
+    setApiError('');
+
+    if (!articleId) {
+      setApiError('Invalid tweet link.');
+      setExamineRequested(true);
+      return;
+    }
+
+    setExamineRequested(true);
+    examineTweet
+      .runAsync({ tweet_id: articleId })
+      .then((examine) => {
+        if (!examine?.status) {
+          setApiError(
+            String(examine?.message || 'This tweet cannot be promoted.')
+          );
+          if (pendingNextStepRef.current) {
+            pendingNextStepRef.current = false;
+            setManualExamineLoading(false);
+          }
+          return;
+        }
+        setOwnerUserId(String(examine?.data?.owner_user_id || ''));
+        if (pendingNextStepRef.current) {
+          pendingNextStepRef.current = false;
+          setManualExamineLoading(false);
+          setStep(2);
+        }
+      })
+      .catch(() => {
+        setApiError('Network error, please try again.');
+        if (pendingNextStepRef.current) {
+          pendingNextStepRef.current = false;
+          setManualExamineLoading(false);
+        }
+      });
+  }, [isOpen, step, examineRequested, articleId, examineTweet]);
+
   useEffect(() => {
     if (isOpen && targetRef.current) {
       containerRef.current?.show();
@@ -269,16 +380,11 @@ function ArticleBoostPanel() {
   const endAtLocalText = React.useMemo(() => {
     try {
       const now = new Date();
-      const endUtc = new Date(
-        Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate() + Math.max(1, duration) - 1,
-          23,
-          59,
-          59
-        )
+      const endTime = new Date(
+        now.getTime() + Math.max(1, duration) * 24 * 60 * 60 * 1000
       );
+      const endUtc = new Date(endTime.getTime());
+      endUtc.setUTCHours(23, 59, 59, 999);
       const fmt = new Intl.DateTimeFormat(undefined, {
         year: 'numeric',
         month: '2-digit',
@@ -308,8 +414,8 @@ function ArticleBoostPanel() {
         {t('boostBudgetLabel')}: {budget} USDC
         <input
           type='range'
-          min={isBoostTester ? 0 : 100}
-          max={1000}
+          min={isBoostTester ? 0 : 500}
+          max={2000}
           step={100}
           value={isBoostTester ? sliderBudgetValue : budget}
           onChange={(e) => {
@@ -387,11 +493,10 @@ function ArticleBoostPanel() {
                   onChange={() => setAudience(option.value)}
                 />
                 <span
-                  className={`text-xs ${
-                    active
-                      ? 'text-blue-500 font-medium'
-                      : 'theme-text-secondary'
-                  }`}
+                  className={`text-xs ${active
+                    ? 'text-blue-500 font-medium'
+                    : 'theme-text-secondary'
+                    }`}
                 >
                   {labelText}
                 </span>
@@ -417,17 +522,98 @@ function ArticleBoostPanel() {
                   onChange={() => setRewardMode(mode.value)}
                 />
                 <span
-                  className={`text-xs ${
-                    active
-                      ? 'text-blue-500 font-medium'
-                      : 'theme-text-secondary'
-                  }`}
+                  className={`text-xs ${active
+                    ? 'text-blue-500 font-medium'
+                    : 'theme-text-secondary'
+                    }`}
                 >
                   {t(mode.labelKey)}
                 </span>
               </label>
             );
           })}
+        </div>
+      </div>
+
+      <div className='flex flex-col gap-1 text-xs theme-text-secondary'>
+        <div className='flex items-center gap-1 relative'>
+          <span>{t('boostInteractionLangLabel')}</span>
+          <div
+            className='relative'
+            onMouseEnter={() => setShowLangTooltip(true)}
+            onMouseLeave={() => setShowLangTooltip(false)}
+          >
+            <Info
+              className='w-4 h-4 theme-text-secondary flex-shrink-0 cursor-help hover:theme-text-primary transition-colors'
+              aria-label={t('boostInteractionLangTooltip')}
+            />
+            {showLangTooltip && (
+              <div className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50 pointer-events-none w-[280px] leading-relaxed'>
+                {t('boostInteractionLangTooltip')}
+                <div className='absolute top-full left-4 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-900'></div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className='flex gap-4 text-sm'>
+          {(
+            [
+              { value: 'all' as const, label: t('boostInteractionLangOptionAll') },
+              { value: 'cn' as const, label: t('boostInteractionLangOptionCn') },
+              { value: 'en' as const, label: t('boostInteractionLangOptionEn') },
+            ]
+          ).map((opt) => {
+            const active = lang === opt.value;
+            return (
+              <label
+                key={opt.value}
+                className='flex cursor-pointer items-center gap-2'
+              >
+                <input
+                  type='radio'
+                  className='h-3.5 w-3.5 accent-blue-500'
+                  checked={active}
+                  onChange={() => setLang(opt.value)}
+                />
+                <span
+                  className={`text-xs ${active
+                    ? 'text-blue-500 font-medium'
+                    : 'theme-text-secondary'
+                    }`}
+                >
+                  {opt.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className='flex items-center gap-2 text-xs theme-text-secondary'>
+        <label className='flex cursor-pointer items-center gap-2'>
+          <input
+            type='checkbox'
+            className='h-3.5 w-3.5 accent-blue-500'
+            checked={retro}
+            onChange={(e) => setRetro(e.target.checked)}
+          />
+          <span className='theme-text-secondary'>{t('boostRetroLabel')}</span>
+        </label>
+        <div
+          className='relative'
+          onMouseEnter={() => setShowRetroTooltip(true)}
+          onMouseLeave={() => setShowRetroTooltip(false)}
+        >
+          <Info
+            className='w-4 h-4 theme-text-secondary flex-shrink-0 cursor-help hover:theme-text-primary transition-colors'
+            aria-label={t('boostRetroTooltip')}
+          />
+          {showRetroTooltip && (
+            <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50 pointer-events-none w-[280px] leading-relaxed'>
+              {t('boostRetroTooltip')}
+              <div className='absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-900'></div>
+            </div>
+          )}
         </div>
       </div>
       {apiError && <div className='text-xs text-red-500'>{apiError}</div>}
@@ -444,36 +630,53 @@ function ArticleBoostPanel() {
         </button>
         <button
           type='button'
-          className={`rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 ${
-            examineTweet.loading || createCampaign.loading
-              ? 'opacity-70 cursor-not-allowed'
-              : ''
-          }`}
-          disabled={examineTweet.loading || createCampaign.loading}
-          onClick={async (e) => {
+          className={`rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 ${manualExamineLoading || createCampaign.loading
+            ? 'opacity-70 cursor-not-allowed'
+            : ''
+            }`}
+          disabled={manualExamineLoading || createCampaign.loading}
+          onClick={(e) => {
             e.stopPropagation();
             setApiError('');
+
+            // If examine is still in-flight, do not block UI; mark pending and show manual loading
+            if (examineTweet.loading) {
+              pendingNextStepRef.current = true;
+              setManualExamineLoading(true);
+              return;
+            }
+
+            // If we already have the owner id, we can go to next step directly
+            if (ownerUserId) {
+              setStep(2);
+              return;
+            }
+
+            // Otherwise trigger (or re-trigger) the request
             if (!articleId) {
               setApiError('Invalid tweet link.');
               return;
             }
-            try {
-              const examine = await examineTweet.runAsync({
-                tweet_id: articleId,
+
+            pendingNextStepRef.current = true;
+            examineTweet
+              .runAsync({ tweet_id: articleId })
+              .then((examine) => {
+                if (!examine?.status) {
+                  setApiError(
+                    String(examine?.message || 'This tweet cannot be promoted.')
+                  );
+                  pendingNextStepRef.current = false;
+                  return;
+                }
+                setOwnerUserId(String(examine?.data?.owner_user_id || ''));
+                pendingNextStepRef.current = false;
+                setStep(2);
+              })
+              .catch(() => {
+                setApiError('Network error, please try again.');
+                pendingNextStepRef.current = false;
               });
-              if (!examine?.status) {
-                setApiError(
-                  String(examine?.message || 'This tweet cannot be promoted.')
-                );
-                return;
-              }
-              setOwnerUserId(
-                String(examine?.data?.owner_user_id || 'FAKE_USER_ID_TODO')
-              );
-              setStep(2);
-            } catch (err) {
-              setApiError('Network error, please try again.');
-            }
           }}
         >
           {t('boostNextStep')}
@@ -578,6 +781,17 @@ function ArticleBoostPanel() {
           </div>
         )}
       </div>
+      <div
+        className='rounded-lg border border-yellow-500/60 bg-yellow-500/10 p-3 text-xs text-yellow-800 dark:text-yellow-300/95'
+        dangerouslySetInnerHTML={{
+          __html: sanitizeHtml(
+            t('boostPaymentWarningHtml').replace(
+              '{amount}',
+              `${depositRewards ?? budget} USDC`
+            )
+          ),
+        }}
+      />
       {apiError && <div className='text-xs text-red-500'>{apiError}</div>}
       <div className='flex justify-between gap-3 pt-1'>
         <button
@@ -603,11 +817,13 @@ function ArticleBoostPanel() {
           </button>
           <button
             type='button'
-            className={`rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:opacity-90 ${
-              activateCampaign.loading ? 'opacity-70 cursor-not-allowed' : ''
-            }`}
+            className={`rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:opacity-90 ${activateCampaign.loading ? 'cursor-not-allowed' : ''
+              }`}
             disabled={activateCampaign.loading}
             onClick={async (e) => {
+              if (activateCampaign.loading) {
+                return;
+              }
               e.stopPropagation();
               setApiError('');
               const address = depositAddress || '';
@@ -660,10 +876,9 @@ function ArticleBoostPanel() {
           <span>
             {audience === 0
               ? t('boostRequirementNone')
-              : `XHunt ${t('rank')} Top ${
-                  audienceOptions.find((o) => o.value === audience)?.label ||
-                  audience
-                }`}
+              : `XHunt ${t('rank')} Top ${audienceOptions.find((o) => o.value === audience)?.label ||
+              audience
+              }`}
           </span>
         </div>
         <div className='flex justify-between py-1 text-xs'>
@@ -677,6 +892,20 @@ function ArticleBoostPanel() {
               ? t('boostRewardModeMindshare')
               : t('boostRewardModeEqual')}
           </span>
+        </div>
+        <div className='flex justify-between py-1 text-xs'>
+          <span>{t('boostInteractionLangLabel')}</span>
+          <span>
+            {lang === 'all'
+              ? t('boostInteractionLangOptionAll')
+              : lang === 'cn'
+                ? t('boostInteractionLangOptionCn')
+                : t('boostInteractionLangOptionEn')}
+          </span>
+        </div>
+        <div className='flex justify-between py-1 text-xs'>
+          <span>{t('boostRetroLabel')}</span>
+          <span>{retro ? t('boostYes') : t('boostNo')}</span>
         </div>
       </div>
       <div className='rounded-xl border theme-border theme-bg-tertiary/70 p-4 text-sm theme-text-primary'>
@@ -726,6 +955,8 @@ function ArticleBoostPanel() {
                   target: audience,
                   winners: rewardCount,
                   type: rewardMode,
+                  lang,
+                  retro,
                 };
                 const created = await createCampaign.runAsync(payload);
                 if (created?.status) {
@@ -775,10 +1006,10 @@ function ArticleBoostPanel() {
           {step === 1
             ? renderFormStep()
             : step === 2
-            ? renderReviewStep()
-            : step === 3
-            ? renderPaymentStep()
-            : renderSuccessStep()}
+              ? renderReviewStep()
+              : step === 3
+                ? renderPaymentStep()
+                : renderSuccessStep()}
           {/* help footer */}
           {step !== 4 && (
             <div className='sticky bottom-0 mt-4 pt-2 border-t theme-border text-[11px] theme-text-secondary text-end'>
@@ -789,12 +1020,19 @@ function ArticleBoostPanel() {
               />
             </div>
           )}
-          {(examineTweet.loading ||
-            createCampaign.loading ||
-            activateCampaign.loading) && (
-            <div className='absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[20px] bg-black/30 backdrop-blur-[1px]'>
-              <Loader2 className='w-5 h-5 text-blue-400 animate-spin mb-2' />
-              <p className='text-xs text-white/90'>{t('loading')}</p>
+          {(manualExamineLoading || createCampaign.loading) && (
+            <div className='absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[20px] bg-black/35 dark:bg-black/45 backdrop-blur-sm'>
+              <div className='flex flex-col items-center gap-2 rounded-2xl px-5 py-4'>
+                <div className='relative'>
+                  <div className='w-8 h-8 rounded-full border-[3px] border-white/25' />
+                  <div className='absolute inset-0 w-8 h-8 rounded-full border-[3px] border-transparent border-t-blue-400 border-r-purple-400 animate-spin' />
+                </div>
+                <p className='text-[13px] font-medium text-white/95 mt-2'>
+                  {manualExamineLoading && step === 1
+                    ? t('boostTweetReviewing')
+                    : t('loading')}
+                </p>
+              </div>
             </div>
           )}
         </div>

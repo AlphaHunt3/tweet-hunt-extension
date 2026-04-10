@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useCrossPageSettings } from '~utils/settingsManager';
 import { useDebounceFn, useRequest } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { useI18n } from '~contents/hooks/i18n';
@@ -9,22 +10,32 @@ import {
   signupE2EActivity,
   fetchE2EActivitySignups,
   E2EActivityResponse,
-  E2ELeaderboardItem,
+
   getTwitterAuthUrl,
 } from '~contents/services/api';
 import { openNewTab } from '~contents/utils';
 import { cleanErrorMessage } from '~utils/dataValidation';
 import { StoredUserInfo } from '~types/review.ts';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
-import { ChevronDown, ChevronUp, X, ExternalLink, Info } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  X,
+  ExternalLink,
+  User,
+  Check,
+} from 'lucide-react';
 import { localStorageInstance } from '~storage/index';
 import { CloseConfirmDialog } from './CloseConfirmDialog';
+import { formatNumber as formatRankThreshold } from './HunterCampaign/utils';
 
 interface EngageToEarnProps {
   className?: string;
   embedded?: boolean;
   externalStatus?: 'all' | 'active' | 'complete' | 'review';
   onStatusChange?: (next: 'all' | 'active' | 'complete' | 'review') => void;
+  /** 活动列表加载完成后，用于外层小红点：最新进行中活动的 tweet_id */
+  onNewestActiveActivityChange?: (tweetId: string | null) => void;
   portalContainer?: HTMLElement | null;
 }
 
@@ -36,10 +47,12 @@ export function EngageToEarn({
   embedded = false,
   externalStatus,
   onStatusChange,
+  onNewestActiveActivityChange,
   portalContainer,
 }: EngageToEarnProps) {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const { isTesterOnly } = useCrossPageSettings();
   // E2E 报名前风险提示首选项 & 弹框状态
   const [skipRiskWarn, setSkipRiskWarn] = useLocalStorage<boolean>(
     '@settings/engageToEarnSkipRisk',
@@ -55,12 +68,12 @@ export function EngageToEarn({
     try {
       const openEvt = new CustomEvent('xhunt:open-panel');
       window.dispatchEvent(openEvt);
-    } catch {}
+    } catch { }
     try {
       setTimeout(() => {
         navigationService.navigateTo('main-panel', '/settings');
       }, 100);
-    } catch {}
+    } catch { }
   };
   const [activitiesByStatus, setActivitiesByStatus] = useState<{
     active: E2EActivityResponse[];
@@ -92,6 +105,85 @@ export function EngageToEarn({
   };
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [hideInfoTimer, setHideInfoTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const infoTriggerRef = useRef<HTMLDivElement>(null);
+  const [infoPopoverRect, setInfoPopoverRect] = useState<DOMRect | null>(null);
+
+  // 列表高度随浏览行为变化：持续往下滚动时增至 400px，鼠标移出 2s 后恢复 250px
+  const [listMaxHeight, setListMaxHeight] = useState(290);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef(0);
+  const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHoveringE2EListRef = useRef(false);
+
+  // Timer-based hover for info popover to bridge the gap
+  const handleInfoEnter = () => {
+    if (hideInfoTimer) {
+      clearTimeout(hideInfoTimer);
+      setHideInfoTimer(null);
+    }
+    setShowInfo(true);
+  };
+
+  const handleInfoLeave = () => {
+    const timer = setTimeout(() => {
+      setShowInfo(false);
+    }, 200); // 200ms delay allows moving mouse into the popover
+    setHideInfoTimer(timer);
+  };
+
+  // Position rules popover via portal so it isn't clipped by overflow-y-auto on the scroll container
+  useLayoutEffect(() => {
+    if (!showInfo || !infoTriggerRef.current) {
+      setInfoPopoverRect(null);
+      return;
+    }
+    const rect = infoTriggerRef.current.getBoundingClientRect();
+    setInfoPopoverRect(rect);
+  }, [showInfo]);
+
+  // 列表高度：滚动向下时展开，鼠标移出 2s 后收起
+  const handleListScroll = () => {
+    if (!isHoveringE2EListRef.current) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const { scrollTop } = el;
+    if (scrollTop > lastScrollTopRef.current && scrollTop > 200) {
+      setListMaxHeight(430);
+      if (collapseTimerRef.current) {
+        clearTimeout(collapseTimerRef.current);
+        collapseTimerRef.current = null;
+      }
+    }
+    lastScrollTopRef.current = scrollTop;
+  };
+  const handleListMouseLeave = () => {
+    isHoveringE2EListRef.current = false;
+    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = setTimeout(() => {
+      setListMaxHeight(290);
+      collapseTimerRef.current = null;
+    }, 700);
+  };
+  const handleListMouseEnter = () => {
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
+    isHoveringE2EListRef.current = true;
+  };
+
+  useEffect(() => {
+    // Cleanup timer on unmount
+    return () => {
+      if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+      if (hideInfoTimer) {
+        clearTimeout(hideInfoTimer);
+      }
+    };
+  }, [hideInfoTimer]);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [
@@ -146,6 +238,16 @@ export function EngageToEarn({
           });
         }
         setActivitiesByStatus(next);
+
+        // 最新进行中活动 tweet_id（按 start_time 倒序取第一个），供外层小红点用
+        const activeSorted = [...(next.active || [])].sort((a, b) => {
+          const sa = (a as any)?.detail?.start_time || '';
+          const sb = (b as any)?.detail?.start_time || '';
+          return sb.localeCompare(sa);
+        });
+        const newestTweetId =
+          (activeSorted[0] as any)?.detail?.tweet_id ?? null;
+        onNewestActiveActivityChange?.(newestTweetId);
 
         // 计算报名状态（基于 tweet_id）
         const signupStatus: Record<string, boolean> = {};
@@ -381,23 +483,24 @@ export function EngageToEarn({
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  if (loading) {
-    if (isHidden) return null;
+  const filteredActivities = React.useMemo(() => {
+    const filterFn = (item: E2EActivityResponse) => {
+      const rewards = (item as any)?.detail?.rewards;
+      if (typeof rewards !== 'number') {
+        return true; // 如果没有金额信息，默认显示
+      }
+      if (isTesterOnly) {
+        return true; // 测试用户看所有
+      }
+      return Number(rewards) >= 100; // 普通用户只能看大于等于100的
+    };
 
-    return (
-      <div className={`p-4 ${className}`} data-theme={theme}>
-        <div className='flex items-center justify-center py-8'>
-          <div
-            className={`w-6 h-6 border-2 rounded-full animate-spin ${
-              theme === 'dark'
-                ? 'border-blue-500/20 border-t-blue-500'
-                : 'border-blue-400/20 border-t-blue-400'
-            }`}
-          ></div>
-        </div>
-      </div>
-    );
-  }
+    return {
+      active: activitiesByStatus.active.filter(filterFn),
+      complete: activitiesByStatus.complete.filter(filterFn),
+      review: activitiesByStatus.review.filter(filterFn),
+    };
+  }, [activitiesByStatus, isTesterOnly]);
 
   const makeEntries = (arr: E2EActivityResponse[]) =>
     arr.map(
@@ -409,16 +512,16 @@ export function EngageToEarn({
     );
 
   const allEntries = [
-    ...makeEntries(activitiesByStatus.active),
-    ...makeEntries(activitiesByStatus.complete),
-    ...makeEntries(activitiesByStatus.review),
+    ...makeEntries(filteredActivities.active),
+    ...makeEntries(filteredActivities.complete),
+    ...makeEntries(filteredActivities.review),
   ].filter(([tweetId]) => Boolean(tweetId));
 
   // 统计各状态数量（用于芯片计数展示）
   const counts = {
-    active: activitiesByStatus.active.length,
-    review: activitiesByStatus.review.length,
-    complete: activitiesByStatus.complete.length,
+    active: filteredActivities.active.length,
+    review: filteredActivities.review.length,
+    complete: filteredActivities.complete.length,
   };
   const allCount = counts.active + counts.review + counts.complete;
 
@@ -426,21 +529,41 @@ export function EngageToEarn({
     effectiveStatus === 'all'
       ? allEntries
       : effectiveStatus === 'active'
-      ? makeEntries(activitiesByStatus.active)
-      : effectiveStatus === 'complete'
-      ? makeEntries(activitiesByStatus.complete)
-      : makeEntries(activitiesByStatus.review);
+        ? makeEntries(filteredActivities.active)
+        : effectiveStatus === 'complete'
+          ? makeEntries(filteredActivities.complete)
+          : makeEntries(filteredActivities.review);
 
   const isEmpty = !activitiesList || activitiesList.length === 0;
+  if (loading) {
+    if (isHidden) return null;
 
+    return (
+      <div className={`p-4 ${className}`} data-theme={theme}>
+        <div className='flex items-center justify-center py-8'>
+          <div
+            className={`w-6 h-6 border-2 rounded-full animate-spin ${theme === 'dark'
+              ? 'border-blue-500/20 border-t-blue-500'
+              : 'border-blue-400/20 border-t-blue-400'
+              }`}
+          ></div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
-      className={`${className} max-h-[360px] overflow-y-auto scrollbar-hide relative`}
+      ref={scrollContainerRef}
+      className={`${className} overflow-y-auto scrollbar-auto relative transition-[max-height] duration-300`}
       data-theme={theme}
       style={{
+        maxHeight: listMaxHeight,
         scrollbarWidth: 'none',
         msOverflowStyle: 'none',
       }}
+      onScroll={handleListScroll}
+      onMouseLeave={handleListMouseLeave}
+      onMouseEnter={handleListMouseEnter}
     >
       {!embedded && (
         <div className='px-4 pt-3 theme-border flex-shrink-0'>
@@ -480,11 +603,10 @@ export function EngageToEarn({
                       ].map((opt) => (
                         <button
                           key={opt.key}
-                          className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${
-                            statusFilter === (opt.key as any)
-                              ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium'
-                              : 'theme-text-primary hover:theme-bg-tertiary'
-                          }`}
+                          className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${statusFilter === (opt.key as any)
+                            ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium'
+                            : 'theme-text-primary hover:theme-bg-tertiary'
+                            }`}
                           onClick={() => {
                             setStatusFilter(opt.key as any);
                             setShowStatusDropdown(false);
@@ -513,11 +635,13 @@ export function EngageToEarn({
       )}
 
       {embedded && (
-        <div className='pb-2 flex items-center justify-between'>
+        <div className='sticky top-0 z-[999] pb-2 flex items-center justify-between' style={{
+          backgroundColor: 'var(--xhunt-web-bg)',
+        }}>
           <div className='flex-1 min-w-0 overflow-x-auto scrollbar-hide'>
             <div className='flex items-center gap-1.5 flex-nowrap'>
               {[
-                { key: 'all', label: t('all') || 'all', count: allCount },
+                // { key: 'all', label: t('all') || 'all', count: allCount },
                 {
                   key: 'active',
                   label: t('active') || 'active',
@@ -538,11 +662,10 @@ export function EngageToEarn({
                 return (
                   <button
                     key={opt.key}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border transition-colors whitespace-nowrap flex-shrink-0 ${
-                      selected
-                        ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium theme-border'
-                        : 'theme-text-secondary hover:theme-bg-tertiary theme-border'
-                    }`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border transition-colors whitespace-nowrap flex-shrink-0 ${selected
+                      ? 'theme-bg-tertiary text-blue-500 dark:text-blue-400 font-medium theme-border'
+                      : 'theme-text-secondary hover:theme-bg-tertiary theme-border'
+                      }`}
                     onClick={() => updateStatus(opt.key as any)}
                     aria-label={`${opt.label}`}
                     title={`${opt.label}`}
@@ -556,18 +679,20 @@ export function EngageToEarn({
           </div>
           <div className='flex items-center gap-1 pl-2 flex-shrink-0'>
             <div
+              ref={infoTriggerRef}
               className='relative'
-              onMouseEnter={() => setShowInfo(true)}
-              onMouseLeave={() => setShowInfo(false)}
+              onPointerEnter={handleInfoEnter}
+              onPointerLeave={handleInfoLeave}
             >
               <button
                 type='button'
-                className='p-1 rounded-md theme-hover theme-text-secondary opacity-70 hover:opacity-100 hover:theme-text-primary'
+                className='p-1 whitespace-nowrap rounded-md theme-hover theme-text-secondary hover:theme-text-primary'
                 aria-label={t('info') || 'Info'}
               >
+                <span className='text-[11px]'>{t('howToParticipate')}</span>
                 <svg
                   // t='1766460765482'
-                  className='w-3.5 h-3.5'
+                  className='w-3.5 h-3.5 inline-block opacity-70 hover:opacity-100'
                   style={{
                     filter: 'saturate(1.5) hue-rotate(196deg) brightness(0.9)',
                   }}
@@ -589,39 +714,61 @@ export function EngageToEarn({
                 </svg>
                 {/* <Info className='w-3.5 h-3.5' /> */}
               </button>
-              {showInfo && (
-                <div className='absolute right-0 top-full mt-1 p-3 theme-bg-secondary rounded-md shadow-lg theme-border border z-20 w-[280px]'>
-                  <div className='text-xs font-semibold theme-text-primary mb-2'>
-                    {t('engageEarnRulesTitle') || 'Interaction Rules'}
-                  </div>
-                  <div className='text-[11px] leading-5 theme-text-secondary space-y-1.5'>
-                    <div>
-                      {t('engageEarnRuleInteraction') ||
-                        'Interaction: Quotes/RTs/Replies increase points, Quotes>RTs>Replies.'}
+              {showInfo &&
+                infoPopoverRect &&
+                createPortal(
+                  <div
+                    className='fixed p-3 theme-bg-secondary rounded-md shadow-lg theme-border border z-[9999] w-[280px]'
+                    style={{
+                      left: Math.max(8, infoPopoverRect.right - 280),
+                      top: infoPopoverRect.bottom + 4,
+                    }}
+                    onMouseEnter={handleInfoEnter}
+                    onMouseLeave={handleInfoLeave}
+                  >
+                    <div className='text-xs font-semibold theme-text-primary mb-2'>
+                      {t('engageEarnRulesTitle') || 'Interaction Rules'}
                     </div>
-                    <div>
-                      {t('engageEarnRuleContent') ||
-                        'Content: Authentic, valuable content gets a boost; AI-like content is discounted.'}
+                    <div className='text-[11px] leading-5 theme-text-secondary space-y-1.5'>
+                      <div>
+                        {t('engageEarnRuleInteraction') ||
+                          'Interaction: Quotes/RTs/Replies increase points, Quotes>RTs>Replies.'}
+                      </div>
+                      <div>
+                        {t('engageEarnRuleContent') ||
+                          'Content: Authentic, valuable content gets a boost; AI-like content is discounted.'}
+                      </div>
+                      <div>
+                        {t('engageEarnRuleTimeliness') ||
+                          'Timeliness: Earlier engagement increases weight; late engagement reduces it.'}
+                      </div>
+                      <div>
+                        {t('engageEarnRuleInfluence') ||
+                          'Influence: XHunt rank applies different multipliers.'}
+                      </div>
+                      <div className='pt-1'>
+                        <span
+                          className='text-[11px] leading-5 theme-text-secondary [&_a]:underline [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a:hover]:opacity-90'
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeHtml(
+                              t('engageEarnLearnMore') ||
+                              'Learn more: <a href="https://x.com/xhunt_ai/status/2009941394002194773">Engage to Earn intro</a>'
+                            ),
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      {t('engageEarnRuleTimeliness') ||
-                        'Timeliness: Earlier engagement increases weight; late engagement reduces it.'}
-                    </div>
-                    <div>
-                      {t('engageEarnRuleInfluence') ||
-                        'Influence: XHunt rank applies different multipliers.'}
-                    </div>
-                  </div>
-                </div>
-              )}
+                  </div>,
+                  portalContainer || document.body
+                )}
             </div>
           </div>
         </div>
       )}
 
-      <div className='pb-3'>
+      <div>
         {isEmpty ? (
-          <div className='text-[12px] text-center py-6 theme-text-secondary'>
+          <div className='text-[12px] text-center py-1 theme-text-secondary'>
             {t('noActivitiesAvailable')}
           </div>
         ) : (
@@ -655,6 +802,7 @@ export function EngageToEarn({
                   lang={lang || 'zh'}
                   formatNumber={formatNumber}
                   formatDate={formatDate}
+                  listMaxHeight={listMaxHeight}
                 />
               );
             })}
@@ -673,7 +821,7 @@ export function EngageToEarn({
                 '@settings/showEngageToEarn',
                 false
               );
-            } catch {}
+            } catch { }
           }}
           prefixKey='confirmCloseTrendingPrefix'
           suffixKey='confirmCloseTrendingSuffix'
@@ -684,14 +832,12 @@ export function EngageToEarn({
       {showRiskWarn &&
         createPortal(
           <div
-            className={`${
-              portalContainer ? 'absolute' : 'fixed'
-            } inset-0 z-[999000] flex items-start justify-center`}
+            className={`${portalContainer ? 'absolute' : 'fixed'
+              } inset-0 z-[999000] flex items-start justify-center`}
           >
             <div
-              className={`${
-                portalContainer ? 'absolute' : 'fixed'
-              } inset-0 z-[999001] theme-bg-secondary`}
+              className={`${portalContainer ? 'absolute' : 'fixed'
+                } inset-0 z-[999001] theme-bg-secondary`}
               style={{ opacity: 0.8 }}
               onClick={() => setShowRiskWarn(false)}
             />
@@ -722,7 +868,7 @@ export function EngageToEarn({
                     if (riskWarnChecked) {
                       try {
                         setSkipRiskWarn(true);
-                      } catch {}
+                      } catch { }
                     }
                     setShowRiskWarn(false);
                     if (pendingActivity) {
@@ -764,7 +910,126 @@ interface ActivityCardProps {
   lang: string;
   formatNumber: (num: number) => string;
   formatDate: (dateStr: string) => string;
+  listMaxHeight: number;
 }
+
+// 头像组件，带加载失败处理
+const Avatar = ({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+}) => {
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    setError(false);
+  }, [src]);
+
+  if (error || !src) {
+    return (
+      <div
+        className={`${className} bg-gray-500/30 flex items-center justify-center`}
+      >
+        <User className='w-4/5 h-4/5 text-gray-500/60' />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+};
+
+// 付费推广政策免责声明组件（可展开折叠）
+interface PolicyDisclaimerProps {
+  agreed: boolean;
+  onAgreeChange: (value: boolean) => void;
+  t: (key: string) => string;
+}
+
+const PolicyDisclaimer: React.FC<PolicyDisclaimerProps> = ({
+  agreed,
+  onAgreeChange,
+  t,
+}) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const policyText = t('hunterCampaignPaidPartnershipDisclaimer');
+
+  return (
+    <label
+      className={`group flex items-start gap-2 p-2 rounded-lg border transition-all duration-200 cursor-pointer mt-2 ${agreed
+        ? 'bg-gradient-to-br from-amber-400/5 to-blue-500/5 border-amber-400/20 hover:border-amber-400/30'
+        : 'bg-amber-400/[0.02] border-amber-400/15 hover:border-amber-400/25 hover:bg-amber-400/[0.04]'
+        }`}
+    >
+      {/* 自定义 checkbox */}
+      <div
+        className={`relative flex items-center justify-center w-4 h-4 mt-0.5 rounded transition-all duration-200 flex-shrink-0 ${agreed
+          ? 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm shadow-amber-500/20'
+          : 'border border-dashed border-amber-400/50 group-hover:border-amber-400/70 group-hover:bg-amber-400/5'
+          }`}
+      >
+        {agreed && (
+          <Check className='w-2.5 h-2.5 text-white' strokeWidth={3} />
+        )}
+      </div>
+      <input
+        type='checkbox'
+        checked={agreed}
+        onChange={(e) => onAgreeChange(e.target.checked)}
+        className='sr-only'
+      />
+
+      {/* 文本内容区域 - 展开/折叠按钮与文本同行 */}
+      <div className='flex-1 min-w-0'>
+        {expanded ? (
+          // 展开状态：完整文本 + 收起按钮
+          <div className='text-[10px] leading-relaxed theme-text-secondary/80 select-none'>
+            <span dangerouslySetInnerHTML={{ __html: policyText }} />
+            <button
+              type='button'
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpanded(false);
+              }}
+              className='inline-flex items-center gap-0.5 ml-1 text-[9px] text-amber-500/70 hover:text-amber-500 transition-colors align-middle'
+            >
+              <span>{t('collapse')}</span>
+              <ChevronUp className='w-3 h-3' />
+            </button>
+          </div>
+        ) : (
+          // 折叠状态：单行文本末尾 + 展开按钮
+          <div className='flex items-center gap-1 text-[10px] leading-relaxed theme-text-secondary/80 select-none'>
+            <span className='line-clamp-1 flex-1 min-w-0' dangerouslySetInnerHTML={{ __html: policyText }} />
+            <button
+              type='button'
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpanded(true);
+              }}
+              className='inline-flex items-center gap-0.5 flex-shrink-0 text-[9px] text-amber-500/70 hover:text-amber-500 transition-colors'
+            >
+              <span>{t('expand')}</span>
+              <ChevronDown className='w-3 h-3' />
+            </button>
+          </div>
+        )}
+      </div>
+    </label>
+  );
+};
 
 function ActivityCard({
   tweetId,
@@ -782,10 +1047,13 @@ function ActivityCard({
   t,
   lang,
   formatNumber,
-  formatDate,
+  listMaxHeight,
 }: ActivityCardProps) {
   const [showLeaderboard, setShowLeaderboard] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const [agreedToSponsoredPolicy, setAgreedToSponsoredPolicy] = React.useState(false);
+  const leaderboardRef = React.useRef<HTMLDivElement | null>(null);
+  const cardRef = React.useRef<HTMLDivElement | null>(null);
   const { detail, current_user, leaderboard } = activityData;
 
   // 获取 AI 总结文本（如果没有就显示空字符串）
@@ -809,10 +1077,18 @@ function ActivityCard({
     return `${start} - ${end}`;
   };
 
-  // 生成报名限制说明
-  const getRequirementText = () => {
-    if (detail.target) {
-      return `${t('xhuntRankTop')}${formatNumber(detail.target)}${t(
+  // 生成报名限制说明（与 CampaignTags 一致：数字用 compact 格式，-1 表示 200k+creator）
+  const getRequirementText = (): string | null => {
+    const target = detail.target;
+    if (target === -1) {
+      return t('xhuntRankTop200kOrCreator');
+    }
+    if (
+      typeof target === 'number' &&
+      Number.isFinite(target) &&
+      target > 0
+    ) {
+      return `${t('xhuntRankTop')}${formatRankThreshold(target, 'en-US')}${t(
         'rankUnit'
       )}`;
     }
@@ -822,8 +1098,41 @@ function ActivityCard({
   // 检查是否可以报名
   const canSignup = status === 'active' && !isSignedUp && !isLoading;
 
+  // 展开排行榜时，平滑滚动一点，让排行榜更容易被看到
+  React.useEffect(() => {
+    if (listMaxHeight > 420) return;
+    if (!showLeaderboard) return;
+    const el = leaderboardRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    } catch {
+      // 部分旧浏览器不支持 scrollIntoView options，忽略错误
+    }
+  }, [showLeaderboard]);
+
+  // 有报错信息时，平滑滚动到该卡片，让错误信息更容易被看到
+  React.useEffect(() => {
+    if (!signupError) return;
+    const el = cardRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    } catch {
+      // 部分旧浏览器不支持 scrollIntoView options，忽略错误
+    }
+  }, [signupError]);
+
   return (
     <div
+      ref={cardRef}
+      data-activity-id={tweetId}
       className={`relative rounded-xl border ${statusConfig.borderClass} ${statusConfig.bgClass} overflow-hidden transition-all duration-300 hover:shadow-md`}
     >
       {/* 状态Ribbon */}
@@ -845,7 +1154,7 @@ function ActivityCard({
           <div>
             {t('rewardPool')}:{' '}
             <span
-              className='font-bold'
+              className='font-bold inline-block'
               style={{
                 color: theme === 'dark' ? '#d97706' : '#ca8a04',
               }}
@@ -877,8 +1186,25 @@ function ActivityCard({
                 </div>
               </span>
             ) : null}
+
+            <span className='relative inline-flex group ml-2'>
+              <span
+                className='cursor-pointer px-1.5 py-0 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20'
+                aria-label={t('e2eLangBadgeTooltip')}
+              >
+                {detail?.lang === 'cn'
+                  ? t('e2eLangBadgeCn')
+                  : detail?.lang === 'en'
+                    ? t('e2eLangBadgeEn')
+                    : t('e2eLangBadgeAll')}
+              </span>
+              <div className='absolute -left-10 top-full mt-1 z-20 w-max max-w-[200px] whitespace-normal break-words px-2 py-1 rounded theme-bg-secondary theme-text-primary text-[10px] shadow theme-border border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition'>
+                {t('e2eLangBadgeTooltip')}
+              </div>
+            </span>
+
             {detail?.winners ? (
-              <span className='ml-2 px-1.5 py-[1.6px] rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20'>
+              <span className='inline-block ml-2 px-1.5 py-[1.6px] rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20'>
                 {t('e2eWinnersCount').replace(
                   '{count}',
                   String(detail.winners)
@@ -893,7 +1219,7 @@ function ActivityCard({
 
         {/* 头像和名字（推主信息） */}
         <div className='flex items-center gap-2 mb-2'>
-          <img
+          <Avatar
             src={detail.tweet_owner_image}
             alt={detail.tweet_owner_handle}
             className='w-6 h-6 rounded-full object-cover'
@@ -973,11 +1299,20 @@ function ActivityCard({
           )}
         </div>
 
-        {/* 报名限制说明 */}
+        {/* 报名要求 */}
         {getRequirementText() && (
           <div className='text-[10px] font-semibold theme-text-tertiary mt-0.5 opacity-70'>
             {t('requirements')}: {getRequirementText()}
           </div>
+        )}
+
+        {/* 付费推广政策免责声明（仅未报名且进行中时显示） */}
+        {status === 'active' && !isSignedUp && (
+          <PolicyDisclaimer
+            agreed={agreedToSponsoredPolicy}
+            onAgreeChange={setAgreedToSponsoredPolicy}
+            t={t}
+          />
         )}
       </div>
 
@@ -1003,9 +1338,8 @@ function ActivityCard({
           </svg>
           <span>{t('leaderboard') || 'Leaderboard'}</span>
           <svg
-            className={`w-2.5 h-2.5 transition-transform ${
-              showLeaderboard ? 'rotate-180' : ''
-            }`}
+            className={`w-2.5 h-2.5 transition-transform ${showLeaderboard ? 'rotate-180' : ''
+              }`}
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
@@ -1021,60 +1355,68 @@ function ActivityCard({
 
         {/* 报名按钮 */}
         {status === 'active' && (
-          <button
-            onClick={() => canSignup && onSignup(activityData)}
-            disabled={!canSignup}
-            className={`flex-1 flex items-center justify-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
-              isSignedUp
+          <div className='relative group flex-1'>
+            <button
+              onClick={() => canSignup && agreedToSponsoredPolicy && onSignup(activityData)}
+              disabled={!canSignup || !agreedToSponsoredPolicy}
+              className={`w-full flex items-center justify-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${isSignedUp
                 ? theme === 'dark'
                   ? 'bg-blue-600/10 text-blue-300 cursor-not-allowed'
                   : 'bg-blue-500/10 text-blue-600 cursor-not-allowed'
-                : canSignup
-                ? theme === 'dark'
-                  ? 'bg-gradient-to-r from-blue-600/90 to-purple-700/90 text-white hover:from-blue-600 hover:to-purple-700 shadow-md hover:shadow-lg'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                : 'bg-gray-500/20 theme-text-secondary cursor-not-allowed'
-            }`}
-          >
-            {isLoading ? (
-              <>
-                <div className='w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-                <span>{t('loading')}</span>
-              </>
-            ) : isSignedUp ? (
-              <>
-                <svg
-                  className='w-3 h-3'
-                  fill='currentColor'
-                  viewBox='0 0 20 20'
-                >
-                  <path
-                    fillRule='evenodd'
-                    d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-                    clipRule='evenodd'
-                  />
-                </svg>
-                <span>{t('signedUp')}</span>
-              </>
-            ) : (
-              <>
-                <svg
-                  className='w-3 h-3'
-                  fill='none'
-                  stroke='currentColor'
-                  viewBox='0 0 24 24'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M13 10V3L4 14h7v7l9-11h-7z'
-                  />
-                </svg>
-                <span>{t('signUp')}</span>
-              </>
+                : canSignup && agreedToSponsoredPolicy
+                  ? theme === 'dark'
+                    ? 'bg-gradient-to-r from-blue-600/90 to-purple-700/90 text-white hover:from-blue-600 hover:to-purple-700 shadow-md hover:shadow-lg'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
+                  : 'bg-gray-500/20 theme-text-secondary cursor-not-allowed'
+                }`}
+            >
+              {isLoading ? (
+                <>
+                  <div className='w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin' />
+                  <span>{t('loading')}</span>
+                </>
+              ) : isSignedUp ? (
+                <>
+                  <svg
+                    className='w-3 h-3'
+                    fill='currentColor'
+                    viewBox='0 0 20 20'
+                  >
+                    <path
+                      fillRule='evenodd'
+                      d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+                      clipRule='evenodd'
+                    />
+                  </svg>
+                  <span>{t('signedUp')}</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className='w-3 h-3'
+                    fill='none'
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={2}
+                      d='M13 10V3L4 14h7v7l9-11h-7z'
+                    />
+                  </svg>
+                  <span>{t('signUp')}</span>
+                </>
+              )}
+            </button>
+            {/* 未同意政策时的提示 */}
+            {!isSignedUp && canSignup && !agreedToSponsoredPolicy && (
+              <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 shadow-lg'>
+                {t('hunterCampaignAgreeToPolicyFirst')}
+                <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
+              </div>
             )}
-          </button>
+          </div>
         )}
       </div>
 
@@ -1082,22 +1424,20 @@ function ActivityCard({
       {signupError && (
         <div className='px-3 pb-2'>
           <div
-            className={`text-[11px] rounded-lg px-2 py-1.5 ${
-              signupError.toLowerCase().includes('evm address')
-                ? 'cursor-pointer hover:opacity-80'
-                : ''
-            }`}
+            className={`text-[11px] rounded-lg px-2 py-1.5 ${signupError.toLowerCase().includes('evm address')
+              ? 'cursor-pointer hover:opacity-80'
+              : ''
+              }`}
             style={{
               color: theme === 'dark' ? '#f87171' : '#dc2626',
               backgroundColor:
                 theme === 'dark'
                   ? 'rgba(127, 29, 29, 0.2)'
                   : 'rgba(254, 226, 226, 0.8)',
-              border: `1px solid ${
-                theme === 'dark'
-                  ? 'rgba(185, 28, 28, 0.3)'
-                  : 'rgba(252, 165, 165, 0.5)'
-              }`,
+              border: `1px solid ${theme === 'dark'
+                ? 'rgba(185, 28, 28, 0.3)'
+                : 'rgba(252, 165, 165, 0.5)'
+                }`,
             }}
             onClick={() => {
               if (signupError.toLowerCase().includes('evm address')) {
@@ -1116,23 +1456,19 @@ function ActivityCard({
       )}
 
       {/* 展开的排行榜 */}
-      {showLeaderboard && (
-        <LeaderboardExpanded
-          activityId={tweetId}
-          participantCount={detail.participants || 0}
-          currentUsername={currentUsername}
-          userInfoCacheBust={userInfoCacheBust}
-          leaderboard={leaderboard}
-          currentUser={
-            current_user &&
-            typeof current_user === 'object' &&
-            Object.keys(current_user).length > 0
-              ? (current_user as any)
-              : undefined
-          }
-          t={t}
-        />
-      )}
+      <div ref={leaderboardRef}>
+        {showLeaderboard && (
+          <LeaderboardExpanded
+            activityId={tweetId}
+            participantCount={detail.participants || 0}
+            currentUsername={currentUsername}
+            userInfoCacheBust={userInfoCacheBust}
+            leaderboard={leaderboard}
+            currentUser={current_user}
+            t={t}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -1144,6 +1480,7 @@ interface LeaderboardExpandedProps {
   currentUsername: string;
   userInfoCacheBust: number;
   leaderboard?: Array<{
+    mindshare: number;
     fan_rank?: number;
     id: string;
     name: string;
@@ -1158,13 +1495,13 @@ interface LeaderboardExpandedProps {
     username_raw?: string;
     profile_image_url?: string;
     point?: number;
+    mindshare?: number;
   };
   t: (key: string) => string;
 }
 
 function LeaderboardExpanded({
   activityId,
-  participantCount,
   currentUsername,
   userInfoCacheBust,
   leaderboard: leaderboardFromProp,
@@ -1175,6 +1512,11 @@ function LeaderboardExpanded({
 
   // 优先使用 currentUser 中的 fan_rank，这是从 API 返回的当前用户排名
   const userRank = currentUser?.fan_rank || null;
+  const userRankName = currentUser?.name || currentUser?.username_raw || '';
+  const userMindshare = currentUser?.mindshare || 0;
+  const userPoint = currentUser?.point || 0;
+  // console.log('userRankName', userRankName);
+  // console.log('currentUser', currentUser);
 
   // 使用 useRequest 自动管理加载状态
   // 优先使用传入的排行榜数据，如果没有则从接口获取
@@ -1192,6 +1534,7 @@ function LeaderboardExpanded({
           fan_rank: item.fan_rank,
           username_raw: (item as any).username || item.username_raw,
           point: item.point,
+          mindshare: item.mindshare,
         }));
       }
 
@@ -1213,47 +1556,44 @@ function LeaderboardExpanded({
     }
   );
 
-  const displayLeaderboard = leaderboard.slice(0, 20);
+  const displayLeaderboard =
+    leaderboard && leaderboard?.length > 0 ? leaderboard : [];
 
   return (
     <div className='border-t theme-border'>
       {loading ? (
         <div className='flex items-center justify-center py-4'>
           <div
-            className={`w-6 h-6 border-2 rounded-full animate-spin ${
-              theme === 'dark'
-                ? 'border-blue-500/20 border-t-blue-500'
-                : 'border-blue-400/20 border-t-blue-400'
-            }`}
+            className={`w-6 h-6 border-2 rounded-full animate-spin ${theme === 'dark'
+              ? 'border-blue-500/20 border-t-blue-500'
+              : 'border-blue-400/20 border-t-blue-400'
+              }`}
           ></div>
         </div>
       ) : displayLeaderboard.length > 0 ? (
         <div className='px-3 pt-2 pb-2'>
           {/* 用户排名 */}
-          {userRank !== null && (
+          {Boolean(userRankName) && (
             <div className='mb-2.5 py-1.5 border-b theme-border'>
               <div className='text-[10px] theme-text-tertiary font-medium mb-0.5'>
                 {t('yourRank')}
               </div>
-              <div className='text-base font-bold theme-text-primary'>
-                #{userRank}
-                <span className='text-sm theme-text-secondary font-normal ml-1.5'>
-                  / {participantCount}
-                </span>
+              <div className='text-[11px] font-bold theme-text-primary'>
+                {
+                  <>
+                    #{userRank || t('irNotRanked')} · {userPoint} {t('points') || 'points'} (
+                    {`${Number(Number(userMindshare || 0) * 100).toFixed(2)}%`})
+                    {/* <span className='text-[11px] theme-text-secondary font-normal ml-1.5'>
+                      / {participantCount}
+                    </span> */}
+                  </>
+                }
               </div>
             </div>
           )}
 
-          {/* 排行榜标题
-          <div className='flex items-center gap-1.5 mb-2'>
-            <span className='text-sm'>🏆</span>
-            <span className='text-[11px] font-bold theme-text-primary'>
-              {t('topParticipants')}
-            </span>
-          </div> */}
-
           {/* 排行榜列表 */}
-          <div className='space-y-0.5 max-h-[300px] overflow-y-auto custom-scrollbar'>
+          <div className='space-y-0.5 h-auto overflow-y-auto custom-scrollbar'>
             {displayLeaderboard.map((item, index) => {
               const displayRank =
                 typeof item.rank === 'number' && item.rank > 0
@@ -1265,11 +1605,10 @@ function LeaderboardExpanded({
               return (
                 <div
                   key={item.userId || item.id || index}
-                  className={`flex items-center gap-1.5 p-1.5 rounded-lg transition-all ${
-                    isCurrentUser
-                      ? 'bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border-l-2 border-l-amber-500'
-                      : 'hover:theme-bg-tertiary'
-                  }`}
+                  className={`flex items-center gap-1.5 p-1.5 rounded-lg transition-all ${isCurrentUser
+                    ? 'bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border-l-2 border-l-amber-500'
+                    : 'hover:theme-bg-tertiary'
+                    }`}
                 >
                   {/* 排名 */}
                   <div className='w-6 text-center flex-shrink-0'>
@@ -1287,7 +1626,7 @@ function LeaderboardExpanded({
                   </div>
 
                   {/* 头像 */}
-                  <img
+                  <Avatar
                     src={item.avatar || item.profile_image_url}
                     alt={item.displayName || item.name}
                     className='w-6 h-6 rounded-full ring-2 ring-white/10'
@@ -1306,6 +1645,11 @@ function LeaderboardExpanded({
                   {/* 分数 */}
                   <div className='text-[11px] font-bold theme-text-primary flex-shrink-0'>
                     {item.score || item.point || 0}
+                    {item?.mindshare
+                      ? ` (${Number(Number(item?.mindshare || 0) * 100).toFixed(
+                        2
+                      )}%)`
+                      : ''}
                   </div>
                 </div>
               );

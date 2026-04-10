@@ -4,6 +4,7 @@ import React, {
   useState,
   useRef,
   useEffect,
+  useCallback,
 } from 'react';
 import { useLatest, useMemoizedFn, useUpdateEffect } from 'ahooks';
 import { useGlobalScroll } from '~contents/hooks/useGlobalScroll';
@@ -19,6 +20,8 @@ export interface FloatingContainerProps {
   mask?: boolean;
   className?: string;
   onClose?: () => void;
+  defaultVisible?: boolean;
+  pinned?: boolean;
 }
 
 export interface FloatingContainerRef {
@@ -43,12 +46,18 @@ export const FloatingContainer = forwardRef<
       mask = true,
       className = '',
       onClose,
+      defaultVisible = false,
+      pinned = false,
     },
     ref
   ) => {
-    const [isVisible, setIsVisible] = useState(false);
+    const [isVisible, setIsVisible] = useState(Boolean(defaultVisible));
     const isVisibleRef = useLatest(isVisible);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // 使用 ref 保存最新的 offset 值，确保 updatePosition 始终使用最新值
+    const offsetRef = useRef({ offsetX, offsetY });
+    offsetRef.current = { offsetX, offsetY };
 
     const updatePosition = useMemoizedFn(() => {
       try {
@@ -71,8 +80,10 @@ export const FloatingContainer = forwardRef<
           return;
         }
 
-        let left = targetRect.left + offsetX;
-        let top = targetRect.top + offsetY;
+        // 使用 ref 中的最新 offset 值
+        const { offsetX: currentOffsetX, offsetY: currentOffsetY } = offsetRef.current;
+        let left = targetRect.left + currentOffsetX;
+        let top = targetRect.top + currentOffsetY;
 
         const adjustPosition = (
           pos: number,
@@ -114,6 +125,13 @@ export const FloatingContainer = forwardRef<
       }
     }, [containerRef.current?.offsetWidth, containerRef.current?.offsetHeight]);
 
+    // 监听偏移量变化
+    useEffect(() => {
+      if (isVisible) {
+        updatePosition();
+      }
+    }, [offsetX, offsetY, isVisible, updatePosition]);
+
     // 监听可见性变化，仅在经历过显示后才触发 onClose
     const hasBeenVisibleRef = useRef(false);
     useEffect(() => {
@@ -126,17 +144,17 @@ export const FloatingContainer = forwardRef<
       }
     }, [isVisible, onClose]);
 
-    // 滚动时更新位置
+    // 滚动时更新位置（固定模式下不跟随）
     useGlobalScroll(() => {
-      if (!isVisibleRef.current) return;
+      if (!isVisibleRef.current || pinned) return;
       updatePosition();
-    }, [updatePosition]);
+    }, [updatePosition, pinned]);
 
-    // 窗口大小变化时更新位置
+    // 窗口大小变化时更新位置（固定模式下不跟随）
     useGlobalResize(() => {
-      if (!isVisibleRef.current) return;
+      if (!isVisibleRef.current || pinned) return;
       updatePosition();
-    }, [updatePosition]);
+    }, [updatePosition, pinned]);
 
     // 暴露方法
     useImperativeHandle(
@@ -172,7 +190,8 @@ export const FloatingContainer = forwardRef<
             overflow: 'auto',
             display: isVisible ? 'block' : 'none',
             pointerEvents: isVisible ? 'auto' : 'none',
-            transition: '10ms',
+            opacity: isVisible ? 1 : 0,
+            transition: '200ms',
           }}
           className={`shadow-[0_8px_24px_rgba(0,0,0,0.25)] theme-border rounded-lg ${className}`}
         >
@@ -193,10 +212,13 @@ export const FloatingContainer = forwardRef<
               opacity: 0,
               cursor: 'default',
               display: isVisible ? 'block' : 'none',
-              pointerEvents: isVisible ? 'auto' : 'none',
+              pointerEvents: isVisible && !pinned ? 'auto' : 'none',
             }}
             onClick={() => {
-              setIsVisible(false);
+              // 固定模式下点击外部不关闭
+              if (!pinned) {
+                setIsVisible(false);
+              }
             }}
           />
         )}

@@ -8,6 +8,7 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { formatRank } from '~js/utils.ts';
 import { rankService } from '~/utils/rankService';
 import { ProPanel } from './ProPanel.tsx';
+import AvatarRankBadge from './AvatarRankBadge.tsx';
 
 dayjs.extend(relativeTime);
 
@@ -26,13 +27,18 @@ export function FollowRelationPanel({
 }: FollowRelationPanelProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const [showAvatarRank] = useLocalStorage('@settings/showAvatarRank', true);
+
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'influence' | 'composite'>(
+      '@settings/avatarRankMode',
+      'influence'
+    );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
 
   // 使用排名服务获取排名
   useEffect(() => {
-    if (!followRelationData || !showAvatarRank) return;
+    if (!followRelationData || isAvatarRankModeLoading) return;
 
     const actions =
       type === 'following'
@@ -64,14 +70,14 @@ export function FollowRelationPanel({
     });
 
     // 获取排名
-    rankService.getRanks(usernames).then((ranks) => {
+    rankService.getRanks(usernames, avatarRankMode).then((ranks) => {
       setUserRanks(ranks);
     });
 
     return () => {
       removeCallback();
     };
-  }, [followRelationData, type, showAvatarRank]);
+  }, [followRelationData, type, isAvatarRankModeLoading]);
 
   // Use passed data instead of fetching
   const data = followRelationData;
@@ -173,7 +179,7 @@ export function FollowRelationPanel({
             rank={userRank}
             isLoading={isLoading}
             theme={theme}
-            showAvatarRank={showAvatarRank}
+            avatarRankMode={avatarRankMode}
           />
         );
       })}
@@ -187,7 +193,7 @@ interface FollowRelationItemProps {
   rank?: number;
   isLoading?: boolean;
   theme: string;
-  showAvatarRank: boolean;
+  avatarRankMode: 'influence' | 'composite';
 }
 
 function FollowRelationItem({
@@ -196,7 +202,7 @@ function FollowRelationItem({
   rank,
   isLoading = false,
   theme,
-  showAvatarRank,
+  avatarRankMode,
 }: FollowRelationItemProps) {
   const { t } = useI18n();
   const formattedTime = dayjs(timestamp).fromNow();
@@ -210,7 +216,7 @@ function FollowRelationItem({
     >
       <div
         className='relative rounded-full'
-        style={{ border: '3px solid #60A5FA80' }}
+        style={{ border: '3px solid var(--xhunt-avatar-outer-border-color)' }}
       >
         <img
           src={user.profile.profile_image_url}
@@ -221,21 +227,12 @@ function FollowRelationItem({
               'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
           }}
         />
-        {showAvatarRank ? (
-          <div
-            className={`xhunt-avatar-rank-badge ${
-              rank && rank > 0 && rank <= 10000 ? 'high-ranked' : ''
-            } ${isLoading ? 'loading' : ''}`}
-            data-theme={theme}
-          >
-            <span
-              className='xhunt-avatar-rank-text'
-              dangerouslySetInnerHTML={{
-                __html: isLoading ? '~' : formatRank(rank),
-              }}
-            ></span>
-          </div>
-        ) : null}
+        <AvatarRankBadge
+          rank={rank}
+          isLoading={isLoading}
+          avatarRankMode={avatarRankMode}
+          theme={theme}
+        />
       </div>
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-1'>

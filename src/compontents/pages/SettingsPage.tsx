@@ -229,6 +229,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           key: 'showArticleBottomRightArea',
           label: 'showArticleBottomRightArea',
         },
+        { key: 'showAiDetectButton', label: 'showAiDetectButton' },
       ]),
     };
   }, [currentUsername, disableTesting]);

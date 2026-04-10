@@ -75,8 +75,8 @@ export function AnnualReportSection() {
     () => {
       if (!userId) return Promise.resolve(undefined);
       // 每次请求时添加时间戳绕过缓存
-      const timestamp = Date.now();
-      return checkAnnualReportId(userId, timestamp);
+      // const timestamp = Date.now();
+      return checkAnnualReportId(userId);
     },
     {
       ready: shouldCheck, // 第一次就可以运行，不需要 isGeneratingReport
@@ -168,8 +168,8 @@ export function AnnualReportSection() {
         // 注册失败
         setErrorMessage(
           registerResult?.message ||
-            t('annualReportRegistrationFailed') ||
-            '注册失败，请检查邀请码是否正确'
+          t('annualReportRegistrationFailed') ||
+          '注册失败，请检查邀请码是否正确'
         );
       }
     } catch (err) {
@@ -302,9 +302,8 @@ export function AnnualReportSection() {
               <img
                 src={avatarUrl}
                 alt='avatar'
-                className={`w-11 h-11 rounded-full object-cover shadow-md border ${
-                  theme === 'light' ? 'border-gray-200/60' : 'border-white/20'
-                }`}
+                className={`w-11 h-11 rounded-full object-cover shadow-md border ${theme === 'light' ? 'border-gray-200/60' : 'border-white/20'
+                  }`}
                 referrerPolicy='no-referrer'
                 onError={() => setAvatarUrl('')}
               />
@@ -324,33 +323,31 @@ export function AnnualReportSection() {
           </div>
           <div className='flex-1 pr-16'>
             <div
-              className={`text-[12px] font-semibold ${
-                theme === 'light' ? 'text-gray-900' : 'text-white'
-              }`}
+              className={`text-[12px] font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}
             >
               {isGeneratingReport
                 ? t('annualReportTitleGenerating')
                 : isReportReady
-                ? t('annualReportTitleUnlocked')
-                : t('annualReportTitle')}
+                  ? t('annualReportTitleUnlocked')
+                  : t('annualReportTitle')}
             </div>
             <div
-              className={`text-[10px] mt-0.5 ${
-                theme === 'light' ? 'text-gray-600' : 'text-white/80'
-              }`}
+              className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-gray-600' : 'text-white/80'
+                }`}
             >
               {isGeneratingReport
                 ? t('annualReportSubtitleGenerating')
                 : isReportReady
-                ? t('annualReportSubtitleUnlocked')
-                : t('annualReportSubtitle')}
+                  ? t('annualReportSubtitleUnlocked')
+                  : t('annualReportSubtitle')}
             </div>
           </div>
           <div className='absolute right-3 top-1/2 -translate-y-1/2 opacity-80 pointer-events-none'>
             {isInputFocused ||
-            inviteInput.trim() ||
-            isReportReady ||
-            isGeneratingReport ? (
+              inviteInput.trim() ||
+              isReportReady ||
+              isGeneratingReport ? (
               <div className='w-14 h-14 translate-x-2'>
                 <Lottie
                   lottieRef={lottieRef}
@@ -412,15 +409,12 @@ export function AnnualReportSection() {
                     left: `${(i * 37) % 100}%`,
                     top: `${(-i * 20) % 100}%`,
                     backgroundColor: color,
-                    boxShadow: `0 0 ${
-                      theme === 'light' ? '8' : '10'
-                    }px ${color}`,
+                    boxShadow: `0 0 ${theme === 'light' ? '8' : '10'
+                      }px ${color}`,
                     opacity: theme === 'light' ? 0.9 : 0.8,
-                    animation: `fall ${5 + (i % 5)}s linear ${
-                      i * 0.2
-                    }s infinite, twinkle ${2 + (i % 4)}s ease-in-out ${
-                      (i % 8) * 0.3
-                    }s infinite`,
+                    animation: `fall ${5 + (i % 5)}s linear ${i * 0.2
+                      }s infinite, twinkle ${2 + (i % 4)}s ease-in-out ${(i % 8) * 0.3
+                      }s infinite`,
                   }}
                 />
               );
@@ -431,9 +425,8 @@ export function AnnualReportSection() {
       </div>
 
       <div
-        className={`overflow-hidden transition-all duration-200 linear px-3 theme-bg-secondary z-[1] relative ${
-          isInputFocused || isHovered ? 'max-h-[500px] py-2' : 'max-h-0 py-0'
-        }`}
+        className={`overflow-hidden transition-all duration-200 linear px-3 theme-bg-secondary z-[1] relative ${isInputFocused || isHovered ? 'max-h-[500px] py-2' : 'max-h-0 py-0'
+          }`}
       >
         {isGeneratingReport ? (
           <div className='flex flex-col items-center justify-center py-6 gap-3'>
@@ -449,9 +442,8 @@ export function AnnualReportSection() {
             </div>
             <div className='text-center'>
               <div
-                className={`text-[12px] font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}
+                className={`text-[12px] font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}
               >
                 {t('annualReportGenerating')}
               </div>
@@ -481,18 +473,16 @@ export function AnnualReportSection() {
                     ? t('annualReportWhitelistedPlaceholder')
                     : t('annualReportInvitePlaceholder')
                 }
-                className={`h-8 px-2.5 text-[12px] rounded-md border theme-border theme-bg-tertiary outline-none focus:border-blue-500 ${
-                  isWhitelisted
+                className={`h-8 px-2.5 text-[12px] rounded-md border theme-border theme-bg-tertiary outline-none focus:border-blue-500 ${isWhitelisted
                     ? 'flex-1 placeholder:text-gray-500 dark:placeholder:text-gray-300'
                     : 'flex-1'
-                }`}
+                  }`}
                 disabled={isGeneratingReport || isWhitelisted}
               />
               <button
                 type='button'
-                className={`h-8 px-4 rounded-md text-[12px] font-semibold text-white hover:opacity-95 disabled:opacity-60 bg-gradient-to-r from-blue-500 to-purple-500 shadow flex items-center justify-center ${
-                  isWhitelisted ? 'flex-1' : 'shrink-0'
-                }`}
+                className={`h-8 px-4 rounded-md text-[12px] font-semibold text-white hover:opacity-95 disabled:opacity-60 bg-gradient-to-r from-blue-500 to-purple-500 shadow flex items-center justify-center ${isWhitelisted ? 'flex-1' : 'shrink-0'
+                  }`}
                 disabled={
                   (!isWhitelisted && !inviteInput.trim()) || isGeneratingReport
                 }
@@ -503,9 +493,8 @@ export function AnnualReportSection() {
             </div>
             {errorMessage && (
               <div
-                className={`text-[11px] ${
-                  theme === 'light' ? 'text-red-600' : 'text-red-400'
-                }`}
+                className={`text-[11px] ${theme === 'light' ? 'text-red-600' : 'text-red-400'
+                  }`}
               >
                 {errorMessage}
               </div>
@@ -522,15 +511,13 @@ export function AnnualReportSection() {
           </div>
         ) : (
           <div
-            className={`relative flex flex-col gap-2.5 transition-all duration-300 ease-out ${
-              revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-            }`}
+            className={`relative flex flex-col gap-2.5 transition-all duration-300 ease-out ${revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              }`}
           >
             {/* 微妙的背景装饰 */}
             <div
-              className={`absolute inset-0 -mx-3 -my-2 pointer-events-none overflow-hidden rounded-lg ${
-                theme === 'light' ? 'opacity-30' : 'opacity-20'
-              }`}
+              className={`absolute inset-0 -mx-3 -my-2 pointer-events-none overflow-hidden rounded-lg ${theme === 'light' ? 'opacity-30' : 'opacity-20'
+                }`}
             >
               <div
                 className='absolute inset-0'
@@ -558,17 +545,15 @@ export function AnnualReportSection() {
                 }
                 target='_blank'
                 rel='noopener noreferrer'
-                className={`relative shrink-0 h-8 px-3.5 rounded-md text-[11px] font-medium text-white hover:opacity-90 flex items-center justify-center gap-1.5 transition-all duration-200 overflow-hidden group ${
-                  theme === 'light'
+                className={`relative shrink-0 h-8 px-3.5 rounded-md text-[11px] font-medium text-white hover:opacity-90 flex items-center justify-center gap-1.5 transition-all duration-200 overflow-hidden group ${theme === 'light'
                     ? 'bg-gradient-to-r from-blue-400/90 via-blue-500/90 to-purple-400/90 shadow-sm'
                     : 'bg-gradient-to-r from-blue-500 via-blue-600 to-purple-500 shadow-md shadow-blue-500/20'
-                }`}
+                  }`}
               >
                 {/* 圣诞/冰雪主题装饰 */}
                 <div
-                  className={`absolute inset-0 pointer-events-none ${
-                    theme === 'light' ? 'opacity-30' : 'opacity-40'
-                  }`}
+                  className={`absolute inset-0 pointer-events-none ${theme === 'light' ? 'opacity-30' : 'opacity-40'
+                    }`}
                 >
                   <div className='absolute top-0.5 left-1'>
                     <Snowflake
@@ -590,9 +575,8 @@ export function AnnualReportSection() {
                   </div>
                   <div className='absolute top-1/2 -translate-y-1/2 left-1/4'>
                     <div
-                      className={`w-1 h-1 rounded-full ${
-                        theme === 'light' ? 'bg-white/40' : 'bg-white/50'
-                      }`}
+                      className={`w-1 h-1 rounded-full ${theme === 'light' ? 'bg-white/40' : 'bg-white/50'
+                        }`}
                     />
                   </div>
                 </div>
