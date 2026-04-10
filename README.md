@@ -158,11 +158,82 @@ src/
 
 支持中文和英文两种语言，自动检测用户浏览器语言设置。
 
-### 🔒 隐私和安全
+### 🔒 用户服务与隐私协议
 
-- 所有用户数据本地存储，不上传敏感信息
-- 使用 HTTPS 加密传输
-- 实现请求签名验证，防止恶意请求
+**版本更新日期：2026年4月2日**
+
+欢迎使用 XHunt。本协议由 XHunt 运营团队（以下简称“平台”）与使用 XHunt 服务的个人或实体（以下简称“用户”）共同订立。用户通过访问 xhunt.ai 官网或安装 XHunt 浏览器插件，即视为已阅读并同意本协议的所有条款。
+
+#### 第一部分：服务条款
+
+**1. 服务内容**
+
+XHunt 是一款基于 AI 驱动的社交情报工具，提供包括但不限于 KOL 影响力分析、推文情绪监测、项目热度追踪等服务。
+
+**2. 平台合规性声明**
+
+平台通过 X (Twitter) 官方 API 获取公开数据，并遵守 X (Twitter) 开发者服务协议及相关平台政策。
+
+本平台不对第三方平台政策的变更或服务中断承担责任。
+
+**3. 用户行为准则**
+
+- **合法用途**：用户应仅将 XHunt 用于合法的个人研究或商业情报目的。
+- **禁止滥用**：禁止利用 XHunt 发起任何形式的自动化攻击、恶意大规模爬取或滥用数据、或试图绕过或干扰 API 频率限制。
+- **资产安全**：XHunt 绝不触碰私钥。用户需自行负责加密货币钱包的安全管理，因个人操作失误导致的资产损失与本平台无关。
+
+**4. AI 免责声明**
+
+- **非投资建议**：XHunt 提供的所有 AI 分析结果、评分及指标仅供参考，不构成任何投资建议（NFA）。投资风险高，请自行研究（DYOR）。
+- **数据说明**：受 AI 模型及推特数据源影响，分析结果可能存在延迟、偏差或不完整情况。
+
+**5. 知识产权**
+
+平台资产：XHunt 品牌、核心算法及界面设计均归本平台所有。插件源码在 GitHub 开源，用户可根据开源协议审计或贡献，但未经许可不得将其用于商业化二次包装。
+
+#### 第二部分：隐私政策
+
+**6. 数据采集与处理**
+
+本平台遵循“最小化原则”处理非身份识别信息：
+
+- **页面交互逻辑**：仅当用户主动触发 AI 推文分析功能时，插件会读取当前选定推文的文本内容以完成即时任务；除此之外，插件不会在后台自动读取、抓取或记录任何其他页面内容或用户的浏览轨迹。
+- **脱敏设备特征**：采集的浏览器参数仅用于 API 频率限制及反机器人（Bot）防御，且均经过脱敏处理，无法关联至特定用户身份。
+
+**7. 隐私红线与禁制事项**
+
+XHunt 严格遵守以下隐私标准，确保用户信息与操作的高度隔离：
+
+- **零 IP 记录**：服务器不采集、不存储用户的 IP 地址，确保用户的网络轨迹处于匿名状态。
+- **不触碰敏感信息**：绝不请求、不读取、不存储助记词、私钥或任何形式的加密资产访问权限。
+- **不读取隐私通讯**：不访问私信（DM）、书签或任何非公开的通讯内容。
+- **不跨站追踪**：不追踪用户在 X (Twitter) 及其相关服务域名之外的任何网络行为。
+- **不读取个人 Cookie**：不采集浏览器 Cookie 记录，确保用户的账户登录状态与 AI 处理流程完全隔离。
+- **不关联与不共享**：本平台承诺绝不将数据与个人身份关联，且不向任何第三方机构出售或共享用户数据。
+
+**8. 用户权利与退出机制**
+
+用户享有对其数据隐私的完全知情权与自主控制权：
+
+- **自主卸载权**：如用户对本协议或隐私处理逻辑有任何异议，可随时通过浏览器扩展管理页面自行卸载 XHunt 插件。卸载后，所有关联服务将立即终止。
+- **源码审计**：插件源码已在 GitHub (AlphaHunt3/tweet-hunt-extension) 开源，用户有权对代码逻辑进行审计以验证隐私承诺。
+- **本地数据管理**：用户可随时通过插件设置页面的“清除缓存”功能，一键删除存储在本地设备上的配置及分析记录。
+- **安全建议**：建议用户避免在社交媒体公开互动中泄露私钥、敏感联系方式或精确地理位置。
+
+#### 第三部分：其他条款
+
+**9. 安全技术标准**
+
+- **加密传输**：全量数据交换均通过 SSL/TLS 高强度加密协议完成。
+- **透明发布**：重大变更将通过官网或官方推特 (@XHunt_ai) 进行公示。
+
+**10. 协议更新与联系反馈**
+
+- **协议更新**：本平台保留适时更新本协议的权利。用户持续使用 XHunt 服务即视为接受更新后的条款。
+- **联系渠道**：如有关于隐私保护、数据删除或商务合作的疑问，请通过以下渠道提交反馈：
+  - GitHub Issues：提交技术建议与 Bug 反馈
+  - 官方邮箱：contact@xhunt.ai
+  - X 官推：@XHunt_ai
 
 ### 📄 许可证
 
@@ -321,11 +392,76 @@ src/
 
 Supports both Chinese and English, automatically detecting user browser language settings.
 
-### 🔒 Privacy and Security
+### 🔒 User Service & Privacy Policy
 
-- All user data stored locally, no sensitive information uploaded
-- HTTPS encrypted transmission
-- Request signature verification to prevent malicious requests
+**Last Updated: April 2, 2026**
+
+Welcome to XHunt. This agreement is entered into by the XHunt operations team (hereinafter referred to as the “Platform”) and the individual or entity using XHunt services (hereinafter referred to as the “User”). By accessing the xhunt.ai website or installing the XHunt browser extension, you acknowledge that you have read and agree to all the terms of this agreement.
+
+#### Part I: Terms of Service
+
+**1. Scope of Service**
+
+XHunt is an AI-driven social intelligence tool providing services including, but not limited to, KOL influence analysis, tweet sentiment monitoring, and project hype tracking.
+
+**2. Platform Compliance Statement**
+
+The Platform retrieves public data via the official X (Twitter) API and complies with the X Developer Agreement and related platform policies. The Platform assumes no responsibility for changes in third-party platform policies or service interruptions.
+
+**3. User Code of Conduct**
+
+- **Legal Use**: Users shall use XHunt solely for lawful personal research or business intelligence purposes.
+- **Prohibition of Abuse**: Users are prohibited from using XHunt to launch automated attacks, conduct malicious large-scale data scraping, or attempt to bypass API rate limits.
+- **Asset Security**: XHunt never touches private keys. Users are solely responsible for the security of their cryptocurrency wallets. The Platform is not liable for any asset loss resulting from user error or negligence.
+
+**4. AI Disclaimer**
+
+- **Non-Financial Advice (NFA)**: All AI analysis results, scores, and indicators provided by XHunt are for reference only and do not constitute investment advice. Investing involves high risk; please Do Your Own Research (DYOR).
+- **Data Accuracy**: Due to the nature of AI models and Twitter data sources, analysis results may be subject to delays, biases, or incompleteness.
+
+**5. Intellectual Property**
+
+Platform Assets: The XHunt brand, core algorithms, and interface designs are owned by the Platform. Open Source: The extension source code is open-sourced on GitHub. Users may audit or contribute according to the open-source license; however, unauthorized commercial repackaging is strictly prohibited.
+
+#### Part II: Privacy Policy
+
+**6. Data Collection and Processing**
+
+The Platform follows the "Principle of Minimization" when handling non-identifiable information:
+
+- **Interaction Logic**: The extension reads the text content of a selected tweet only when the user actively triggers an AI analysis. It does not automatically read, scrape, or record background page content or browsing history.
+- **Anonymized Device Features**: Collected browser parameters are used solely for API rate limiting and anti-bot defense. This data is anonymized and cannot be linked to a specific user identity.
+
+**7. Strict Prohibitions (Privacy Red Lines)**
+
+- **Zero IP Logging**: Our servers do not collect or store user IP addresses, ensuring your network footprint remains anonymous.
+- **No Sensitive Info Access**: We never request, read, or store seed phrases, private keys, or any form of crypto-asset access permissions.
+- **No Private Communication Access**: We do not access Direct Messages (DMs), bookmarks, or any non-public communication.
+- **No Cross-Site Tracking**: We do not track user behavior outside of X (Twitter) and its related service domains.
+- **No Personal Cookie Collection**: We do not collect browser cookies, ensuring your account login state remains completely isolated from the AI processing flow.
+- **No Association or Sharing**: We pledge never to associate data with personal identities and will not sell or share user data with third-party organizations.
+
+**8. User Rights & Actions**
+
+- **Right to Uninstall**: If you disagree with this agreement or our privacy logic, you may uninstall the XHunt extension at any time. All associated services will terminate immediately upon uninstallation.
+- **Source Code Audit**: The extension code is open-sourced on GitHub (AlphaHunt3/tweet-hunt-extension). Users have the right to audit the code to verify our privacy commitments.
+- **Local Data Management**: Users can delete local configurations and analysis records at any time via the "Clear Cache" function in the extension settings.
+- **Security Recommendation**: We strongly advise users to avoid disclosing private keys, sensitive contact info, or precise locations during public social media interactions.
+
+#### Part III: General Provisions
+
+**9. Technical Security Standards**
+
+- **Encrypted Transmission**: All data exchange is performed via high-strength SSL/TLS encryption protocols.
+- **Transparent Updates**: Major changes will be announced via the official website or our official X account (@XHunt_ai).
+
+**10. Updates and Contact**
+
+- **Agreement Updates**: The Platform reserves the right to update this agreement. Continued use of XHunt services constitutes acceptance of the updated terms.
+- **Contact Us**:
+  - GitHub Issues: For technical suggestions and bug reports
+  - Official Email: contact@xhunt.ai
+  - Official X: @XHunt_ai
 
 ### 📄 License
 
