@@ -10,7 +10,7 @@ This document explains how any external party can independently verify a publish
 
 The source of truth is:
 
-1. the Base proxy contract, and
+1. the BSC proxy contract, and
 2. the raw Arweave snapshot bytes referenced by that contract.
 
 If the website display conflicts with the contract or Arweave snapshot, trust the contract + Arweave snapshot.
@@ -19,9 +19,9 @@ If the website display conflicts with the contract or Arweave snapshot, trust th
 
 ## 2. Contract and chain
 
-- Chain: Base Mainnet
-- Chain ID: `8453`
-- Proxy contract: `0x4330F7F2eE1740fc4BC1f03b7A4aD4656158e4D0`
+- Chain: BNB Smart Chain Mainnet
+- Chain ID: `56`
+- Proxy contract: `0xf1E8be5A184e0AD0648fd109700E5DbbAcA2eDF9`
 
 Use the proxy contract for verification.
 
@@ -176,7 +176,7 @@ The `ranking` field contains the actual ranking rows.
 
 1. Decide target snapshot dimensions
 2. Compute `snapshotKey`
-3. Read `getSnapshot(snapshotKey)` from Base proxy contract
+3. Read `getSnapshot(snapshotKey)` from BSC proxy contract
 4. Extract `arweaveId` and `contentHash`
 5. Download the **raw** bytes from Turbo Gateway or Arweave
 6. Compute SHA-256 locally over the raw response bytes
@@ -220,9 +220,9 @@ if (digestHex.toLowerCase() !== record.contentHash.toLowerCase()) {
 The current implementation also supports `batchAnchorSnapshots(...)` for publisher-side write optimization. Verification readers still only need `getSnapshot(...)` and `computeSnapshotKey(...)`.
 
 
-- Proxy: `0x4330F7F2eE1740fc4BC1f03b7A4aD4656158e4D0`
-- Implementation: `0xfCf3d33859f7E2CA167BAb0b36058400d6B31a7C`
-- Verification: Sourcify exact match + BaseScan verified
+- Proxy: `0xf1E8be5A184e0AD0648fd109700E5DbbAcA2eDF9`
+- Implementation: `0xd73E982ACECF8F2bDedaC2C1eC1ebCAaEff92ff6`
+- Verification: Sourcify exact match + BscScan verified
 
 ---
 
@@ -230,5 +230,5 @@ The current implementation also supports `batchAnchorSnapshots(...)` for publish
 
 A snapshot should be treated as official only if:
 
-1. it is referenced by the Base proxy contract, and
+1. it is referenced by the BSC proxy contract, and
 2. the downloaded raw bytes match the on-chain `contentHash`.
