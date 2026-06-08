@@ -2,8 +2,6 @@ import { useEffect, useMemo } from 'react';
 import { SupportedToken } from '~types';
 import { extractTickerOrCA } from '~contents/utils';
 import { useTickerElements } from './useTickerElements';
-import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { localSupportedTokens } from '~contents/utils/tokens.ts';
 
 export const TOKEN_HOVER_EVENT = 'xhunt:token-hover';
 
@@ -19,21 +17,20 @@ interface TokenMatch {
 }
 
 export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const tickerElements = useTickerElements();
+  const tickerElements = useTickerElements(Boolean(supportedTokens));
   const { supportedSymbols, supportedCAs } = useMemo(() => {
     if (!supportedTokens) {
       return {
-        supportedSymbols: localSupportedTokens,
+        supportedSymbols: new Set<string>(),
         supportedCAs: new Set<string>(),
       };
     }
     return {
       supportedSymbols: new Set(
-        supportedTokens.map((token) => token.symbol.toLowerCase())
+        supportedTokens.map((token) => token.symbol.toLowerCase()),
       ),
       supportedCAs: new Set(
-        supportedTokens.map((token) => token.ca?.toLowerCase()).filter(Boolean)
+        supportedTokens.map((token) => token.ca?.toLowerCase()).filter(Boolean),
       ),
     };
   }, [supportedTokens]);
@@ -43,7 +40,7 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
 
     function createTokenRegex(tokens: string[]): RegExp {
       const escaped = tokens.map((t) =>
-        t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+        t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'),
       );
       return new RegExp(`(${escaped.join('|')})`, 'g');
     }
@@ -107,11 +104,9 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
       let lastIndex = 0;
 
       for (const match of validMatches) {
-        const isTicker = match.text.startsWith('$');
-
         if (match.index > lastIndex) {
           fragment.appendChild(
-            document.createTextNode(text.slice(lastIndex, match.index))
+            document.createTextNode(text.slice(lastIndex, match.index)),
           );
         }
 
@@ -134,12 +129,12 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
                 element: wrapper,
               };
               window.dispatchEvent(
-                new CustomEvent(TOKEN_HOVER_EVENT, { detail })
+                new CustomEvent(TOKEN_HOVER_EVENT, { detail }),
               );
             },
             {
               timeout: 300,
-            }
+            },
           );
         });
 
@@ -147,12 +142,12 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
           requestIdleCallback(
             () => {
               window.dispatchEvent(
-                new CustomEvent(TOKEN_HOVER_EVENT, { detail: null })
+                new CustomEvent(TOKEN_HOVER_EVENT, { detail: null }),
               );
             },
             {
               timeout: 300,
-            }
+            },
           );
         });
 
@@ -180,5 +175,5 @@ export function useHighlightTokens(supportedTokens: SupportedToken[] | null) {
         element.setAttribute('data-xhunt-url', currentUrl);
       }
     });
-  }, [theme, supportedSymbols, supportedCAs, tickerElements]);
+  }, [supportedTokens, supportedSymbols, supportedCAs, tickerElements]);
 }

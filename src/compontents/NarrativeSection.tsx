@@ -12,20 +12,37 @@ interface NarrativeSectionProps {
 function _NarrativeSection({ narrative, isLoading }: NarrativeSectionProps) {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
+  const cardStyle = {
+    backgroundColor:
+      theme === 'dark' ? 'rgba(255, 255, 255, 0.025)' : 'rgba(15, 20, 25, 0.025)',
+  };
+  const iconStyle = {
+    color: theme === 'dark' ? 'rgba(192, 132, 252, 0.72)' : 'rgba(147, 51, 234, 0.62)',
+    backgroundColor:
+      theme === 'dark' ? 'rgba(168, 85, 247, 0.07)' : 'rgba(168, 85, 247, 0.045)',
+  };
 
   // 如果正在加载，显示加载状态（只占1行）
   if (isLoading) {
     return (
-      <div className="w-full mt-3 px-3 py-2 rounded-lg" style={{
-        backgroundColor: theme === 'dark' ? 'rgba(30, 39, 50, 0.3)' : 'rgba(243, 244, 246, 0.5)',
-        border: theme === 'dark' ? '1px solid rgba(55, 65, 81, 0.3)' : '1px solid rgba(229, 231, 235, 0.5)'
-      }}>
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-purple-400 flex-shrink-0" />
-          <div className="animate-pulse flex-1">
-            <div className="h-4 rounded w-3/4" style={{
-              backgroundColor: theme === 'dark' ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.7)'
-            }}></div>
+      <div className='w-full mt-2.5 px-3 py-2 rounded-xl' style={cardStyle}>
+        <div className='flex items-center gap-2'>
+          <span
+            className='inline-flex h-5 w-5 items-center justify-center rounded-full flex-shrink-0'
+            style={iconStyle}
+          >
+            <BookOpen className='w-3.5 h-3.5' />
+          </span>
+          <div className='animate-pulse flex-1'>
+            <div
+              className='h-3.5 rounded w-3/4'
+              style={{
+                backgroundColor:
+                  theme === 'dark'
+                    ? 'rgba(55, 65, 81, 0.46)'
+                    : 'rgba(148, 163, 184, 0.22)',
+              }}
+            />
           </div>
         </div>
       </div>
@@ -46,31 +63,31 @@ function _NarrativeSection({ narrative, isLoading }: NarrativeSectionProps) {
   }
 
   return (
-    <div className="w-full mt-3 px-3 py-2 rounded-lg" style={{
-      backgroundColor: theme === 'dark' ? 'rgba(30, 39, 50, 0.3)' : 'rgba(243, 244, 246, 0.5)',
-      border: theme === 'dark' ? '1px solid rgba(55, 65, 81, 0.3)' : '1px solid rgba(229, 231, 235, 0.5)'
-    }}>
-      <div className="flex items-start gap-2">
-        <BookOpen className="w-4 h-4 text-purple-400 flex-shrink-0 mt-1" />
-        <span className="text-sm font-medium theme-text-primary flex-shrink-0 mt-0.5">{t('narrative')}:</span>
+    <div className='w-full mt-2.5 px-3 py-2 rounded-xl' style={cardStyle}>
+      <div className='flex items-start gap-2'>
+        <span
+          className='mt-[1px] inline-flex h-5 w-5 items-center justify-center rounded-full flex-shrink-0'
+          style={iconStyle}
+        >
+          <BookOpen className='w-3.5 h-3.5' />
+        </span>
 
         {/* 最多2行叙事内容 */}
-        <div className="flex-1 min-w-0 relative">
-          <p
-            className="text-sm theme-text-primary relative px-3 leading-relaxed"
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              lineHeight: '1.5'
-            }}
-          >
-            <span className="absolute left-0 top-0 text-purple-400/50 text-base font-serif leading-none">"</span>
-            <span className="mx-1">{narrativeText}</span>
-            <span className="absolute right-0 top-0 text-purple-400/50 text-base font-serif leading-none">"</span>
-          </p>
-        </div>
+        <p
+          className='min-w-0 flex-1 text-[13px] theme-text-primary'
+          style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: '1.45',
+          }}
+        >
+          <span className='mr-1.5 text-[12px] font-medium theme-text-secondary'>
+            {t('narrative')}
+          </span>
+          {narrativeText}
+        </p>
       </div>
     </div>
   );

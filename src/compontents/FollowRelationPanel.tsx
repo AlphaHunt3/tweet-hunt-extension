@@ -9,6 +9,7 @@ import { formatRank } from '~js/utils.ts';
 import { rankService } from '~/utils/rankService';
 import { ProPanel } from './ProPanel.tsx';
 import AvatarRankBadge from './AvatarRankBadge.tsx';
+import { navigateInX } from '~contents/utils/navigateInX';
 
 dayjs.extend(relativeTime);
 
@@ -29,9 +30,9 @@ export function FollowRelationPanel({
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
+    useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
-      'influence'
+      'web3'
     );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
@@ -193,7 +194,7 @@ interface FollowRelationItemProps {
   rank?: number;
   isLoading?: boolean;
   theme: string;
-  avatarRankMode: 'influence' | 'composite';
+  avatarRankMode: 'web3' | 'ai';
 }
 
 function FollowRelationItem({
@@ -210,9 +211,11 @@ function FollowRelationItem({
   return (
     <a
       href={`https://x.com/${user.username}`}
-      target='_blank'
-      rel='noopener noreferrer'
-      className='flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors'
+      onClick={(event) => {
+        event.preventDefault();
+        navigateInX(`https://x.com/${user.username}`);
+      }}
+      className='group flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors'
     >
       <div
         className='relative rounded-full'
@@ -236,7 +239,7 @@ function FollowRelationItem({
       </div>
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-1'>
-          <p className='font-medium text-sm theme-text-primary truncate'>
+          <p className='font-medium text-sm theme-text-primary truncate group-hover:underline'>
             {user.name}
           </p>
           {user.profile.is_blue_verified && (

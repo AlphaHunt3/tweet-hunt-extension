@@ -131,8 +131,8 @@ export function TickerTips() {
       targetRef={targetRef}
       offsetX={-100}
       offsetY={10}
-      maxWidth='520px'
-      maxHeight='460px'
+      maxWidth='560px'
+      maxHeight='420px'
       mask={false}
     >
       {hoveringTicker && (

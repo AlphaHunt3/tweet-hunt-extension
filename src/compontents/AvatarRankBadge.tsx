@@ -1,11 +1,12 @@
 import React from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { formatRank } from '../js/utils';
+import { sanitizeHtml } from '~utils/sanitizeHtml';
 
 interface AvatarRankBadgeProps {
   rank: number | null | undefined;
   isLoading: boolean;
-  avatarRankMode: 'influence' | 'composite';
+  avatarRankMode: 'web3' | 'ai';
   theme?: string;
   loadingPlaceholder?: string;
 }
@@ -36,7 +37,7 @@ const AvatarRankBadge: React.FC<AvatarRankBadgeProps> = ({
     >
       <span
         className='xhunt-avatar-rank-text'
-        dangerouslySetInnerHTML={{ __html: innerHTML }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(innerHTML) }}
       />
     </div>
   );

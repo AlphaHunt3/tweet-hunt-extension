@@ -11,8 +11,24 @@ import SettingsPage from '~/compontents/pages/SettingsPage';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { PanelContextProvider } from '~/compontents/navigation/PanelContext';
 import { useDebounce } from 'ahooks';
-import iconUrl from 'url:~/assets/icon.png';
+import iconUrl from 'url:~/assets/icon-min.png';
 import avatarCssText from 'data-text:~/css/avatar-rank.css';
+
+type FixedTwitterPanelProps = Pick<
+  MainData,
+  | 'twInfo'
+  | 'deletedTweets'
+  | 'loadingTwInfo'
+  | 'loadingDel'
+  | 'error'
+  | 'userId'
+  | 'rootData'
+  | 'loadingRootData'
+  | 'reviewInfo'
+  | 'userInfo'
+  | 'projectMemberData'
+  | 'loadingProjectMember'
+>;
 
 function _FixedTwitterPanel({
   twInfo,
@@ -27,32 +43,32 @@ function _FixedTwitterPanel({
   userInfo,
   projectMemberData,
   loadingProjectMember,
-}: MainData) {
+}: FixedTwitterPanelProps) {
   const currentUrl = useCurrentUrl();
   const [showPanel, setShowPanel] = useLocalStorage(
     '@settings/showPanel',
-    true
+    true,
   );
   const searchInput = useWaitForElement(
     'input[data-testid="SearchBox_Search_Input"]',
-    [showPanel, currentUrl]
+    [showPanel, currentUrl],
   );
   const [panelWidth, , { isLoading: isPanelWidthLoading }] =
     useLocalStorage<number>('@xhunt/panelWidth', 340);
   const safeWidth = Math.min(
     400,
-    Math.max(300, Number(isPanelWidthLoading ? 340 : panelWidth) || 340)
+    Math.max(300, Number(isPanelWidthLoading ? 340 : panelWidth) || 340),
   );
   const [isFocused, setIsFocused] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout>>();
   const [isMinimized, setIsMinimized] = useLocalStorage<boolean>(
     '@xhunt/panelMinimized',
-    false
+    false,
   );
   const [floatingPanelMode, , { isLoading: isFloatingPanelModeLoading }] =
     useLocalStorage<'default' | 'persistent'>(
       '@xhunt/floatingPanelMode',
-      'default'
+      'default',
     );
 
   // 使用 useDebounce 延迟显示，但需要特殊处理：只对 true 值延迟，false 值立即生效
@@ -208,7 +224,7 @@ function _FixedTwitterPanel({
             transition: 'opacity 0.3s ease-in-out',
             width: `${Math.min(
               500,
-              Math.max(300, Number(panelWidth) || 340)
+              Math.max(300, Number(panelWidth) || 340),
             )}px`,
             position: isMinimized ? 'absolute' : 'relative',
             visibility: isMinimized ? 'hidden' : 'visible',

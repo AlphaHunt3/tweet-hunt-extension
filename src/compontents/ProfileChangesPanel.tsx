@@ -12,6 +12,7 @@ import {
 import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { escapeHtml } from '~utils/sanitizeHtml';
 
 dayjs.extend(relativeTime);
 
@@ -42,8 +43,10 @@ export function ProfileChangesPanel({
   // Function to highlight differences between two texts
   const highlightDiff = (oldText: string, newText: string) => {
     if (!oldText && !newText) return { oldHighlighted: '', newHighlighted: '' };
-    if (!oldText) return { oldHighlighted: '', newHighlighted: newText };
-    if (!newText) return { oldHighlighted: oldText, newHighlighted: '' };
+    if (!oldText)
+      return { oldHighlighted: '', newHighlighted: escapeHtml(newText) };
+    if (!newText)
+      return { oldHighlighted: escapeHtml(oldText), newHighlighted: '' };
 
     // Simple character-by-character diff
     let oldHighlighted = '';
@@ -78,17 +81,17 @@ export function ProfileChangesPanel({
 
     // Highlight the differences
     oldHighlighted =
-      commonPrefix +
+      escapeHtml(commonPrefix) +
       (oldDiff
-        ? `<span class="text-red-500 font-medium">${oldDiff}</span>`
+        ? `<span class="text-red-500 font-medium">${escapeHtml(oldDiff)}</span>`
         : '') +
-      commonSuffix;
+      escapeHtml(commonSuffix);
     newHighlighted =
-      commonPrefix +
+      escapeHtml(commonPrefix) +
       (newDiff
-        ? `<span class="text-green-500 font-medium">${newDiff}</span>`
+        ? `<span class="text-green-500 font-medium">${escapeHtml(newDiff)}</span>`
         : '') +
-      commonSuffix;
+      escapeHtml(commonSuffix);
 
     return { oldHighlighted, newHighlighted };
   };

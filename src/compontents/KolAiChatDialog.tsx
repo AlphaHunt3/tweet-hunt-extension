@@ -4,12 +4,15 @@ import {
   FloatingContainerRef,
 } from '~/compontents/FloatingContainer';
 import { X, Send, Pause, Trash2, Copy, Check } from 'lucide-react';
-import { fetchKolChat, fetchKolChatList } from '~/contents/services/api';
-import type { KolChatItem } from '~types';
+import { fetchKolChat } from '~/contents/services/api';
+
 import { chatHistoryManager } from '~/storage/chatHistoryManager';
 import { ChatMessage } from '~/types';
+import type { StoredUserInfo } from '~types/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import { sanitizeHtml } from '~utils/sanitizeHtml';
 // 简单的Markdown处理函数
 const simpleMarkdownToHtml = (text: string): string => {
   return (
@@ -95,6 +98,7 @@ export type KolType = 'official' | 'unofficial';
 export interface AiChatDetail {
   userId: string;
   element: HTMLElement;
+  kolId?: string;
   kolType?: KolType;
   perspectiveName?: string;
 }
@@ -115,11 +119,10 @@ export function KolAiChatDialog() {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
     null
   );
-  // KOL ID 映射缓存
-  const kolListRef = useRef<KolChatItem[]>([]);
-
+  // 当前登录用户
+  const [currentUser] = useLocalStorage<StoredUserInfo | null>('@xhunt/user', null);
   // 字数限制配置
-  const MAX_INPUT_LENGTH = 1000; // 最大输入字数
+  const MAX_INPUT_LENGTH = 600; // 最大输入字数
   const MIN_INPUT_LENGTH = 1; // 最小输入字数
 
   // 使用 useRef 来避免闭包问题
@@ -134,6 +137,7 @@ export function KolAiChatDialog() {
   const isUserScrolledUpRef = useRef<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastScrollTimeRef = useRef<number>(0); // 上次滚动时间，用于节流
+  const sessionIdRef = useRef<number>(0);
 
   // 添加禁止滚动的函数
   const disableBodyScroll = useCallback(() => {
@@ -252,10 +256,10 @@ export function KolAiChatDialog() {
     []
   );
 
-  // 初始化聊天历史管理器
+  // 初始化聊天历史管理器（按当前登录用户隔离）
   useEffect(() => {
-    chatHistoryManager.init();
-  }, []);
+    chatHistoryManager.init(currentUser?.id);
+  }, [currentUser?.id]);
 
   // 监听消息变化，自动滚动到底部
   useEffect(() => {
@@ -266,6 +270,7 @@ export function KolAiChatDialog() {
     async (event: CustomEvent<AiChatDetail>) => {
       const detail = event.detail;
       if (detail && detail.element) {
+        sessionIdRef.current = Date.now();
         targetRef.current = detail.element;
         setChatDetail(detail);
         // 保存 KOL 类型和展示名称
@@ -308,15 +313,38 @@ export function KolAiChatDialog() {
     }
   }, [chatDetail, disableBodyScroll]);
 
+  const resetChatState = useCallback(() => {
+    setIsResponding(false);
+    setIsTyping(false);
+    targetContentRef.current = '';
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    if (typingTimerRef.current) {
+      if (isAnimationFrameRef.current) {
+        window.cancelAnimationFrame(typingTimerRef.current);
+      } else {
+        clearTimeout(typingTimerRef.current);
+      }
+      typingTimerRef.current = null;
+      isAnimationFrameRef.current = false;
+    }
+  }, []);
+
   // 弹框关闭时的回调
   const handleContainerClose = useCallback(() => {
+    sessionIdRef.current = 0;
+    resetChatState();
     // 恢复页面滚动
     enableBodyScroll();
     // 清理状态
     setChatDetail(null);
     setMessages([]);
     setCopiedMessageIndex(null);
-  }, [enableBodyScroll]);
+  }, [resetChatState, enableBodyScroll]);
 
   useEffect(() => {
     const eventHandler = (event: Event) => {
@@ -332,32 +360,14 @@ export function KolAiChatDialog() {
   }, [handleChatEvent]);
 
   const handleClose = useCallback(async () => {
-    // 先设置状态，确保任何正在进行的操作都知道要停止
-    setIsResponding(false);
-    setIsTyping(false);
-
-    // 如果在请求中，取消请求
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    // 停止打字效果
-    if (typingTimerRef.current) {
-      if (isAnimationFrameRef.current) {
-        window.cancelAnimationFrame(typingTimerRef.current);
-      } else {
-        clearTimeout(typingTimerRef.current);
-      }
-      typingTimerRef.current = null;
-      isAnimationFrameRef.current = false;
-    }
+    sessionIdRef.current = 0;
+    resetChatState();
 
     containerRef.current?.hide();
     setChatDetail(null);
     setMessages([]);
     setCopiedMessageIndex(null);
-  }, []);
+  }, [resetChatState]);
 
   // 内容过滤函数
   const filterInputContent = (content: string): string => {
@@ -370,28 +380,9 @@ export function KolAiChatDialog() {
       .trim();
   };
 
-  // 根据 twitter_handle 查找 KOL ID
-  const findKolIdByHandle = useCallback((handle: string): string | undefined => {
-    const normalizedHandle = handle.toLowerCase().replace(/^@/, '');
-    const kol = kolListRef.current.find(
-      (k) => k.twitter_handle.toLowerCase() === normalizedHandle
-    );
-    return kol?.id;
-  }, []);
-
-  // 加载 KOL 列表
-  useEffect(() => {
-    const loadKolList = async () => {
-      const list = await fetchKolChatList();
-      if (list) {
-        kolListRef.current = list;
-      }
-    };
-    loadKolList();
-  }, []);
-
   const handleSendMessage = async () => {
     if (isResponding || !chatDetail) return;
+    const activeSession = sessionIdRef.current;
 
     const filteredInput = filterInputContent(inputValue);
     if (!filteredInput || filteredInput.length < MIN_INPUT_LENGTH) {
@@ -404,8 +395,7 @@ export function KolAiChatDialog() {
       return;
     }
 
-    // 查找当前用户的 KOL ID
-    const kolId = findKolIdByHandle(chatDetail.userId);
+    const kolId = chatDetail.kolId;
     if (!kolId) {
       // 如果当前用户不在 KOL 列表中，显示错误
       const errorMessage: ChatMessage = {
@@ -483,6 +473,9 @@ export function KolAiChatDialog() {
       const response = await fetchKolChat(kolId, messagesForApi, abortControllerRef.current.signal);
       abortControllerRef.current = null;
 
+      // 会话已过期则丢弃结果
+      if (sessionIdRef.current !== activeSession) return;
+
       if (!response) {
         throw new Error('Failed to get AI response');
       }
@@ -534,6 +527,9 @@ export function KolAiChatDialog() {
         throw new Error('Empty response from AI');
       }
 
+      // 会话已过期则丢弃结果
+      if (sessionIdRef.current !== activeSession) return;
+
       // 先更新 messages 状态，让消息内容立即生效（避免打字完成后内容消失）
       setMessages((prev) => {
         const newMessages = [...prev];
@@ -546,6 +542,7 @@ export function KolAiChatDialog() {
 
       // 设置目标内容并开始打字效果
       targetContentRef.current = reply;
+      if (sessionIdRef.current !== activeSession) return;
       startTypingEffect(0);
 
       // 自动滚动
@@ -557,11 +554,13 @@ export function KolAiChatDialog() {
         content: reply,
       };
       await chatHistoryManager.addMessage(chatDetail.userId, finalAiMessage);
+      if (sessionIdRef.current !== activeSession) return;
 
       // 延迟滚动到底部
       setTimeout(() => scrollToBottom(), 100);
     } catch (error) {
       console.error('AI chat error:', error);
+      if (sessionIdRef.current !== activeSession) return;
 
       // 显示错误消息
       const errorMessage: ChatMessage = {
@@ -576,7 +575,9 @@ export function KolAiChatDialog() {
         setMessages(updatedHistory);
       }
     } finally {
-      setIsResponding(false);
+      if (sessionIdRef.current === activeSession) {
+        setIsResponding(false);
+      }
     }
   };
 
@@ -589,6 +590,8 @@ export function KolAiChatDialog() {
 
   // 停止当前回答（仅停止打字效果，因为是非流式）
   const handleStopResponding = async () => {
+    const activeSession = sessionIdRef.current;
+
     // 如果在请求中，取消请求
     if (isRespondingRef.current && abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -615,6 +618,7 @@ export function KolAiChatDialog() {
       setDisplayedContent(targetContentRef.current);
       // 更新消息状态，让完整内容显示
       setMessages((prev) => {
+        if (sessionIdRef.current !== activeSession) return prev;
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
@@ -623,7 +627,7 @@ export function KolAiChatDialog() {
         return newMessages;
       });
       // 保存完整内容到历史记录
-      if (chatDetail) {
+      if (chatDetail && sessionIdRef.current === activeSession) {
         const finalMessage: ChatMessage = {
           role: 'assistant',
           content: targetContentRef.current,
@@ -729,13 +733,8 @@ export function KolAiChatDialog() {
         </div>
 
         {/* 免责声明横幅 */}
-        <div className={`px-4 py-2 text-xs text-center ${kolType === 'official'
-          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-          }`}>
-          {kolType === 'official'
-            ? t('aiDisclaimerOfficial')
-            : t('aiDisclaimerUnofficial')}
+        <div className='px-4 py-2 text-xs text-center bg-amber-500/10 text-amber-600 dark:text-amber-400'>
+          {t('aiDisclaimerUnofficial')}
         </div>
 
         {/* 消息区域（仅内容滚动） */}
@@ -819,7 +818,9 @@ export function KolAiChatDialog() {
                               } as React.CSSProperties
                             }
                             dangerouslySetInnerHTML={{
-                              __html: simpleMarkdownToHtml(message.content),
+                              __html: sanitizeHtml(
+                                simpleMarkdownToHtml(message.content)
+                              ),
                             }}
                           />
                         )}

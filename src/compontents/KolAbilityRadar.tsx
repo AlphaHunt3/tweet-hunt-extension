@@ -22,7 +22,70 @@ interface KolAbilityRadarProps {
   userId: string;
   newTwitterData?: NewTwitterUserData | null;
   loadingTwInfo?: boolean;
+  titleExtra?: React.ReactNode;
+  updateTime?: string | number | null;
 }
+
+const formatAbilityUpdateDate = (value?: string | number | null) => {
+  if (value === undefined || value === null) return '';
+
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  const pad = (num: string | number) => String(num).padStart(2, '0');
+  const formatDate = (date: Date) =>
+    `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+
+  const dateOnlyMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (dateOnlyMatch) {
+    return `${dateOnlyMatch[1]}/${pad(dateOnlyMatch[2])}/${pad(
+      dateOnlyMatch[3],
+    )}`;
+  }
+
+  const numericValue = Number(raw);
+  if (Number.isFinite(numericValue)) {
+    const timestamp =
+      numericValue > 0 && numericValue < 1_000_000_000_000
+        ? numericValue * 1000
+        : numericValue;
+    const date = new Date(timestamp);
+    if (!Number.isNaN(date.getTime())) return formatDate(date);
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) return formatDate(date);
+
+  return raw;
+};
+
+const buildAbilityFooter = (
+  template: string,
+  updateTime?: string | number | null,
+  lang?: string,
+) => {
+  const updateDate = formatAbilityUpdateDate(updateTime);
+  if (!template) return '';
+  if (!updateDate) {
+    return template
+      .replace(/[，,]\s*(更新时间|Updated)\s*[:：]\s*\{date\}/i, '')
+      .replace(/\{date\}/g, '')
+      .trim();
+  }
+  if (template.includes('{date}')) {
+    return template.replace(/\{date\}/g, updateDate);
+  }
+
+  const footerWithUpdatedDate = template.replace(
+    /\d{4}[/-]\d{1,2}[/-]\d{1,2}/,
+    updateDate,
+  );
+  if (footerWithUpdatedDate !== template) return footerWithUpdatedDate;
+
+  return lang === 'zh'
+    ? `${template}，更新时间：${updateDate}`
+    : `${template}, Updated: ${updateDate}`;
+};
 
 // 🆕 localStorage缓存管理
 interface AvatarCacheEntry {
@@ -55,17 +118,17 @@ const CANVAS_CONFIG = {
 // 🆕 安全的画布尺寸计算
 const calculateSafeCanvasSize = (
   requestedWidth: number,
-  requestedHeight: number
+  requestedHeight: number,
 ) => {
   try {
     // 限制尺寸范围
     let safeWidth = Math.max(
       CANVAS_CONFIG.MIN_WIDTH,
-      Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH)
+      Math.min(requestedWidth, CANVAS_CONFIG.MAX_WIDTH),
     );
     let safeHeight = Math.max(
       CANVAS_CONFIG.MIN_HEIGHT,
-      Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT)
+      Math.min(requestedHeight, CANVAS_CONFIG.MAX_HEIGHT),
     );
 
     // 检查总面积
@@ -262,16 +325,18 @@ function KolAbilityRadar({
   userId,
   newTwitterData,
   loadingTwInfo,
+  titleExtra,
+  updateTime,
 }: KolAbilityRadarProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(() =>
     calculateSafeCanvasSize(
       CANVAS_CONFIG.DEFAULT_WIDTH,
-      CANVAS_CONFIG.DEFAULT_HEIGHT
-    )
+      CANVAS_CONFIG.DEFAULT_HEIGHT,
+    ),
   );
   const {
     handler: hookUsername,
@@ -289,7 +354,7 @@ function KolAbilityRadar({
           source: 'data-testid' as const,
         }
         : null,
-    [hookUsername, hookName, hookAvatar]
+    [hookUsername, hookName, hookAvatar],
   );
   const domUserInfoLoading = hookLoading;
 
@@ -391,7 +456,7 @@ function KolAbilityRadar({
       // 🆕 安全的画布尺寸计算
       const safeSize = calculateSafeCanvasSize(
         canvasSize.width,
-        canvasSize.height
+        canvasSize.height,
       );
       const displayWidth = safeSize.width;
       const displayHeight = safeSize.height;
@@ -402,7 +467,7 @@ function KolAbilityRadar({
       if (canvasArea > CANVAS_CONFIG.MAX_CANVAS_AREA * 4) {
         // 考虑设备像素比的影响
         console.log(
-          'Canvas area too large, skipping render to prevent memory overflow'
+          'Canvas area too large, skipping render to prevent memory overflow',
         );
         return;
       }
@@ -533,7 +598,7 @@ function KolAbilityRadar({
             // 绘制能力名称
             const labelText = safeString(
               radarData[i]?.ability,
-              `Label${i + 1}`
+              `Label${i + 1}`,
             );
 
             // 🔧 处理长文本，如果超过6个字符则截断
@@ -553,41 +618,6 @@ function KolAbilityRadar({
         }
       } catch {
         console.log('Failed to draw labels');
-      }
-
-      // 🆕 绘制每个点的分数
-      try {
-        ctx.fillStyle = personalizedColors.primary;
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        for (let i = 0; i < radarData.length; i++) {
-          try {
-            const angle = i * angleStep - Math.PI / 2; // 从正上方开始
-            const value = safeNumber(radarData[i]?.value, 50, 0, 100);
-            const dataRadius = (radius * value) / 100;
-
-            // 分数显示在数据点稍微外侧
-            const scoreRadius = dataRadius + 12;
-            const scoreX = centerX + Math.cos(angle) * scoreRadius;
-            const scoreY = centerY + Math.sin(angle) * scoreRadius;
-
-            // 验证坐标是否有效
-            if (!isFinite(scoreX) || !isFinite(scoreY)) continue;
-
-            // 🔧 修复 textContent 为 null 的问题 - 确保分数文字有效
-            const scoreText = value != null ? value.toString() : '0';
-            if (scoreText && typeof scoreText === 'string') {
-              ctx.fillText(scoreText, scoreX, scoreY);
-            }
-          } catch {
-            // 单个分数绘制失败时继续下一个
-            continue;
-          }
-        }
-      } catch {
-        console.log('Failed to draw scores');
       }
 
       // 绘制数据区域 - 使用个性化颜色
@@ -656,12 +686,52 @@ function KolAbilityRadar({
       } catch {
         console.log('Failed to draw data points');
       }
+
+      // 🆕 绘制每个点的分数：限制在外圈内侧，避免高分时和外侧能力名称重叠
+      try {
+        ctx.fillStyle = personalizedColors.primary;
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i < radarData.length; i++) {
+          try {
+            const angle = i * angleStep - Math.PI / 2; // 从正上方开始
+            const value = safeNumber(radarData[i]?.value, 50, 0, 100);
+            const dataRadius = (radius * value) / 100;
+
+            // 分数和数据点保持固定间距，避免文字压在多边形节点上
+            const scoreGap = 18;
+            const outerScoreRadius = dataRadius + scoreGap;
+            const scoreRadius =
+              outerScoreRadius <= radius - 10
+                ? outerScoreRadius
+                : Math.max(12, dataRadius - scoreGap);
+            const scoreX = centerX + Math.cos(angle) * scoreRadius;
+            const scoreY = centerY + Math.sin(angle) * scoreRadius;
+
+            // 验证坐标是否有效
+            if (!isFinite(scoreX) || !isFinite(scoreY)) continue;
+
+            // 🔧 修复 textContent 为 null 的问题 - 确保分数文字有效
+            const scoreText = value != null ? value.toString() : '0';
+            if (scoreText && typeof scoreText === 'string') {
+              ctx.fillText(scoreText, scoreX, scoreY);
+            }
+          } catch {
+            // 单个分数绘制失败时继续下一个
+            continue;
+          }
+        }
+      } catch {
+        console.log('Failed to draw scores');
+      }
     } catch (error) {
       console.log('Canvas rendering error:', error);
       // 🆕 Canvas 渲染失败时的错误处理
       if (error instanceof Error && error.message.includes('out of memory')) {
         console.log(
-          'Canvas out of memory error detected, reducing canvas size'
+          'Canvas out of memory error detected, reducing canvas size',
         );
         // 尝试使用更小的画布尺寸
         const fallbackSize = calculateSafeCanvasSize(200, 150);
@@ -679,10 +749,10 @@ function KolAbilityRadar({
     };
   }, []);
 
-  // 能力模型数据说明话术（写死，从翻译文件读取）
+  // 能力模型数据说明话术：日期优先使用接口返回的 update/updateDate/updatedAt
   const abilityFooter = useMemo(() => {
-    return t('abilityModelFooter') || '';
-  }, [t]);
+    return buildAbilityFooter(t('abilityModelFooter') || '', updateTime, lang);
+  }, [t, updateTime, lang]);
 
   if (isLoading) {
     return (
@@ -766,9 +836,11 @@ function KolAbilityRadar({
 
         {/* 功能标题移到右侧 */}
         <div className='text-right'>
-          <h3 className='text-xs font-medium theme-text-primary'>
-            {t('kolAbilityModel')}
-          </h3>
+          {titleExtra || (
+            <h3 className='text-xs font-medium theme-text-primary'>
+              {t('kolAbilityModel')}
+            </h3>
+          )}
         </div>
       </div>
 

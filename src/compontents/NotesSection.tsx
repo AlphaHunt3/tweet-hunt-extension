@@ -18,50 +18,11 @@ import useWaitForElement from '~contents/hooks/useWaitForElement';
 
 interface NotesSectionProps {
   userId: string;
+  twitterId?: string | number | null;
   reviewInfo: ReviewStats | undefined | null;
 }
 
-// 生成基于字符串的一致颜色
-function generateTagColor(text: string): string {
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  // 生成柔和的颜色
-  const hue = Math.abs(hash) % 360;
-  const saturation = 45 + (Math.abs(hash) % 25); // 45-70%
-  const lightness = 65 + (Math.abs(hash) % 20); // 65-85%
-
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-}
-
-// 官方标签组件
-function OfficialTag({ text }: { text: string }) {
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const backgroundColor = generateTagColor(text);
-
-  return (
-    <span
-      className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium h-7 pointer-events-none'
-      style={{
-        backgroundColor:
-          theme === 'dark' ? `${backgroundColor}20` : `${backgroundColor}30`,
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: theme === 'dark' ? 'rgba(207,217,223,0.45)' : '#CFD9DF',
-        color:
-          theme === 'dark'
-            ? backgroundColor
-            : `hsl(${backgroundColor?.match(/\d+/)?.[0] || 0}, 70%, 35%)`,
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
+function _NotesSection({ userId, twitterId, reviewInfo }: NotesSectionProps) {
   const { t, lang } = useI18n();
   const { isEnabled } = useCrossPageSettings();
   const [token] = useLocalStorage('@xhunt/token', '');
@@ -99,7 +60,8 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
         await officialTagsManager.init();
         const tags = officialTagsManager.getUserTags(
           userId,
-          lang as 'zh' | 'en'
+          lang as 'zh' | 'en',
+          twitterId == null ? null : String(twitterId)
         );
         if (mounted) setOfficialTags(tags || []);
       } catch {
@@ -110,7 +72,7 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
     return () => {
       mounted = false;
     };
-  }, [userId, lang]);
+  }, [userId, twitterId, lang]);
 
   const {
     data: userNote,
@@ -231,40 +193,59 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
     setNoteText(trimmedValue);
   };
 
+  const shouldShowOfficialTags =
+    isEnabled('showOfficialTags') && officialTags.length > 0;
+  const shouldShowNoteEntry = isEnabled('showNotes') && !editProfileButtonEl;
+  const officialTagsText = officialTags.join(' · ');
+  const isDark = theme === 'dark';
+  const metaBg = isDark ? 'rgba(255,255,255,0.035)' : 'rgba(15,20,25,0.035)';
+  const noteBg = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(15,20,25,0.025)';
+
   return (
     <ErrorBoundary name='NotesSection'>
-      <div className='flex flex-col gap-1.5 max-w-[250px]'>
-        {/* 官方标签区域 - 受设置控制 */}
-        {isEnabled('showOfficialTags') ? (
-          <div className='flex flex-wrap items-center gap-1.5'>
-            {officialTags.length > 0
-              ? officialTags.map((tag, index) => (
-                  <OfficialTag key={index} text={tag} />
-                ))
-              : null}
+      <div className='flex flex-wrap items-center gap-1 max-w-[360px]'>
+        {shouldShowOfficialTags && (
+          <div
+            className='inline-flex min-h-[22px] items-center rounded-full px-2 py-1 text-[12px] leading-none theme-text-secondary'
+            title={officialTagsText}
+            style={{
+              background: metaBg,
+            }}
+          >
+            <span className='flex flex-wrap items-center gap-x-1.5 gap-y-1'>
+              {officialTags.map((tag, index) => (
+                <React.Fragment key={`${tag}-${index}`}>
+                  <span className='whitespace-nowrap'>{tag}</span>
+                  {index < officialTags.length - 1 && (
+                    <span className='shrink-0 theme-text-tertiary opacity-50'>
+                      ·
+                    </span>
+                  )}
+                </React.Fragment>
+              ))}
+            </span>
           </div>
-        ) : null}
+        )}
 
-        {/* 备注区域 - 受设置控制；在个人主页（有编辑按钮）时隐藏 */}
-        {isEnabled('showNotes') && !editProfileButtonEl ? (
-          <div className='flex items-center'>
+        {shouldShowNoteEntry ? (
+          <div className='flex items-center min-w-0'>
             {loadingNote ? (
               // 加载状态
-              <div className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed theme-border h-6'>
-                <StickyNote className='w-3 h-3 theme-text-secondary opacity-60 flex-shrink-0' />
-                <span className='text-xs theme-text-secondary opacity-70 truncate'>
-                  {t('loading')}
-                </span>
+              <div
+                className='inline-flex h-[22px] items-center rounded-full px-2 text-[12px] leading-none theme-text-tertiary'
+                style={{ background: noteBg }}
+              >
+                <span className='truncate'>{t('loading')}</span>
               </div>
             ) : calcDisplayNote && token ? (
               // 已有备注状态
               <div
-                className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed theme-border cursor-pointer hover:border-gray-400/60 hover:theme-bg-tertiary/30 text-xs font-medium theme-text-primary h-6'
+                className='inline-flex h-[22px] max-w-[160px] cursor-pointer items-center rounded-full px-2 text-[12px] leading-none theme-text-tertiary transition-colors hover:theme-text-secondary'
                 onClick={handleEdit}
                 title={calcDisplayNote}
                 ref={targetRef}
+                style={{ background: noteBg }}
               >
-                <StickyNote className='w-3 h-3 theme-text-secondary opacity-60 flex-shrink-0' />
                 <span className='truncate'>{calcDisplayNote}</span>
               </div>
             ) : (
@@ -272,11 +253,11 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
               <div
                 ref={targetRef}
                 onClick={handleEdit}
-                className='cursor-pointer inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed theme-border hover:border-gray-400/60 hover:theme-bg-tertiary/30 text-xs font-medium theme-text-secondary h-6'
+                className='inline-flex h-[22px] cursor-pointer items-center rounded-full px-2 text-[12px] leading-none theme-text-tertiary opacity-60 transition-colors hover:theme-text-secondary hover:opacity-100'
                 title={t('addNote')}
+                style={{ background: noteBg }}
               >
-                <StickyNote className='w-3 h-3 opacity-60 flex-shrink-0' />
-                <span className='opacity-60 truncate'>{t('addNote')}</span>
+                <span className='truncate'>{t('note')}</span>
               </div>
             )}
           </div>
@@ -290,16 +271,18 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
               targetRef={targetRef}
               offsetX={15}
               offsetY={20}
-              maxWidth='280px'
+              maxWidth='300px'
               maxHeight='320px'
             >
               <div
                 data-theme={theme}
-                className='w-[260px] theme-bg-secondary rounded-lg p-4 space-y-3 shadow-xl border theme-border'
+                className='w-[280px] theme-bg-secondary rounded-2xl p-3.5 space-y-3 shadow-[0_12px_32px_rgba(0,0,0,0.22)] border theme-border'
               >
-                <div className='flex items-center gap-2 mb-2'>
-                  <StickyNote className='w-4 h-4 text-blue-400' />
-                  <h3 className='text-sm font-medium theme-text-primary'>
+                <div className='flex items-center gap-2'>
+                  <span className='flex h-7 w-7 items-center justify-center rounded-full bg-[#1d9bf0]/10'>
+                    <StickyNote className='w-3.5 h-3.5 text-[#1d9bf0]' />
+                  </span>
+                  <h3 className='text-[13px] font-semibold theme-text-primary'>
                     {t('addNote')}
                   </h3>
                 </div>
@@ -324,13 +307,23 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
                       isComposingRef.current = false;
                     }}
                     placeholder={t('enterNoteHere')}
-                    className='theme-text-primary w-full h-20 px-3 py-2 rounded-md bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0]/50 focus:border-[#1d9bf0] placeholder-gray-400 leading-relaxed'
+                    className='theme-text-primary w-full h-20 px-3 py-2.5 rounded-xl border text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0]/40 focus:border-[#1d9bf0]/60 placeholder-gray-400 leading-relaxed transition-colors'
                     maxLength={30}
-                    style={{ lineHeight: '1.5' }}
+                    style={{
+                      lineHeight: '1.5',
+                      backgroundColor:
+                        theme === 'dark'
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(15,20,25,0.035)',
+                      borderColor:
+                        theme === 'dark'
+                          ? 'rgba(139,152,165,0.22)'
+                          : 'rgba(15,20,25,0.12)',
+                    }}
                   />
                   <div className='flex items-center justify-between mt-1 text-xs theme-text-secondary'>
                     <span
-                      className={`${
+                      className={`rounded-full px-1.5 py-0.5 ${
                         noteText.length > 30 ? 'text-red-500 font-medium' : ''
                       }`}
                     >
@@ -347,7 +340,7 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
                   <button
                     onClick={handleSave}
                     disabled={savingNote}
-                    className='flex-1 py-2 rounded-md text-white text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-[#1d9bf0] hover:bg-[#1a8cd8] flex items-center justify-center gap-2'
+                    className='flex-1 py-2 rounded-full text-white text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-[#1d9bf0] hover:bg-[#1a8cd8] flex items-center justify-center gap-2 shadow-sm'
                   >
                     {savingNote && <Loader2 className='w-4 h-4 animate-spin' />}
                     {t('save')}
@@ -355,7 +348,7 @@ function _NotesSection({ userId, reviewInfo }: NotesSectionProps) {
                   <button
                     onClick={handleCancel}
                     disabled={savingNote}
-                    className='px-4 py-2 rounded-md text-sm font-medium theme-text-secondary hover:theme-text-primary theme-hover transition-all duration-200 disabled:opacity-50 border theme-border'
+                    className='px-4 py-2 rounded-full text-sm font-medium theme-text-secondary hover:theme-text-primary theme-hover transition-all duration-200 disabled:opacity-50'
                   >
                     {t('cancel')}
                   </button>

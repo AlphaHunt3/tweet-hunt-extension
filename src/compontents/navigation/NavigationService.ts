@@ -5,13 +5,16 @@ export interface NavigationService {
   navigateTo: (
     panelId: string,
     route: string,
-    props?: Record<string, any>
+    props?: Record<string, any>,
   ) => void;
   registerPanel: (
     panelId: string,
-    navigateCallback: (route: string, props?: Record<string, any>) => void
+    navigateCallback: (route: string, props?: Record<string, any>) => void,
   ) => void;
   unregisterPanel: (panelId: string) => void;
+  getPanelHistory: (panelId: string) => string[] | undefined;
+  savePanelHistory: (panelId: string, history: string[]) => void;
+  clearPanelHistory: (panelId: string) => void;
 }
 
 class NavigationServiceImpl implements NavigationService {
@@ -20,10 +23,23 @@ class NavigationServiceImpl implements NavigationService {
     (route: string, props?: Record<string, any>) => void
   > = {};
 
+  private getStorageKey(panelId: string): string {
+    return `@xhunt/navigation/${panelId}/history`;
+  }
+
+  private getSessionStorage(): Storage | undefined {
+    try {
+      if (typeof window === 'undefined') return undefined;
+      return window.sessionStorage;
+    } catch {
+      return undefined;
+    }
+  }
+
   navigateTo(
     panelId: string,
     route: string,
-    props?: Record<string, any>
+    props?: Record<string, any>,
   ): void {
     const navigateCallback = this.panels[panelId];
     if (navigateCallback) {
@@ -36,13 +52,48 @@ class NavigationServiceImpl implements NavigationService {
 
   registerPanel(
     panelId: string,
-    navigateCallback: (route: string, props?: Record<string, any>) => void
+    navigateCallback: (route: string, props?: Record<string, any>) => void,
   ): void {
     this.panels[panelId] = navigateCallback;
   }
 
   unregisterPanel(panelId: string): void {
     delete this.panels[panelId];
+  }
+
+  getPanelHistory(panelId: string): string[] | undefined {
+    try {
+      const storage = this.getSessionStorage();
+      const rawHistory = storage?.getItem(this.getStorageKey(panelId));
+      if (!rawHistory) return undefined;
+
+      const history = JSON.parse(rawHistory);
+      if (!Array.isArray(history)) return undefined;
+
+      return history.filter(
+        (route): route is string => typeof route === 'string',
+      );
+    } catch {
+      return undefined;
+    }
+  }
+
+  savePanelHistory(panelId: string, history: string[]): void {
+    try {
+      const storage = this.getSessionStorage();
+      if (!storage) return;
+
+      storage.setItem(
+        this.getStorageKey(panelId),
+        JSON.stringify(history.filter((route) => typeof route === 'string')),
+      );
+    } catch { }
+  }
+
+  clearPanelHistory(panelId: string): void {
+    try {
+      this.getSessionStorage()?.removeItem(this.getStorageKey(panelId));
+    } catch { }
   }
 }
 

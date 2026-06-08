@@ -6,6 +6,7 @@ import { UserInfo, StoredUserInfo } from '~types/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { openNewTab } from '~contents/utils';
+import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { clearAuthState } from '~contents/utils/auth.ts';
 import { Github } from 'lucide-react';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
@@ -26,7 +27,8 @@ function _UserAuthPanel({
     '@xhunt/user',
     null
   );
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { domains, primaryDomain } = useUserDomain();
 
   // const isPro = userInfo?.isPro ?? false;
   // const proExpiryTime = userInfo?.proExpiryTime;
@@ -45,7 +47,7 @@ function _UserAuthPanel({
       if (ret?.url) {
         openNewTab(ret.url);
       }
-    } catch (e) {}
+    } catch (e) { }
   });
 
   // const handleInviteCodeSubmit = useLockFn(async () => {
@@ -175,6 +177,38 @@ function _UserAuthPanel({
             </span>
           </div>
         </div>
+        <div className='flex-1' />
+
+        {/* 当前领域 - 简洁展示
+        <div className='flex items-center gap-1 mr-1 pointer-events-none'>
+          {domains.includes('web3') && domains.includes('ai') ? (
+            <>
+              {primaryDomain === 'web3' ? (
+                <>
+                  <span className='text-[10px] theme-text-secondary'>Web3</span>
+                  <span className='text-[10px] theme-text-secondary'>·</span>
+                  <span className='text-[10px] theme-text-secondary'>AI</span>
+                </>
+              ) : (
+                <>
+                  <span className='text-[10px] theme-text-secondary'>AI</span>
+                  <span className='text-[10px] theme-text-secondary'>·</span>
+                  <span className='text-[10px] theme-text-secondary'>Web3</span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {domains.includes('web3') && (
+                <span className='text-[10px] theme-text-secondary'>Web3</span>
+              )}
+              {domains.includes('ai') && (
+                <span className='text-[10px] theme-text-secondary'>AI</span>
+              )}
+            </>
+          )}
+        </div> */}
+
         <button
           onClick={() => {
             setShowLogout(!showLogout);

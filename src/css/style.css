@@ -8,10 +8,14 @@ div[data-theme='light'] {
   --bg-primary: #ffffff;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f3f4f6;
+  --xhunt-accent: #1d9bf0;
+  --xhunt-accent-hover: #1a8cd8;
+  --xhunt-accent-soft: rgba(29, 155, 240, 0.1);
   --text-primary: #000000;
   --text-secondary: #4a5568;
+  --text-tertiary: #9ca3af;
   --border-color: #eff3f4;
-  --border-color-soft: rgba(107, 114, 128, 0.20);
+  --border-color-soft: rgba(107, 114, 128, 0.2);
   --hover-bg: #f3f4f6;
   --icon-color: #6b7280;
   --icon-hover-color: #374151;
@@ -21,8 +25,12 @@ div[data-theme='dark'] {
   --bg-primary: #15202b;
   --bg-secondary: #1a2634;
   --bg-tertiary: #1e2732;
+  --xhunt-accent: #1d9bf0;
+  --xhunt-accent-hover: #1a8cd8;
+  --xhunt-accent-soft: rgba(29, 155, 240, 0.14);
   --text-primary: #ffffff;
   --text-secondary: #a0aec0;
+  --text-tertiary: #64748b;
   --border-color: #374151;
   --border-color-soft: rgba(163, 172, 184, 0.4);
   --hover-bg: #283340;
@@ -51,6 +59,10 @@ div[data-theme='dark'] {
   color: var(--text-secondary);
 }
 
+.theme-text-tertiary {
+  color: var(--text-tertiary);
+}
+
 .theme-border {
   border-color: var(--border-color);
 }
@@ -71,6 +83,26 @@ div[data-theme='dark'] {
   color: var(--icon-hover-color);
 }
 
+.theme-accent-text {
+  color: var(--xhunt-accent);
+}
+
+.theme-accent-bg {
+  background-color: var(--xhunt-accent);
+}
+
+.theme-accent-bg:hover {
+  background-color: var(--xhunt-accent-hover);
+}
+
+.theme-accent-border {
+  border-color: var(--xhunt-accent);
+}
+
+.theme-accent-soft-bg {
+  background-color: var(--xhunt-accent-soft);
+}
+
 /* Ask 按钮图标在深浅色主题下的可读性优化 */
 .xhunt-ask-icon {
   color: #111827; /* 默认深色 */
@@ -87,6 +119,42 @@ div[data-theme='dark'] {
 
 [data-theme='dark'] .xhunt-ask-border {
   border-color: #2f3336; /* Twitter 暗色边框 */
+}
+
+/* AI Avatar 按钮背景 - 适配深浅色主题 */
+.xhunt-ask-bg {
+  background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #fdf2f8 100%);
+}
+
+.xhunt-ask-bg:hover {
+  background: linear-gradient(135deg, #f5f3ff 0%, #fdf2f8 50%, #eff6ff 100%);
+}
+
+[data-theme='dark'] .xhunt-ask-bg {
+  background: linear-gradient(
+    135deg,
+    rgba(29, 155, 240, 0.15) 0%,
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(236, 72, 153, 0.15) 100%
+  );
+}
+
+[data-theme='dark'] .xhunt-ask-bg:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.2) 0%,
+    rgba(236, 72, 153, 0.2) 50%,
+    rgba(29, 155, 240, 0.2) 100%
+  );
+}
+
+/* AI Avatar 按钮文字颜色 */
+.xhunt-ask-text {
+  color: #111827;
+}
+
+[data-theme='dark'] .xhunt-ask-text {
+  color: #e5e7eb;
 }
 
 /* 🎨 通用自定义滚动条样式 - 超细、简约、不占据布局空间 */
@@ -152,7 +220,7 @@ div[data-theme='dark'] {
   display: none;
 }
 
-/* ✨ AI Chat 专用滚动条：更纤细、更圆润、主题渐变 */
+/* 🏅 AI Chat 专用滚动条：更纤细、更圆润、主题渐变 */
 .ai-scrollbar {
   scrollbar-width: thin;
 }
@@ -169,7 +237,7 @@ div[data-theme='dark'] {
 .ai-scrollbar::-webkit-scrollbar-thumb {
   background: linear-gradient(
     180deg,
-    rgba(59, 130, 246, 0.25),
+    rgba(29, 155, 240, 0.25),
     rgba(168, 85, 247, 0.25),
     rgba(236, 72, 153, 0.25)
   );
@@ -179,7 +247,7 @@ div[data-theme='dark'] {
 .ai-scrollbar:hover::-webkit-scrollbar-thumb {
   background: linear-gradient(
     180deg,
-    rgba(59, 130, 246, 0.45),
+    rgba(29, 155, 240, 0.45),
     rgba(168, 85, 247, 0.45),
     rgba(236, 72, 153, 0.45)
   );
@@ -189,7 +257,7 @@ div[data-theme='dark'] {
 [data-theme='dark'] .ai-scrollbar::-webkit-scrollbar-thumb {
   background: linear-gradient(
     180deg,
-    rgba(96, 165, 250, 0.35),
+    rgba(29, 155, 240, 0.35),
     rgba(192, 132, 252, 0.35),
     rgba(244, 114, 182, 0.35)
   );
@@ -198,7 +266,7 @@ div[data-theme='dark'] {
 [data-theme='dark'] .ai-scrollbar:hover::-webkit-scrollbar-thumb {
   background: linear-gradient(
     180deg,
-    rgba(96, 165, 250, 0.55),
+    rgba(29, 155, 240, 0.55),
     rgba(192, 132, 252, 0.55),
     rgba(244, 114, 182, 0.55)
   );
@@ -256,6 +324,20 @@ div[data-theme='dark'] {
   }
 }
 
+@keyframes xhunt-guide-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.07);
+  }
+}
+
+.xhunt-guide-breathe {
+  animation: xhunt-guide-breathe 2.4s ease-in-out infinite;
+}
+
 .lato-font {
   font-family: "'Lato','Noto Sans SC', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'";
 }
@@ -277,7 +359,7 @@ div[data-theme='dark'] {
   display: none; /* Chrome, Safari, Opera */
 }
 
-/* ✨ View Transition API 样式 - 用于 tab 切换动画 */
+/* 🏅 View Transition API 样式 - 用于 tab 切换动画 */
 @supports (view-transition-name: none) {
   /* 通用的淡入淡出动画 keyframes */
   @keyframes view-transition-fade-out {
@@ -345,12 +427,14 @@ div[data-theme='dark'] {
   }
 
   ::view-transition-old(panel-route-content) {
-    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
+    animation:
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
       0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-out-left;
   }
 
   ::view-transition-new(panel-route-content) {
-    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
+    animation:
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
       0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-in-right;
   }
 
@@ -403,20 +487,21 @@ div[data-theme='dark'] {
   }
 
   ::view-transition-old(personal-sidebar-content) {
-    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
+    animation:
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-out,
       0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-out-left;
   }
 
   ::view-transition-new(personal-sidebar-content) {
-    animation: 0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
+    animation:
+      0.25s cubic-bezier(0.4, 0, 0.2, 1) both view-transition-fade-in,
       0.25s cubic-bezier(0.4, 0, 0.2, 1) both slide-in-right;
   }
 }
 
 /* Normalize brightness for Twitter CDN imageshttps://public.rootdata */
-div[data-xhunt-exclude="true"] img[src^="https://pbs.twimg.com"],
-div[data-xhunt-exclude="true"] img[src^="https://public.rootdata"]
-{
+div[data-xhunt-exclude='true'] img[src^='https://pbs.twimg.com'],
+div[data-xhunt-exclude='true'] img[src^='https://public.rootdata'] {
   filter: brightness(1);
 }
 

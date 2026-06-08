@@ -75,8 +75,8 @@ function _ArticleBottomRightArea() {
 
   const baseBtnClass =
     'xhunt-article-bottom-right group flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 focus:outline-none overflow-hidden';
-  const buttonClassName = `${baseBtnClass} bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:opacity-90`;
-  const iconClassName = 'h-4 w-4 text-white';
+  const buttonClassName = `${baseBtnClass} hover:opacity-90`;
+  const iconClassName = 'h-4 w-4 text-current';
 
   const togglePanel = useCallback(() => {
     if (!buttonRef.current) return;
@@ -118,7 +118,14 @@ function _ArticleBottomRightArea() {
       onClick={togglePanel}
       aria-pressed={isPanelOpen}
       className={buttonClassName}
-      style={{ pointerEvents: 'auto' }}
+      style={{
+        pointerEvents: 'auto',
+        color: 'var(--xhunt-avatar-rank-text-color)',
+        background: 'var(--xhunt-avatar-rank-bg)',
+        border: '1px solid var(--xhunt-avatar-rank-border)',
+        boxShadow:
+          '0 1px 2px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.16)',
+      }}
     >
       <svg
         className={iconClassName}

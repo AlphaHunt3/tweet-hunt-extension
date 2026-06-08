@@ -1,34 +1,32 @@
 import React from 'react';
 import { useRequest } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
-import { HotProjectsKOLs } from './HotProjectsKOLs';
+import { Web3HotProjectsKOLs } from '../hotProjects/Web3HotProjectsKOLs';
 import {
   RealTimeSubscription,
   RealTimeSubscriptionRef,
-} from './RealTimeSubscription';
+} from '../RealTimeSubscription';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import {
   notificationEventManager,
   NotificationClickEvent,
 } from '~utils/notificationEvents';
-import { TopTabNavigator } from './TopTabNavigator';
+import { TopTabNavigator } from '../TopTabNavigator';
 import { useCrossPageSettings } from '~utils/settingsManager';
-import { getActiveHunterCampaignsAsync } from './HunterCampaign/campaignConfigs';
-import { ProRequired } from './ProRequired';
-import { LoginRequired } from './LoginRequired';
-import { HunterEarnSection } from './HunterEarnSection';
-import ErrorBoundary from './ErrorBoundary';
-// import AnnualReportSection from './AnnualReportSection';
-import AdBannerSection from './AdBannerSection';
+import { getActiveHunterCampaignsAsync } from '../HunterCampaign/campaignConfigs';
+import { ProRequired } from '../ProRequired';
+import { LoginRequired } from '../LoginRequired';
+import { HunterEarnSection } from '../HunterEarnSection';
+import ErrorBoundary from '../ErrorBoundary';
+import AdBannerSection from '../AdBannerSection';
 
-export interface TwitterHomeRightSidebarProps {
+export interface Web3HomeSidebarProps {
   className?: string;
 }
 
-export function TwitterHomeRightSidebar({
+export function Web3HomeSidebar({
   className = '',
-}: TwitterHomeRightSidebarProps) {
-  // const { t } = useI18n();
+}: Web3HomeSidebarProps) {
   const [activeTopTab, setActiveTopTab] = React.useState<
     'hot' | 'subs' | 'e2e'
   >('hot');
@@ -36,7 +34,6 @@ export function TwitterHomeRightSidebar({
   const { isEnabled } = useCrossPageSettings();
   const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
 
-  // 获取所有应该显示的活动配置列表（统一管理）- 每 200s 轮询刷新
   const { data: activeHunterCampaigns = [] } = useRequest(
     getActiveHunterCampaignsAsync,
     {
@@ -45,29 +42,22 @@ export function TwitterHomeRightSidebar({
     }
   );
 
-  // RealTimeSubscription 小红点状态管理
   const [
     realTimeSubscriptionHasNewMessage,
     setRealTimeSubscriptionHasNewMessage,
   ] = React.useState(false);
 
-  // RealTimeSubscription 的 ref
   const realTimeSubscriptionRef = React.useRef<RealTimeSubscriptionRef>(null);
 
-  // 动态生成顶部标签页选项
   const topTabs = React.useMemo(() => {
     const tabs = [];
-
-    // 检查热门趋势是否启用
-    if (isEnabled('showHotTrending')) {
+    if (isEnabled('showHotTrendingWeb3')) {
       tabs.push({
         id: 'hot',
         label: 'trendingNow',
-        hasRedDot: false, // HotProjectsKOLs 不需要小红点
+        hasRedDot: false,
       });
     }
-
-    // 检查实时订阅是否启用，且当前用户名已就绪
     if (isEnabled('showRealtimeSubscription') && currentUsername) {
       tabs.push({
         id: 'subs',
@@ -75,7 +65,6 @@ export function TwitterHomeRightSidebar({
         hasRedDot: realTimeSubscriptionHasNewMessage && activeTopTab === 'hot',
       });
     }
-
     return tabs;
   }, [
     isEnabled,
@@ -85,39 +74,27 @@ export function TwitterHomeRightSidebar({
     currentUsername,
   ]);
 
-  // 如果没有可用的标签页，自动调整activeTopTab
   React.useEffect(() => {
     if (topTabs.length === 0) {
-      setActiveTopTab('hot'); // 默认值，虽然不会显示
+      setActiveTopTab('hot');
     } else if (!topTabs.find((tab) => tab.id === activeTopTab)) {
-      // 如果当前激活的标签页不在可用列表中，切换到第一个可用的
       setActiveTopTab(topTabs[0].id as 'hot' | 'subs' | 'e2e');
     }
   }, [topTabs, activeTopTab]);
 
-  // 监听实时通知变化，设置小红点
   React.useEffect(() => {
     const handleStorageChange = (changes: { [key: string]: any }) => {
-      // 监听实时通知变化
       if (changes['xhunt:realtime_notification']?.newValue) {
         const message = changes['xhunt:realtime_notification'].newValue;
-
         if (message.type === 'REALTIME_FEED_UPDATE') {
-          const { dataType, isFirstLoad } = message;
-
-          // 跳过第一次加载的通知
-          if (isFirstLoad) {
-            return;
-          }
-
-          // 如果当前在 HotProjectsKOLs 页面，显示 RealTimeSubscription 小红点
+          const { isFirstLoad } = message;
+          if (isFirstLoad) return;
           if (activeTopTab === 'hot') {
             setRealTimeSubscriptionHasNewMessage(true);
           }
         }
       }
     };
-    // 使用加密存储监听
     const handler = async () => {
       try {
         const msg = await (
@@ -144,30 +121,22 @@ export function TwitterHomeRightSidebar({
     };
   }, [activeTopTab]);
 
-  // 监听 activeTopTab 切换，清除小红点
   React.useEffect(() => {
     if (activeTopTab === 'subs') {
       setRealTimeSubscriptionHasNewMessage(false);
     }
   }, [activeTopTab]);
 
-  // 监听通知点击事件
   React.useEffect(() => {
     const handleNotificationClick = (event: NotificationClickEvent) => {
-
-
-      // 切换到 RealTimeSubscription 标签页
       setActiveTopTab('subs');
-
-
-      // 延迟调用 RealTimeSubscription 的方法
       setTimeout(() => {
         if (realTimeSubscriptionRef.current) {
           realTimeSubscriptionRef.current.switchToTabAndHighlight(
             event.dataType
           );
         }
-      }, 100); // 给组件渲染一点时间
+      }, 100);
     };
 
     notificationEventManager.addEventListener(handleNotificationClick);
@@ -192,19 +161,16 @@ export function TwitterHomeRightSidebar({
         flexDirection: 'column',
       }}
     >
-      {/* Ad Banner section at the very top (替换原来的年度报告) */}
       {isEnabled('showAdBanner') && (
         <ErrorBoundary name='AdBannerSection'>
           <AdBannerSection />
         </ErrorBoundary>
       )}
 
-      {/* Campaign Banner at the very top - 独立控制 */}
       <ErrorBoundary name='HunterEarnSection'>
         <HunterEarnSection activeHunterCampaigns={activeHunterCampaigns} key={currentUsername} />
       </ErrorBoundary>
 
-      {/* 顶层 Tab 导航 - 只有在有多个标签页时才显示 */}
       {topTabs.length > 1 && (
         <TopTabNavigator
           tabs={topTabs}
@@ -213,7 +179,6 @@ export function TwitterHomeRightSidebar({
         />
       )}
 
-      {/* 顶层 Tab 内容区域 */}
       {Boolean(topTabs.length) && (
         <div className={topTabs.length > 1 ? 'pt-2' : ''}>
           {activeTopTab === 'subs' ? (
@@ -226,14 +191,9 @@ export function TwitterHomeRightSidebar({
             </LoginRequired>
           ) : (
             <ErrorBoundary name='HotProjectsKOLs'>
-              <HotProjectsKOLs />
+              <Web3HotProjectsKOLs />
             </ErrorBoundary>
           )}
-          {/* activeTopTab === 'e2e' ? (
-            <LoginRequired showInCenter={true}>
-              <EngageToEarn />
-            </LoginRequired>
-          )  */}
         </div>
       )}
     </div>

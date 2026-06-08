@@ -4,9 +4,10 @@ import { subscribeToMutation } from './useGlobalMutationObserver';
 import { useLocalStorage } from '~/storage/useLocalStorage';
 
 const AVATAR_SKIN_STORAGE_KEY = '@xhunt/avatar_skin';
+const AVATAR_SKIN_CUSTOMIZED_KEY = '@xhunt/avatar_skin_customized';
 
 // --- Helper Function ---
-function applySkin(skinId: string, avatarRankMode: 'influence' | 'composite') {
+function applySkin(skinId: string, avatarRankMode: 'web3' | 'ai') {
   try {
     if (typeof document === 'undefined') return;
 
@@ -65,21 +66,32 @@ export function useAvatarSkinState() {
     AVATAR_SKIN_STORAGE_KEY,
     'skin-1'
   );
-  return { skin, setSkin, isLoading };
+  const [isCustomized, setIsCustomized] = useLocalStorage<boolean>(
+    AVATAR_SKIN_CUSTOMIZED_KEY,
+    false
+  );
+  const setSkinCustomized = (id: string) => {
+    setSkin(id);
+    setIsCustomized(true);
+  };
+  return { skin, setSkin, setSkinCustomized, isCustomized, isLoading };
 }
 
 // --- Hook for Initialization (for side effects) ---
 export function useAvatarSkinInitializer() {
-  const { skin: avatarSkinId, isLoading: isSkinLoading } = useAvatarSkinState();
+  const { skin: avatarSkinId, setSkin, isCustomized, isLoading: isSkinLoading } = useAvatarSkinState();
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
+    useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
-      'influence'
+      'web3'
     );
   const isLoading = useMemo(
     () => isSkinLoading || isAvatarRankModeLoading,
     [isSkinLoading, isAvatarRankModeLoading]
   );
+
+  // 皮肤不再自动跟随排名模式变化，保持用户手动选择或默认值
+
   useEffect(() => {
     if (isLoading) return;
     // 1. Apply the skin initially

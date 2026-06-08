@@ -1,21 +1,14 @@
-import {
-  useDebounceEffect,
-  useDebounceFn,
-  useLatest,
-  useRequest,
-} from 'ahooks';
+import { useDebounceFn, useRequest } from 'ahooks';
 import {
   fetchDelTwitterInfo,
   fetchRootDataInfo,
   fetchProjectMember,
-  fetchSupportedTokens,
   fetchTwitterInfoNew,
   convertNewDataToKolData,
   convertNewDataToPopularityInfo,
   fetchTwRenameInfo,
 } from '~contents/services/api.ts';
-import { useEffect, useMemo, useState } from 'react';
-import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
+import { useEffect, useMemo } from 'react';
 import {
   AccountsResponse,
   DeletedTweet,
@@ -24,7 +17,6 @@ import {
   NewTwitterUserData,
   PopularityInfoType,
   ProjectMemberData,
-  SupportedToken,
 } from '~types';
 import {
   getHandeReviewInfo,
@@ -54,8 +46,6 @@ export interface MainData {
   refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
   discussionInfo: PopularityInfoType | null | undefined;
   loadingDiscussionInfo: boolean;
-  supportedTokens: SupportedToken[] | null;
-  loadingSupportedTokens: boolean;
   projectMemberData: ProjectMemberData | null;
   loadingProjectMember: boolean;
   newTwitterData: NewTwitterUserData | null;
@@ -166,15 +156,6 @@ const useMainData = (): MainData => {
     ...defaultRequestConfig,
   });
 
-  /** 查询支持的token，无需当前浏览页面的userid/twid */
-  const {
-    data: supportedTokens = null,
-    run: fetchSupportedTokensData,
-    loading: loadingSupportedTokens,
-  } = useRequest(fetchSupportedTokens, {
-    ...defaultRequestConfig,
-  });
-
   /** 已改成twid查询 */
   const {
     data: projectMemberData = null,
@@ -197,7 +178,7 @@ const useMainData = (): MainData => {
       wait: 20,
       leading: false,
       trailing: true,
-    }
+    },
   );
 
   useEffect(() => {
@@ -223,7 +204,6 @@ const useMainData = (): MainData => {
   }, [twInfo?.basicInfo?.classification, isProfileHtmlReady]);
   useEffect(() => {
     fetchUserInfo();
-    fetchSupportedTokensData();
   }, []);
 
   // 将 newTwitterData 暴露给其他组件使用
@@ -232,34 +212,61 @@ const useMainData = (): MainData => {
       return projectMemberData;
     }
     return null;
-  }, [projectMemberData, isProfileHtmlReady]);
+  }, [
+    twInfo?.basicInfo?.classification,
+    projectMemberData,
+    isProfileHtmlReady,
+  ]);
 
-  return {
-    currentUrl,
-    userId,
-    deletedTweets,
-    twInfo,
-    loadingTwInfo,
-    loadingDel,
-    error,
-    rootData,
-    loadingRootData,
-    renameInfo,
-    loadingRenameInfo,
-    reviewInfo,
-    loadingReviewInfo,
-    refreshAsyncReviewInfo,
-    userInfo,
-    loadingUserInfo,
-    refreshAsyncUserInfo,
-    discussionInfo,
-    loadingDiscussionInfo: loadingTwInfo,
-    supportedTokens,
-    loadingSupportedTokens,
-    projectMemberData: projectMemberDataProxy,
-    loadingProjectMember,
-    newTwitterData,
-  };
+  return useMemo(
+    () => ({
+      currentUrl,
+      userId,
+      deletedTweets,
+      twInfo,
+      loadingTwInfo,
+      loadingDel,
+      error,
+      rootData,
+      loadingRootData,
+      renameInfo,
+      loadingRenameInfo,
+      reviewInfo,
+      loadingReviewInfo,
+      refreshAsyncReviewInfo,
+      userInfo,
+      loadingUserInfo,
+      refreshAsyncUserInfo,
+      discussionInfo,
+      loadingDiscussionInfo: loadingTwInfo,
+      projectMemberData: projectMemberDataProxy,
+      loadingProjectMember,
+      newTwitterData,
+    }),
+    [
+      currentUrl,
+      userId,
+      deletedTweets,
+      twInfo,
+      loadingTwInfo,
+      loadingDel,
+      error,
+      rootData,
+      loadingRootData,
+      renameInfo,
+      loadingRenameInfo,
+      reviewInfo,
+      loadingReviewInfo,
+      refreshAsyncReviewInfo,
+      userInfo,
+      loadingUserInfo,
+      refreshAsyncUserInfo,
+      discussionInfo,
+      projectMemberDataProxy,
+      loadingProjectMember,
+      newTwitterData,
+    ],
+  );
 };
 
 export default useMainData;

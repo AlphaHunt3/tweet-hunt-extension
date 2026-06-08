@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Info, X, Ghost } from 'lucide-react';
+import { Info, X, Ghost, Loader2 } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useRequest } from 'ahooks';
@@ -47,7 +47,7 @@ export function PersonalAnalysisPanel({
   className = '',
 }: PersonalAnalysisPanelProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const currentUrl = useCurrentUrl();
   const { isEnabled } = useCrossPageSettings();
   const [user] = useLocalStorage<StoredUserInfo | null | ''>(
@@ -59,6 +59,7 @@ export function PersonalAnalysisPanel({
   const isLegacyUser = isLegacyUserActive(currentUsername);
   const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
   const ghostButtonRef = useRef<HTMLButtonElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
 
   // 判断是否在当前用户的个人页面
   const isOwnProfile = useMemo(() => {
@@ -102,6 +103,19 @@ export function PersonalAnalysisPanel({
     [hookUsername, hookName, hookAvatar]
   );
   const domUserInfoLoading = hookLoading;
+  const domUserInfoKey = domUserInfo?.username || '';
+  const [isDomUserInfoSettling, setIsDomUserInfoSettling] = useState(false);
+
+  useEffect(() => {
+    if (!domUserInfoKey) return;
+
+    setIsDomUserInfoSettling(true);
+    const timer = window.setTimeout(() => {
+      setIsDomUserInfoSettling(false);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [domUserInfoKey]);
 
   // Auto switch to deletedTweets tab when isEmptyState exists
   useEffect(() => {
@@ -110,27 +124,35 @@ export function PersonalAnalysisPanel({
     }
   }, [isEmptyState]);
 
-  // Fetch data to get counts
-  const { data: followRelationData } = useRequest<
-    FollowRelationData | undefined,
-    []
-  >(() => fetchFollowRelation(twitterId), {
-    refreshDeps: [twitterId],
-    debounceWait: 300,
-  });
+  useEffect(() => {
+    if (contentScrollRef.current) {
+      contentScrollRef.current.scrollTop = 0;
+    }
+  }, [currentUrl]);
 
-  // Fetch unfollow relation data
-  const { data: unfollowRelationData } = useRequest(
-    () =>
-      twitterId
-        ? fetchUnfollowRelation(twitterId, 30, 0)
-        : Promise.resolve(undefined),
-    {
-      ready: !!twitterId,
+  // Fetch data to get counts
+  const { data: followRelationData, loading: loadingFollowRelation } =
+    useRequest<
+      FollowRelationData | undefined,
+      []
+    >(() => fetchFollowRelation(twitterId), {
       refreshDeps: [twitterId],
       debounceWait: 300,
-    }
-  );
+    });
+
+  // Fetch unfollow relation data
+  const { data: unfollowRelationData, loading: loadingUnfollowRelation } =
+    useRequest(
+      () =>
+        twitterId
+          ? fetchUnfollowRelation(twitterId, 30, 0)
+          : Promise.resolve(undefined),
+      {
+        ready: !!twitterId,
+        refreshDeps: [twitterId],
+        debounceWait: 300,
+      }
+    );
 
   // Fetch historical tweets when tab is active
   const { data: historicalTweets, loading: loadingHistoricalTweets } =
@@ -298,6 +320,44 @@ export function PersonalAnalysisPanel({
     }
   }, [tabs, activeTab]);
 
+  const isTabsLoading =
+    domUserInfoLoading ||
+    loadingFollowRelation ||
+    loadingUnfollowRelation ||
+    loadingTwInfo ||
+    loadingInteractionRank ||
+    isDomUserInfoSettling;
+
+  const rawContentLoading = useMemo(() => {
+    if (domUserInfoLoading || isDomUserInfoSettling) return true;
+
+    switch (activeTab) {
+      case 'follows':
+      case 'followers':
+        return loadingFollowRelation;
+      case 'unfollowing':
+        return loadingFollowRelation || loadingUnfollowRelation;
+      case 'profile':
+        return loadingTwInfo;
+      case 'deletedTweets':
+        return loadingHistoricalTweets;
+      case 'interactionRank':
+        return loadingInteractionRank;
+      default:
+        return false;
+    }
+  }, [
+    activeTab,
+    domUserInfoLoading,
+    isDomUserInfoSettling,
+    loadingFollowRelation,
+    loadingHistoricalTweets,
+    loadingInteractionRank,
+    loadingTwInfo,
+    loadingUnfollowRelation,
+  ]);
+  const isContentLoading = rawContentLoading;
+
   // 检查用户分析是否启用
   if (!isEnabled('showSearchPanel')) {
     return (
@@ -358,6 +418,55 @@ export function PersonalAnalysisPanel({
         </div>
 
         <div className='flex items-center gap-2'>
+          {/* 幽灵关注检测按钮 - 只在当前用户的个人页面且开启设置时显示 */}
+          {!domUserInfoLoading && isOwnProfile && isEnabled('showGhostFollowing') && (
+            <div className='relative group'>
+              <button
+                ref={ghostButtonRef}
+                type='button'
+                onClick={() => {
+                  const nextState = !isGhostPanelOpen;
+                  setIsGhostPanelOpen(nextState);
+                  window.dispatchEvent(
+                    new CustomEvent<GhostFollowingPanelEventDetail>(
+                      GHOST_FOLLOWING_PANEL_EVENT,
+                      {
+                        detail: {
+                          open: nextState,
+                          anchor: ghostButtonRef.current || undefined,
+                          source: 'button',
+                        },
+                      }
+                    )
+                  );
+                }}
+                className='p-1.5 rounded-full theme-text-secondary hover:text-blue-500 hover:bg-blue-500/10 transition-colors focus:outline-none relative'
+              >
+                <Ghost className='w-4 h-4' />
+                {/* NEW badge */}
+                <span className='absolute -top-0.5 -right-0.5 px-0.5 text-[6px] font-semibold leading-none transform'>
+                  <svg
+                    className='w-3.5 h-[auto]'
+                    viewBox='0 0 1024 1024'
+                    version='1.1'
+                    xmlns='http://www.w3.org/2000/svg'
+                    p-id='10824'
+                    width='64'
+                    height='64'
+                  >
+                    <path
+                      d='M245.76 286.72h552.96c124.928 0 225.28 100.352 225.28 225.28s-100.352 225.28-225.28 225.28H0V532.48c0-135.168 110.592-245.76 245.76-245.76z m133.12 348.16V401.408H348.16v178.176l-112.64-178.176H204.8V634.88h30.72v-178.176L348.16 634.88h30.72z m182.272-108.544v-24.576h-96.256v-75.776h110.592v-24.576h-141.312V634.88h143.36v-24.576h-112.64v-83.968h96.256z m100.352 28.672l-34.816-151.552h-34.816l55.296 233.472H675.84l47.104-161.792 4.096-20.48 4.096 20.48 47.104 161.792h28.672l57.344-233.472h-34.816l-32.768 151.552-4.096 30.72-6.144-30.72-40.96-151.552h-30.72l-40.96 151.552-6.144 30.72-6.144-30.72z'
+                      fill='#EE502F'
+                      p-id='10825'
+                    ></path>
+                  </svg>
+                </span>
+              </button>
+              <div className='absolute -translate-x-[85%] bottom-0 left-0 mb-2 px-2 py-1 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 theme-text-primary theme-border border whitespace-nowrap'>
+                {t('detectGhostFollowing')}
+              </div>
+            </div>
+          )}
           <div className='relative group'>
             <Info className='w-4 h-4 theme-text-secondary flex-shrink-0' />
             <div className='absolute -translate-x-[90%]  bottom-0 left-0 mb-2 px-3 py-1.5 theme-bg-secondary text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 theme-text-primary theme-border border whitespace-normal min-w-72 max-w-md text-center'>
@@ -376,89 +485,133 @@ export function PersonalAnalysisPanel({
         </div>
       </div>
 
-      <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
+      {isTabsLoading ? (
+        <div className='border-b theme-border'>
+          <div className='flex flex-wrap'>
+            {Array.from({ length: lang === 'zh' ? 3 : 2 }).map((_, index) => (
+              <div
+                key={index}
+                className='grow-0 shrink-0 px-4 py-2.5 flex justify-center'
+                style={{
+                  flexBasis: `${100 / (lang === 'zh' ? 3 : 2)}%`,
+                  maxWidth: `${100 / (lang === 'zh' ? 3 : 2)}%`,
+                }}
+              >
+                <div className='h-4 w-14 rounded bg-gray-200/80 dark:bg-gray-700/70 animate-pulse' />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
+      )}
 
-      <div className='max-h-[340px] overflow-y-auto custom-scrollbar'>
-        {activeTab === 'follows' && (
-          <FollowRelationPanel
-            userId={userId}
-            type='following'
-            followRelationData={followRelationData}
-            isPro={true}
-          />
-        )}
-
-        {activeTab === 'followers' && (
-          <FollowRelationPanel
-            userId={userId}
-            type='followers'
-            followRelationData={followRelationData}
-            isPro={true}
-          />
-        )}
-
-        {activeTab === 'unfollowing' && (
-          <UnfollowInfoPanel
-            userId={userId}
-            followRelationData={mergedUnfollowData}
-            isPro={true}
-          />
-        )}
-
-        {activeTab === 'profile' && (
-          <ProRequired
-            showInCenter={true}
-            enableAnimation={false}
-            showExtraTitle={true}
-          >
-            <ProfileChangesPanel
+      <div
+        ref={contentScrollRef}
+        className={`relative max-h-[340px] overflow-y-auto custom-scrollbar ${isContentLoading ? 'xhunt-personal-analysis-content-loading' : ''
+          }`}
+      >
+        <div>
+          {activeTab === 'follows' && (
+            <FollowRelationPanel
               userId={userId}
-              profileHistoryData={newTwitterData}
-              loading={loadingTwInfo}
+              type='following'
+              followRelationData={followRelationData}
+              isPro={true}
             />
-          </ProRequired>
-        )}
+          )}
 
-        {activeTab === 'deletedTweets' && (
-          <ProRequired
-            showInCenter={true}
-            enableAnimation={false}
-            showExtraTitle={true}
-          >
-            <DeletedTweetsSection
-              deletedTweets={enrichedHistoricalTweets}
-              loadingDel={loadingHistoricalTweets}
-              isHoverPanel={true}
+          {activeTab === 'followers' && (
+            <FollowRelationPanel
+              userId={userId}
+              type='followers'
+              followRelationData={followRelationData}
+              isPro={true}
             />
-          </ProRequired>
-        )}
+          )}
 
-        {activeTab === 'interactionRank' && (
-          <InteractionRankPanel
-            userId={userId}
-            username={domUserInfo?.username}
-            interactionRankData={interactionRankData}
-            loading={loadingInteractionRank}
-            selectedDays={interactionRankDays}
-            onDaysChange={setInteractionRankDays}
-            onOpenTip={({ anchor }) => {
-              window.dispatchEvent(
-                new CustomEvent<FanTipPanelEventDetail>(
-                  XHUNT_FAN_TIP_PANEL_EVENT,
-                  {
-                    detail: {
-                      open: true,
-                      anchor,
-                      source: 'button',
-                      interactionRankData,
-                    },
-                  }
-                )
-              );
-            }}
-          />
+          {activeTab === 'unfollowing' && (
+            <UnfollowInfoPanel
+              userId={userId}
+              followRelationData={mergedUnfollowData}
+              isPro={true}
+            />
+          )}
+
+          {activeTab === 'profile' && (
+            <ProRequired
+              showInCenter={true}
+              enableAnimation={false}
+              showExtraTitle={true}
+            >
+              <ProfileChangesPanel
+                userId={userId}
+                profileHistoryData={newTwitterData}
+                loading={loadingTwInfo}
+              />
+            </ProRequired>
+          )}
+
+          {activeTab === 'deletedTweets' && (
+            <ProRequired
+              showInCenter={true}
+              enableAnimation={false}
+              showExtraTitle={true}
+            >
+              <DeletedTweetsSection
+                deletedTweets={enrichedHistoricalTweets}
+                loadingDel={loadingHistoricalTweets}
+                isHoverPanel={true}
+              />
+            </ProRequired>
+          )}
+
+          {activeTab === 'interactionRank' && (
+            <InteractionRankPanel
+              userId={userId}
+              username={domUserInfo?.username}
+              interactionRankData={interactionRankData}
+              loading={loadingInteractionRank}
+              selectedDays={interactionRankDays}
+              onDaysChange={setInteractionRankDays}
+              onOpenTip={({ anchor }) => {
+                window.dispatchEvent(
+                  new CustomEvent<FanTipPanelEventDetail>(
+                    XHUNT_FAN_TIP_PANEL_EVENT,
+                    {
+                      detail: {
+                        open: true,
+                        anchor,
+                        source: 'button',
+                        interactionRankData,
+                      },
+                    }
+                  )
+                );
+              }}
+            />
+          )}
+        </div>
+
+        {isContentLoading && (
+          <div className='absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-black'>
+            <Loader2
+              className='w-6 h-6 animate-spin text-blue-500'
+              aria-label={t('loading')}
+            />
+          </div>
         )}
       </div>
+
+      <style>{`
+        .xhunt-personal-analysis-content-loading .xhunt-avatar-rank-badge {
+          visibility: hidden !important;
+        }
+
+        .xhunt-personal-analysis-content-loading [style*='--xhunt-avatar-outer-border-color'] {
+          border-color: transparent !important;
+        }
+      `}</style>
 
       {/* 关闭确认弹框 */}
       <CloseConfirmDialog

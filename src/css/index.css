@@ -1,98 +1,145 @@
 .sidebarItem {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 50px;
-    box-sizing: border-box;
-    font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    border-radius: 50px;
-    transition: background 300ms;
-    cursor: pointer;
-    color: inherit;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  box-sizing: border-box;
+  font-family:
+    TwitterChirp,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  border-radius: 50px;
+  overflow: hidden;
+  cursor: pointer;
+  color: inherit;
 }
 
 @keyframes shiny {
-
 }
 
 .sidebarIconActive {
-
 }
 
 .sidebarItem:hover {
-    background: rgba(231, 233, 234, 0.1);
-}
-
-.sidebarItem:hover .sidebarIcon {
-    filter: sepia(100%) saturate(300%) hue-rotate(250deg);
+  /* background: rgba(231, 233, 234, 0.1); */
 }
 
 .sidebarItemExpanded {
-    justify-content: left;
-    padding: 12px;
+  justify-content: flex-start;
+  padding: 12px;
 }
 
 .sidebarIcon {
-    width: 1.7rem;
-    height: 1.7rem;
-    border: 2px solid #47748c;
-    border-radius: 100px;
-    transform: scale(0.95);
-    box-sizing: border-box;
-    filter: sepia(100%) saturate(300%) hue-rotate(200deg);
-    transition: 300ms;
+  display: inline-flex;
+  flex: 0 0 1.7rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  min-width: 1.7rem;
+  max-width: 1.7rem;
+  height: 1.7rem;
+  min-height: 1.7rem;
+  max-height: 1.7rem;
+  border: none;
+  border-radius: 100px;
+  transform: scale(0.95);
+  box-sizing: border-box;
+  transition: color 180ms ease;
+  color: #0f1418;
+}
+
+:host([data-theme='dark']) .sidebarIcon,
+:host-context([data-theme='dark']) .sidebarIcon {
+  color: #e7e8e9;
+}
+
+.sidebarIcon svg {
+  display: block;
+  flex: 0 0 1.7rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  color: currentColor;
 }
 
 .sidebarText {
-    display: inline-block;
-    font-size: 20px;
-    margin: 0 20px;
+  display: inline-block;
+  font-size: 20px;
+  margin: 0 8px 0 21.5px;
+  line-height: 24px;
+  white-space: nowrap;
 }
 
 .sidebarTextContainer {
-    position: relative;
-    display: flex;
-    align-items: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  will-change: max-width, opacity, transform;
+  transition:
+    max-width 180ms ease,
+    opacity 160ms ease,
+    transform 180ms ease;
+}
+
+.sidebarTextContainerExpanded {
+  max-width: 180px;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.sidebarTextContainerCollapsed {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
 }
 
 .unreadDot {
-    position: absolute;
-    top: -1px;
-    right: -1px;
-    width: 8px;
-    height: 8px;
-    z-index: 2;
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  z-index: 2;
 }
 
 .unreadTextDot {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 8px;
-    height: 8px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
 }
 
 .unreadDotInner {
-    display: block;
-    width: 8px;
-    height: 8px;
-    background-color: #f43f5e;
-    border-radius: 50%;
+  display: block;
+  width: 8px;
+  height: 8px;
+  background-color: #f43f5e;
+  border-radius: 50%;
 }
 
 /* 针对 WebKit 浏览器（如 Chrome、Edge） */
 .hideScrollbar::-webkit-scrollbar {
-    display: none; /* 隐藏滚动条 */
-    overflow: hidden;
+  display: none; /* 隐藏滚动条 */
+  overflow: hidden;
 }
 
 /* 针对 Firefox */
 .hideScrollbar {
-    scrollbar-width: none; /* 隐藏滚动条 */
+  scrollbar-width: none; /* 隐藏滚动条 */
 }
 
 /* 针对旧版 IE 和 Edge */
 .hideScrollbar {
-    -ms-overflow-style: none; /* 隐藏滚动条 */
+  -ms-overflow-style: none; /* 隐藏滚动条 */
 }

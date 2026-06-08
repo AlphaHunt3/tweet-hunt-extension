@@ -105,13 +105,13 @@ function _ReviewHeader({
       {!stats || !stats.realTotalReviews ? (
         <div
           data-theme={theme}
-          className='min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg'
+          className='min-w-full mt-3 mb-1 p-2.5 rounded-xl border theme-border'
         >
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
               <div className='flex items-center gap-1.5 flex-shrink-0'>
-                <Star className='w-5 h-5 theme-text-secondary flex-shrink-0' />
-                <span className='text-lg font-semibold theme-text-secondary flex-shrink-0'>
+                <Star className='w-4 h-4 theme-text-secondary flex-shrink-0' />
+                <span className='text-sm font-semibold theme-text-secondary flex-shrink-0'>
                   {reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}
                 </span>
               </div>
@@ -140,16 +140,16 @@ function _ReviewHeader({
         <>
           <div
             data-theme={theme}
-            className='min-w-full mt-3 mb-1 p-3 theme-bg-tertiary rounded-lg'
+            className='min-w-full mt-3 mb-1 p-2.5 rounded-xl border theme-border'
           >
             <div className='flex items-center gap-3'>
               {Boolean(stats.averageRating) && (
                 <div className='flex items-center gap-1.5'>
                   <Star
-                    className={`w-5 h-5 ${getRatingColor(stats.averageRating)}`}
+                    className={`w-4 h-4 ${getRatingColor(stats.averageRating)}`}
                   />
                   <span
-                    className={`text-lg font-semibold ${getRatingColor(
+                    className={`text-base font-semibold ${getRatingColor(
                       stats.averageRating
                     )}`}
                   >
@@ -234,7 +234,7 @@ function _ReviewHeader({
                     }}
                     className={`text-sm transition-colors font-medium ${
                       stats.currentUserReview
-                        ? 'text-[#7dc9d9c7] hover:text-[#369cb2]'
+                        ? 'theme-text-secondary hover:theme-text-primary'
                         : 'text-[#1d9bf0] hover:text-[#1a8cd8]'
                     }`}
                   >
@@ -249,7 +249,7 @@ function _ReviewHeader({
               {stats.tagCloud.slice(0, maxTgaShow).map((tag, index) => (
                 <span
                   key={`${tag.text}${index}`}
-                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary hover:bg-[#1d9bf0]/20 transition-colors'
+                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/5 text-xs theme-text-secondary hover:bg-[#1d9bf0]/10 transition-colors'
                 >
                   {tag.text}{' '}
                   <span
@@ -269,7 +269,7 @@ function _ReviewHeader({
                   style={{
                     opacity: 0.8,
                   }}
-                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/10 text-xs theme-text-primary transition-colors'
+                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/5 text-xs theme-text-secondary transition-colors'
                 >
                   +{moreTagCount}个标签
                 </span>
@@ -339,11 +339,11 @@ function _ReviewTooltip({
   return (
     <div
       data-theme={theme}
-      className='w-[380px] theme-bg-secondary rounded-lg p-3 space-y-4'
+      className='w-[380px] theme-bg-secondary rounded-2xl p-2.5 space-y-4 border theme-border shadow-[0_12px_32px_rgba(0,0,0,0.22)]'
     >
       {!isLoggedIn ? (
         <>
-          <div className='w-full theme-bg-tertiary rounded-lg overflow-hidden'>
+          <div className='w-full theme-bg-tertiary rounded-xl overflow-hidden'>
             <ErrorBoundary>
               <TokenWordCloud
                 tokens={stats ? stats.tagCloud : []}
@@ -354,7 +354,7 @@ function _ReviewTooltip({
           </div>
           <button
             onClick={onBtnClick}
-            className='w-full py-2 theme-text-primary bg-[#1d9bf0] hover:bg-[#1a8cd8] rounded-full transition-colors flex items-center justify-center gap-2 text-sm'
+            className='w-full py-2.5 text-white bg-[#1d9bf0] hover:bg-[#1a8cd8] rounded-full transition-colors flex items-center justify-center gap-2 text-sm font-semibold'
           >
             <svg viewBox='0 0 24 24' className='w-4 h-4 fill-current'>
               <path d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' />

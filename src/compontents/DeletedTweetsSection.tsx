@@ -15,6 +15,7 @@ import numeral from 'numeral';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { fetchDeletedStatus } from '~contents/services/api';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
+import { navigateInX } from '~contents/utils/navigateInX';
 
 // Quote Tweet Component
 function QuoteTweet({ quote }: { quote: DeletedTweet }) {
@@ -46,11 +47,10 @@ function QuoteTweet({ quote }: { quote: DeletedTweet }) {
     // 调用 fetchDeletedStatus，不等待返回结果
     fetchDeletedStatus(quote.id);
     // 跳转到帖子详情页
-    window.open(
+    navigateInX(
       `https://x.com/${quote.profile?.username || 'unknown'}/status/${
         quote.id || 'unknown'
       }`,
-      '_blank'
     );
   };
 
@@ -74,11 +74,13 @@ function QuoteTweet({ quote }: { quote: DeletedTweet }) {
         />
         <a
           href={`https://x.com/${quote.profile?.username || 'unknown'}`}
-          target='_blank'
-          rel='noopener noreferrer'
           className='text-[12px] font-medium theme-text-primary hover:underline truncate'
           title={quote.profile?.name}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateInX(`https://x.com/${quote.profile?.username || 'unknown'}`);
+          }}
         >
           {quote.profile?.name}
         </a>
@@ -155,11 +157,10 @@ export function DeletedTweetsSection({
     // 调用 fetchDeletedStatus，不等待返回结果
     fetchDeletedStatus(tweet.id);
     // 跳转到帖子详情页
-    window.open(
+    navigateInX(
       `https://x.com/${tweet.profile?.username || 'unknown'}/status/${
         tweet.id || 'unknown'
       }`,
-      '_blank'
     );
   };
 
@@ -233,11 +234,17 @@ export function DeletedTweetsSection({
                               href={`https://x.com/${
                                 tweet.profile?.username || 'unknown'
                               }`}
-                              target='_blank'
-                              rel='noopener noreferrer'
                               className='font-semibold truncate hover:underline'
                               title={tweet.profile?.name}
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigateInX(
+                                  `https://x.com/${
+                                    tweet.profile?.username || 'unknown'
+                                  }`,
+                                );
+                              }}
                             >
                               {tweet.profile?.name}
                             </a>

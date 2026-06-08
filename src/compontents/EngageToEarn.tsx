@@ -4,6 +4,7 @@ import { useCrossPageSettings } from '~utils/settingsManager';
 import { useDebounceFn, useRequest } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { useI18n } from '~contents/hooks/i18n';
+import { useGlobalScroll } from '~contents/hooks/useGlobalScroll';
 import { navigationService } from '~compontents/navigation/NavigationService';
 import {
   fetchE2EActivities,
@@ -109,7 +110,11 @@ export function EngageToEarn({
     typeof setTimeout
   > | null>(null);
   const infoTriggerRef = useRef<HTMLDivElement>(null);
-  const [infoPopoverRect, setInfoPopoverRect] = useState<DOMRect | null>(null);
+  const [infoPopoverPosition, setInfoPopoverPosition] = useState<{
+    left: number;
+    top: number;
+    mode: 'fixed' | 'absolute';
+  } | null>(null);
 
   // 列表高度随浏览行为变化：持续往下滚动时增至 400px，鼠标移出 2s 后恢复 250px
   const [listMaxHeight, setListMaxHeight] = useState(290);
@@ -134,15 +139,45 @@ export function EngageToEarn({
     setHideInfoTimer(timer);
   };
 
-  // Position rules popover via portal so it isn't clipped by overflow-y-auto on the scroll container
-  useLayoutEffect(() => {
+  const handleInfoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hideInfoTimer) {
+      clearTimeout(hideInfoTimer);
+      setHideInfoTimer(null);
+    }
+    setShowInfo(true);
+  };
+
+  const updateInfoPopoverPosition = React.useCallback(() => {
     if (!showInfo || !infoTriggerRef.current) {
-      setInfoPopoverRect(null);
+      setInfoPopoverPosition(null);
       return;
     }
     const rect = infoTriggerRef.current.getBoundingClientRect();
-    setInfoPopoverRect(rect);
-  }, [showInfo]);
+    if (portalContainer) {
+      const containerRect = portalContainer.getBoundingClientRect();
+      setInfoPopoverPosition({
+        mode: 'absolute',
+        left: Math.max(8, rect.right - containerRect.left - 280),
+        top: rect.bottom - containerRect.top + 4,
+      });
+      return;
+    }
+    setInfoPopoverPosition({
+      mode: 'fixed',
+      left: Math.max(8, rect.right - 280),
+      top: rect.bottom + 4,
+    });
+  }, [portalContainer, showInfo]);
+
+  // Position rules popover via portal so it isn't clipped by overflow-y-auto on the scroll container
+  useLayoutEffect(() => {
+    updateInfoPopoverPosition();
+  }, [updateInfoPopoverPosition]);
+
+  useGlobalScroll(() => {
+    updateInfoPopoverPosition();
+  }, [updateInfoPopoverPosition]);
 
   // 列表高度：滚动向下时展开，鼠标移出 2s 后收起
   const handleListScroll = () => {
@@ -681,13 +716,14 @@ export function EngageToEarn({
             <div
               ref={infoTriggerRef}
               className='relative'
-              onPointerEnter={handleInfoEnter}
-              onPointerLeave={handleInfoLeave}
+              onMouseEnter={handleInfoEnter}
+              onMouseLeave={handleInfoLeave}
             >
               <button
                 type='button'
                 className='p-1 whitespace-nowrap rounded-md theme-hover theme-text-secondary hover:theme-text-primary'
                 aria-label={t('info') || 'Info'}
+                onClick={handleInfoClick}
               >
                 <span className='text-[11px]'>{t('howToParticipate')}</span>
                 <svg
@@ -715,13 +751,14 @@ export function EngageToEarn({
                 {/* <Info className='w-3.5 h-3.5' /> */}
               </button>
               {showInfo &&
-                infoPopoverRect &&
+                infoPopoverPosition &&
                 createPortal(
                   <div
-                    className='fixed p-3 theme-bg-secondary rounded-md shadow-lg theme-border border z-[9999] w-[280px]'
+                    className='p-3 theme-bg-secondary rounded-md shadow-lg theme-border border z-[99999] w-[280px]'
                     style={{
-                      left: Math.max(8, infoPopoverRect.right - 280),
-                      top: infoPopoverRect.bottom + 4,
+                      position: infoPopoverPosition.mode,
+                      left: infoPopoverPosition.left,
+                      top: infoPopoverPosition.top,
                     }}
                     onMouseEnter={handleInfoEnter}
                     onMouseLeave={handleInfoLeave}
@@ -994,7 +1031,9 @@ const PolicyDisclaimer: React.FC<PolicyDisclaimerProps> = ({
         {expanded ? (
           // 展开状态：完整文本 + 收起按钮
           <div className='text-[10px] leading-relaxed theme-text-secondary/80 select-none'>
-            <span dangerouslySetInnerHTML={{ __html: policyText }} />
+            <span
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(policyText) }}
+            />
             <button
               type='button'
               onClick={(e) => {
@@ -1011,7 +1050,10 @@ const PolicyDisclaimer: React.FC<PolicyDisclaimerProps> = ({
         ) : (
           // 折叠状态：单行文本末尾 + 展开按钮
           <div className='flex items-center gap-1 text-[10px] leading-relaxed theme-text-secondary/80 select-none'>
-            <span className='line-clamp-1 flex-1 min-w-0' dangerouslySetInnerHTML={{ __html: policyText }} />
+            <span
+              className='line-clamp-1 flex-1 min-w-0'
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(policyText) }}
+            />
             <button
               type='button'
               onClick={(e) => {

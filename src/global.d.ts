@@ -7,6 +7,11 @@ declare module 'data-text:~/css/*' {
   export default content;
 }
 
+declare module 'data-text:*' {
+  const content: string;
+  export default content;
+}
+
 declare module 'url:~/assets/*' {
   const content: string;
   export default content;

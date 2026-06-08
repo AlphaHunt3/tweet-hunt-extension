@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import { messageManager, MessageState } from '~/utils/messageManager';
+import { useUserDomain } from '~contents/hooks/useUserDomain';
+import { escapeHtml, sanitizeHtml } from '~utils/sanitizeHtml';
 
 export function InAppMessages() {
   const [messageState, setMessageState] = useState<MessageState>(
     messageManager.getState()
   );
   const { t } = useI18n();
+  const { domains } = useUserDomain();
+
+  // Filter messages by domain type
+  const filteredMessages = useMemo(() => {
+    return messageState.messages.filter((msg) => {
+      const msgType = (msg.type || 'all').trim().toLowerCase();
+      if (!msgType || msgType === 'all') return true;
+      return domains.includes(msgType as 'web3' | 'ai');
+    });
+  }, [messageState.messages, domains]);
 
   // Track expanded message state
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(
@@ -67,26 +79,26 @@ export function InAppMessages() {
     if (hasHtmlTag) return content;
     // First unescape literal \n to real newlines, then convert to <br/>
     const withRealNewlines = content.replace(/\\n/g, '\n');
-    return withRealNewlines.replace(/\n/g, '<br/>');
+    return escapeHtml(withRealNewlines).replace(/\n/g, '<br/>');
   };
 
   return (
     <div className='w-full'>
       <div className='overflow-y-auto max-h-[calc(90vh-150px)] custom-scrollbar'>
-        {messageState.isLoading && messageState.messages.length === 0 ? (
+        {messageState.isLoading && filteredMessages.length === 0 ? (
           <div className='flex items-center justify-center p-4'>
             <div className='w-5 h-5 border-2 border-t-blue-400 border-blue-200 rounded-full animate-spin'></div>
           </div>
-        ) : messageState.error && messageState.messages.length === 0 ? (
+        ) : messageState.error && filteredMessages.length === 0 ? (
           <div className='p-4 text-center text-sm theme-text-secondary'>
             {messageState.error}
           </div>
-        ) : messageState.messages.length === 0 ? (
+        ) : filteredMessages.length === 0 ? (
           <div className='p-4 text-center text-sm theme-text-secondary'>
             {t('noMessages')}
           </div>
         ) : (
-          messageState.messages.map((message, index) => (
+          filteredMessages.map((message, index) => (
             <div
               key={index}
               className={`p-4 theme-border border-b last:border-b-0`}
@@ -110,11 +122,13 @@ export function InAppMessages() {
                   } whitespace-pre-wrap leading-relaxed`}
                   dangerouslySetInnerHTML={{
                     __html: expandedMessages.has(index)
-                      ? toHtmlWithLineBreaks(message.content)
-                      : toHtmlWithLineBreaks(
-                          getPreviewContent(
-                            message.content,
-                            index === 0 ? 600 : 80
+                      ? sanitizeHtml(toHtmlWithLineBreaks(message.content))
+                      : sanitizeHtml(
+                          toHtmlWithLineBreaks(
+                            getPreviewContent(
+                              message.content,
+                              index === 0 ? 600 : 80
+                            )
                           )
                         ),
                   }}

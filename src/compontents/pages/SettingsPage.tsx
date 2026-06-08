@@ -7,9 +7,21 @@ import { useI18n } from '~contents/hooks/i18n.ts';
 import { settingsConfig, useAllSettings } from '~/utils/settingsManager.ts';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
 import packageJson from '../../../package.json';
-import { Github, Play, ChevronDown, ChevronRight, Info } from 'lucide-react';
+import {
+  Github,
+  Play,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  Blocks,
+  Bot,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
-import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import {
+  useLocalStorage,
+  useSessionStorage,
+} from '~storage/useLocalStorage.ts';
 import { localStorageInstance } from '~storage/index.ts';
 import { useDebounceFn } from 'ahooks';
 import { defaultSound } from '~compontents/pages/constants.tsx';
@@ -25,6 +37,8 @@ import { getCurrentUsername } from '~contents/utils/helpers.ts';
 import { avatarSkins } from '../../contents/constants/avatarSkins';
 import { useAvatarSkinState } from '~contents/hooks/useAvatarSkin';
 import { ApiAccessSection } from '~/compontents/ApiAccessSection';
+import { DomainCard, DomainType } from '~/compontents/UserDomainSetupModal';
+import { useUserDomain } from '~contents/hooks/useUserDomain';
 
 // Chrome 类型声明
 declare const chrome: any;
@@ -52,7 +66,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const { t, lang, setLang } = useI18n();
   // 滚动容器 ref，用于 API 申请成功后滚动到底部
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { skin: currentSkin, setSkin: setAvatarSkin } = useAvatarSkinState();
+  const web3SettingsRef = useRef<HTMLDivElement>(null);
+  const aiSettingsRef = useRef<HTMLDivElement>(null);
+
+  const scrollToSettings = (ref: React.RefObject<HTMLDivElement>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+  const { skin: currentSkin, setSkinCustomized } = useAvatarSkinState();
   const { navigateTo } = useNavigation();
   const { settingStates, isLoading } = useAllSettings();
   const {
@@ -72,21 +94,70 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [isSoundLoading, setIsSoundLoading] = useState(false);
   const [panelWidth, setPanelWidth] = useLocalStorage<number>(
     '@xhunt/panelWidth',
-    340
+    340,
   );
   const [panelWidthTemp, setPanelWidthTemp] = useState<number>(340);
   const [floatingPanelMode, setFloatingPanelMode] = useLocalStorage<
     'default' | 'persistent'
   >('@xhunt/floatingPanelMode', 'default');
   const [token] = useLocalStorage('@xhunt/token', '');
-  const [avatarRankMode, setAvatarRankMode] = useLocalStorage<
-    'influence' | 'composite'
-  >('@settings/avatarRankMode', 'influence');
+  const [avatarRankMode, setAvatarRankMode] = useLocalStorage<'web3' | 'ai'>(
+    '@settings/avatarRankMode',
+    'web3',
+  );
 
-  // 用户信息缓存时间戳，用于绕过协商缓存
+  // 领域偏好
+  const { domains, primaryDomain, addDomain, removeDomain, setPrimaryDomain } =
+    useUserDomain();
+
+  const getDomainRank = (
+    domain: DomainType,
+  ): 'primary' | 'secondary' | null => {
+    const index = domains.indexOf(domain);
+    if (index === 0) return 'primary';
+    if (index === 1) return 'secondary';
+    return null;
+  };
+
+  const handleToggleDomain = (domain: DomainType) => {
+    const isSelected = domains.includes(domain);
+    if (isSelected) {
+      // 至少保留一个
+      if (domains.length <= 1) return;
+      removeDomain(domain);
+      // 如果关闭 AI 领域时头像排名正用 ai，自动降级到 web3
+      if (domain === 'ai' && avatarRankMode === 'ai') {
+        setAvatarRankMode('web3');
+        setTimeout(() => {
+          try {
+            window.location.reload();
+          } catch {}
+        }, 200);
+      }
+    } else {
+      addDomain(domain);
+    }
+  };
+
+  // 当只选择一个领域时，自动同步头像排名模式
+  useEffect(() => {
+    if (domains.length === 1) {
+      const onlyDomain = domains[0];
+      if (avatarRankMode !== onlyDomain) {
+        setAvatarRankMode(onlyDomain);
+        setTimeout(() => {
+          try {
+            window.location.reload();
+          } catch {}
+        }, 200);
+      }
+    }
+  }, [domains, avatarRankMode, setAvatarRankMode]);
+
+  // 用户信息缓存时间戳，用于绕过协商缓存image.png
   const [userInfoCacheBust, setUserInfoCacheBust] = useLocalStorage<number>(
     '@xhunt/userInfoCacheBust',
-    Date.now()
+    Date.now(),
   );
 
   // EVM 地址绑定相关状态
@@ -100,7 +171,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   >('Inactive');
   const evmAddressInputRef = useRef<HTMLInputElement | null>(null);
   const currentInputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(
-    null
+    null,
   );
   const isComposingRef = useRef<boolean>(false);
 
@@ -148,9 +219,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           },
         } as any);
         window.dispatchEvent(event);
-      } catch { }
+      } catch {}
     },
-    { wait: 200 }
+    { wait: 200 },
   );
 
   const applyPanelWidthAndReset = async () => {
@@ -163,7 +234,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     (url: string) => {
       if (url) playSound(url);
     },
-    { wait: 300 }
+    { wait: 300 },
   );
 
   useEffect(() => {
@@ -201,24 +272,64 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const filterItems = (items: Array<{ key: string; label: string }>) =>
       items.filter((it) => shouldShow(it.key));
 
+    const movedToWeb3Only = new Set([
+      'show90dMention',
+      'show90dPerformance',
+      'showFqRank',
+      'showCnRank',
+      'showEnInfluenceRank',
+      'showProjectRank',
+    ]);
+    const movedToAiOnly = new Set([
+      'showFqRankAi',
+      'showCnRankAi',
+      'showEnInfluenceRankAi',
+      'showProjectRankAi',
+    ]);
+
     return {
       profilePage: filterItems([
-        ...settingsConfig.nameRight,
-        ...settingsConfig.followedRight,
+        ...settingsConfig.nameRight.filter(
+          (it) => !movedToWeb3Only.has(it.key),
+        ),
+        ...settingsConfig.followedRight.filter(
+          (it) => !movedToWeb3Only.has(it.key) && !movedToAiOnly.has(it.key),
+        ),
         { key: 'showSearchPanel', label: 'showProfileChanges' },
         { key: 'showNotes', label: 'showNotes' },
         { key: 'showOfficialTags', label: 'showOfficialTags' },
       ]),
       homeRightSidebar: filterItems([
         // { key: 'showAnnualReport', label: 'showAnnualReport' }, // 已替换为广告位
+      ]),
+      web3OnlySettings: filterItems([
         { key: 'showAdBanner', label: 'showAdBanner' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
-        { key: 'showHotTrending', label: 'showHotTrending' },
         { key: 'showEngageToEarn', label: 'showEngageToEarn' },
         { key: 'showRealtimeSubscription', label: 'showRealtimeSubscription' },
         { key: 'enableBnbFeeds', label: 'enableBnbFeeds' },
         { key: 'enableGossip', label: 'enableGossip' },
         { key: 'enableListing', label: 'enableListing' },
+        { key: 'showHotTrendingWeb3', label: 'showHotTrendingWeb3' },
+        { key: 'show90dMention', label: 'show90dMention' },
+        { key: 'show90dPerformance', label: 'show90dPerformance' },
+        { key: 'showWeb3KolFollowers', label: 'showWeb3KolFollowers' },
+        { key: 'showTop100KolsWeb3', label: 'showTop100KolsWeb3' },
+        { key: 'showCnKolsWeb3', label: 'showCnKolsWeb3' },
+        { key: 'showFqRank', label: 'showFqRank' },
+        { key: 'showCnRank', label: 'showCnRank' },
+        { key: 'showEnInfluenceRank', label: 'showEnInfluenceRank' },
+        { key: 'showProjectRank', label: 'showProjectRank' },
+      ]),
+      aiOnlySettings: filterItems([
+        { key: 'showHotTrendingAi', label: 'showHotTrendingAi' },
+        { key: 'showAiKolFollowers', label: 'showAiKolFollowers' },
+        { key: 'showTop100KolsAi', label: 'showTop100KolsAi' },
+        { key: 'showCnKolsAi', label: 'showCnKolsAi' },
+        { key: 'showFqRankAi', label: 'showFqRankAi' },
+        { key: 'showCnRankAi', label: 'showCnRankAi' },
+        { key: 'showEnInfluenceRankAi', label: 'showEnInfluenceRankAi' },
+        { key: 'showProjectRankAi', label: 'showProjectRankAi' },
       ]),
       avatarSettings: [{ key: 'showAvatarRank', label: 'showAvatarRank' }],
       others: filterItems([
@@ -242,8 +353,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       floatingPanel: false,
       avatarSettings: true, // 头像设置默认展开
       others: true, // 其他分组默认展开
-    }
+      domainPreference: true, // 领域偏好默认展开
+      web3OnlySettings: false,
+      aiOnlySettings: false,
+    },
   );
+
+  // 当领域关闭时自动折叠对应独有设置分组
+  useEffect(() => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      web3OnlySettings: domains.includes('web3')
+        ? prev.web3OnlySettings
+        : false,
+      aiOnlySettings: domains.includes('ai') ? prev.aiOnlySettings : false,
+    }));
+  }, [domains]);
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups((prev) => ({
@@ -267,7 +392,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       if (!url) return;
       const event = new CustomEvent('xhunt:play-sound', { detail: { url } });
       window.dispatchEvent(event);
-    } catch { }
+    } catch {}
   };
 
   const fetchAndCacheSound = async (url: string) => {
@@ -300,15 +425,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       // 二次确认
       const confirmed = window.confirm(
         (t && t('clearCacheConfirm')) ||
-        'Are you sure you want to clear all XHunt caches? This cannot be undone.'
+          'Are you sure you want to clear all XHunt caches? This cannot be undone.',
       );
       if (!confirmed) return;
-    } catch { }
+    } catch {}
     try {
+      // 保留用户感兴趣的领域选择
+      const PRESERVED_KEYS = [
+        '@xhunt/user-domain-preference',
+        '@xhunt/user-domain-setup-completed',
+        '@xhunt/domain-setup-visible',
+      ];
+      const preserved: Record<string, any> = {};
+      try {
+        for (const key of PRESERVED_KEYS) {
+          preserved[key] = await localStorageInstance.get(key);
+        }
+      } catch {}
+
       // 1) 清理扩展的 chrome.storage.local 区域（通过 Plasmo Storage）
       try {
         await localStorageInstance.clear();
-      } catch { }
+      } catch {}
 
       // 兜底：直接调用 chrome.storage.local.clear（某些键可能不是通过 Plasmo 写入）
       try {
@@ -317,7 +455,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             chrome.storage.local.clear(() => resolve());
           });
         }
-      } catch { }
+      } catch {}
 
       // 2) 清理网页 localStorage 中与 xhunt 相关的键
       try {
@@ -331,15 +469,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             window.localStorage.removeItem(key);
           }
         });
-      } catch { }
+      } catch {}
+
+      // 恢复保留的领域选择
+      try {
+        for (const key of PRESERVED_KEYS) {
+          if (preserved[key] !== undefined) {
+            await localStorageInstance.set(key, preserved[key]);
+          }
+        }
+      } catch {}
 
       try {
         window.location.reload();
-      } catch { }
-    } catch { }
+      } catch {}
+    } catch {}
   };
 
-  const renderSettingItem = (setting: { key: string; label: string }) => {
+  const renderSettingItem = (
+    setting: { key: string; label: string },
+    groupDisabled: boolean = false,
+  ) => {
     const state = settingStates[setting.key as keyof typeof settingStates];
     if (!state) return null;
 
@@ -385,7 +535,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         setTimeout(() => {
           try {
             window.location.reload();
-          } catch { }
+          } catch {}
         }, 200);
       }
     };
@@ -415,23 +565,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return (
       <div
         key={setting.key}
-        className={`flex items-center justify-between py-1.5 ${isSubOption ? 'px-6' : 'px-3'
-          }`}
+        className={`flex items-center justify-between py-2 transition-colors hover:theme-bg-tertiary/40 ${
+          isSubOption ? 'px-6' : 'px-3'
+        } ${groupDisabled ? 'opacity-50 pointer-events-none' : ''}`}
       >
         <span
-          className={`text-[13px] leading-tight ${isSubOption ? 'text-[12px]' : ''
-            } flex items-center gap-2`}
+          className={`text-[13px] leading-tight ${
+            isSubOption ? 'text-[12px]' : ''
+          } flex items-center gap-2`}
         >
           {isSubOption && '• '}
           {t(setting.label)}
           {isRealtimeSubscription && state.get && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium scale-90 ${realtimeMode === 'SSE'
-                ? 'bg-emerald-600/15 text-emerald-500 border border-emerald-600/25'
-                : realtimeMode === 'Polling'
-                  ? 'bg-indigo-600/15 text-indigo-500 border border-indigo-600/25'
-                  : 'bg-slate-600/15 text-slate-400 border border-slate-600/25'
-                }`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium scale-90 ${
+                realtimeMode === 'SSE'
+                  ? 'bg-emerald-600/15 text-emerald-500 border border-emerald-600/25'
+                  : realtimeMode === 'Polling'
+                    ? 'bg-indigo-600/15 text-indigo-500 border border-indigo-600/25'
+                    : 'bg-slate-600/15 text-slate-400 border border-slate-600/25'
+              }`}
             >
               {/* <span>🏷️</span> */}
               <span>{realtimeMode}</span>
@@ -443,14 +596,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             type='checkbox'
             className='sr-only peer'
             checked={state.get}
-            disabled={isLastEnabled}
+            disabled={isLastEnabled || groupDisabled}
             onChange={(e) => handleChange(e.target.checked)}
           />
           {isSubOption ? (
             // Checkbox样式
             <div
-              className={`relative w-4 h-4 border-2 peer-focus:outline-none rounded transition-all border-gray-400 peer-checked:bg-blue-500 peer-checked:border-blue-500 ${isLastEnabled ? 'opacity-60' : ''
-                }`}
+              className={`relative w-4 h-4 border-2 peer-focus:outline-none rounded transition-all border-gray-400 peer-checked:bg-xhunt-accent peer-checked:border-xhunt-accent ${
+                isLastEnabled ? 'opacity-60' : ''
+              }`}
             >
               {state.get && (
                 <svg
@@ -468,7 +622,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           ) : (
             // 滑动开关样式
-            <div className="relative w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+            <div className="relative w-9 h-5 bg-gray-500/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-xhunt-accent"></div>
           )}
         </label>
       </div>
@@ -478,7 +632,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const renderSettingsGroup = (
     groupKey: string,
     groupTitle: string,
-    settings: Array<{ key: string; label: string }>
+    settings: Array<{ key: string; label: string }>,
+    groupDisabled: boolean = false,
   ) => {
     const isExpanded = expandedGroups[groupKey];
     const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
@@ -486,14 +641,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return (
       <div
         key={groupKey}
-        className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md mb-2'
+        className='theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 overflow-hidden'
       >
         {/* 分组标题 */}
         <div
-          className='flex items-center justify-between py-1.5 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors rounded-md'
+          className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors'
           onClick={() => toggleGroup(groupKey)}
         >
-          <span className='text-[12px] font-semibold theme-text-primary tracking-wide'>
+          <span className='text-[12px] font-semibold theme-text-primary tracking-wide leading-4'>
             {groupTitle}
           </span>
           <ChevronIcon className='w-3.5 h-3.5 theme-text-secondary' />
@@ -506,26 +661,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             {groupKey === 'floatingPanel' && (
               <>
                 {/* 悬浮面板模式选择 */}
-                <div className='flex items-center justify-between py-1.5 px-3'>
+                <div className='flex items-center justify-between py-2 px-3'>
                   <span className='text-[13px] theme-text-primary leading-tight'>
                     {t('floatingPanelMode')}
                   </span>
                   <label className='relative inline-flex items-center cursor-pointer shrink-0'>
-                    <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
+                    <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-full p-0.5'>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${floatingPanelMode === 'default'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          floatingPanelMode === 'default'
+                            ? 'bg-xhunt-accent text-white'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
                         onClick={() => setFloatingPanelMode('default')}
                       >
                         {t('floatingPanelModeDefault')}
                       </button>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${floatingPanelMode === 'persistent'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          floatingPanelMode === 'persistent'
+                            ? 'bg-xhunt-accent text-white'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
                         onClick={() => setFloatingPanelMode('persistent')}
                       >
                         {t('floatingPanelModePersistent')}
@@ -534,7 +691,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </label>
                 </div>
                 {/* 悬浮框宽度设置 */}
-                <div className='flex items-center justify-between py-1.5 px-3'>
+                <div className='flex items-center justify-between py-2 px-3'>
                   <span className='text-[13px] theme-text-primary leading-tight'>
                     {t('panelWidth')}
                   </span>
@@ -552,8 +709,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           Math.max(
                             300,
                             Math.round((Number(e.target.value) || 340) / 10) *
-                            10
-                          )
+                              10,
+                          ),
                         );
                         setPanelWidthTemp(v);
                       }}
@@ -570,27 +727,29 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <>
                 <div
                   key={'language'}
-                  className='flex items-center justify-between py-1.5 px-3'
+                  className='flex items-center justify-between py-2 px-3'
                 >
                   <span className='text-[13px] theme-text-primary leading-tight'>
                     {t('language')}
                   </span>
                   <label className='relative inline-flex items-center cursor-pointer shrink-0'>
-                    <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
+                    <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-full p-0.5'>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${lang === 'en'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          lang === 'en'
+                            ? 'bg-xhunt-accent text-white'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
                         onClick={() => setLang('en')}
                       >
                         EN
                       </button>
                       <button
-                        className={`px-2 py-1 text-[11px] rounded ${lang === 'zh'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                          }`}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          lang === 'zh'
+                            ? 'bg-xhunt-accent text-white'
+                            : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
                         onClick={() => setLang('zh')}
                       >
                         中
@@ -601,17 +760,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {/* 提示音效选择 */}
                 <div
                   key={'sound'}
-                  className='flex items-center justify-between py-1.5 px-3'
+                  className='flex items-center justify-between py-2 px-3'
                 >
                   <span className='text-[13px] theme-text-primary leading-tight'>
                     {t('soundEffect')}
                   </span>
                   <div className='relative inline-flex items-center cursor-pointer shrink-0 gap-2'>
                     <select
-                      className={`text-[12px] theme-text-primary theme-bg-tertiary rounded-md px-2 py-1 focus:outline-none focus:ring-0 focus:border-transparent ${isSoundLoading || isSoundStoreLoading
-                        ? 'opacity-60 pointer-events-none'
-                        : ''
-                        }`}
+                      className={`text-[12px] theme-text-primary theme-bg-tertiary rounded-lg px-2 py-1 focus:outline-none focus:ring-0 focus:border-transparent ${
+                        isSoundLoading || isSoundStoreLoading
+                          ? 'opacity-60 pointer-events-none'
+                          : ''
+                      }`}
                       value={sound?.url || ''}
                       disabled={isSoundLoading || isSoundStoreLoading}
                       onChange={async (e) => {
@@ -644,7 +804,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     <button
                       type='button'
                       aria-label={t('play')}
-                      className='inline-flex items-center justify-center rounded-md px-1 py-0.5 theme-bg-tertiary hover:theme-bg-tertiary/80 theme-text-primary border theme-border'
+                      className='inline-flex items-center justify-center rounded-lg px-1.5 py-1 theme-bg-tertiary hover:theme-bg-tertiary/80 theme-text-primary border theme-border'
                       disabled={
                         !sound ||
                         sound.url === '__MUTE__' ||
@@ -666,71 +826,91 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
               </>
             )}
-            {settings.map(renderSettingItem)}
-            {/* 头像设置专属：排名类型选择（影响力 / 综合） */}
-            {/* {groupKey === 'avatarSettings' && (
-              <div className='flex items-center justify-between py-1.5 px-3'>
+            {settings.map((s) => renderSettingItem(s, groupDisabled))}
+            {/* 头像设置专属：排名类型选择（影响力 / 综合 / AI） */}
+            {groupKey === 'avatarSettings' &&
+              settingStates.showAvatarRank?.get && (
+              <div className='flex items-center justify-between py-2 px-3'>
                 <span className='text-[13px] theme-text-primary leading-tight'>
                   {t('avatarRankModeSelectorTitle')}
                 </span>
                 <label className='relative inline-flex items-center cursor-pointer shrink-0'>
-                  <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-md p-0.5'>
-                    <button
-                      className={`px-2 py-1 text-[11px] rounded ${
-                        avatarRankMode === 'influence'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                      }`}
-                      onClick={() => {
-                        if (avatarRankMode === 'influence') return;
-                        setAvatarRankMode('influence');
-                        setTimeout(() => {
-                          try {
-                            window.location.reload();
-                          } catch {}
-                        }, 200);
-                      }}
-                    >
-                      <span
-                        data-xhunt-avatar-rank-mode='influence'
-                        className='gold-trophy'
+                  <div className='inline-flex items-center gap-2 theme-bg-tertiary rounded-full p-0.5'>
+                    {domains.includes('web3') && (
+                      <button
+                        disabled={domains.length === 1}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          avatarRankMode === 'web3'
+                            ? 'bg-xhunt-accent text-white'
+                            : domains.length === 1
+                              ? 'theme-text-secondary/40 cursor-not-allowed'
+                              : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
+                        onClick={() => {
+                          if (avatarRankMode === 'web3') return;
+                          setAvatarRankMode('web3');
+                          setTimeout(() => {
+                            try {
+                              window.location.reload();
+                            } catch {}
+                          }, 200);
+                        }}
                       >
-                        🏆
-                      </span>{' '}
-                      {t('avatarRankModeInfluence')}
-                    </button>
-                    <button
-                      className={`px-2 py-1 text-[11px] rounded ${
-                        avatarRankMode === 'composite'
-                          ? 'bg-blue-500 text-white'
-                          : 'theme-text-secondary hover:theme-text-primary'
-                      }`}
-                      onClick={() => {
-                        if (avatarRankMode === 'composite') return;
-                        setAvatarRankMode('composite');
-                        setTimeout(() => {
-                          try {
-                            window.location.reload();
-                          } catch {}
-                        }, 200);
-                      }}
-                    >
-                      <span
-                        data-xhunt-avatar-rank-mode='composite'
-                        className='gold-trophy middle-badge'
+                        <span
+                          data-xhunt-avatar-rank-mode='web3'
+                          className='gold-trophy'
+                        >
+                          🏆
+                        </span>
+                        Web3
+                        {/* {t('avatarRankModeWeb3')} */}
+                      </button>
+                    )}
+                    {domains.includes('ai') && (
+                      <button
+                        disabled={domains.length === 1}
+                        className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
+                          avatarRankMode === 'ai'
+                            ? 'bg-emerald-500 text-white'
+                            : domains.length === 1
+                              ? 'theme-text-secondary/40 cursor-not-allowed'
+                              : 'theme-text-secondary hover:theme-text-primary'
+                        }`}
+                        title={
+                          !domains.includes('ai')
+                            ? t('avatarRankModeAiDisabledTip') ||
+                              '请先打开感兴趣 AI 领域'
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (avatarRankMode === 'ai') return;
+                          setAvatarRankMode('ai');
+                          setTimeout(() => {
+                            try {
+                              window.location.reload();
+                            } catch {}
+                          }, 100);
+                        }}
                       >
-                        🏅
-                      </span>{' '}
-                      {t('avatarRankModeComposite')}
-                    </button>
+                        <span
+                          data-xhunt-avatar-rank-mode='ai'
+                          className='gold-trophy middle-badge'
+                        >
+                          🏅
+                        </span>
+                        AI
+                        {/* {t('avatarRankModeAi')} */}
+                      </button>
+                    )}
                   </div>
                 </label>
               </div>
-            )} */}
+            )}
 
             {/* 头像设置专属：皮肤选择器 */}
-            {/* {groupKey === 'avatarSettings' && (
-              <div className='py-1.5 px-3'>
+            {groupKey === 'avatarSettings' &&
+              settingStates.showAvatarRank?.get && (
+              <div className='py-2 px-3'>
                 <div className='text-[13px] theme-text-primary leading-tight mb-2.5'>
                   {t('avatarSkinSelectorTitle')}
                 </div>
@@ -749,20 +929,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         type='button'
                         className={`relative w-5 h-5 rounded-md border-2 transition-all duration-200 ${
                           isActive
-                            ? 'border-blue-500 ring-2 ring-blue-500/30'
+                            ? 'border-xhunt-accent ring-2 ring-xhunt-accent/30'
                             : 'border-gray-500/20 hover:border-gray-500/50'
                         }`}
                         style={{
                           background: themeColors.background,
                         }}
                         title={t(skinCfg.nameKey)}
-                        onClick={() => setAvatarSkin(id)}
+                        onClick={() => setSkinCustomized(id)}
                       />
                     );
                   })}
                 </div>
               </div>
-            )} */}
+            )}
           </div>
         )}
       </div>
@@ -779,7 +959,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       ) {
         setSound({ url: defaultSound.url, data: defaultSound.data });
       }
-    } catch { }
+    } catch {}
   }, [isSoundStoreLoading, sound?.data, setSound]);
 
   // 获取用户信息并同步到 @xhunt/user
@@ -837,7 +1017,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     if (evmAddress && !isValidEvmAddress(evmAddress)) {
       setEvmAddressError(
         t('mantleHunterEvmAddressFormatIncorrect') ||
-        'Invalid EVM address format'
+          'Invalid EVM address format',
       );
       return;
     }
@@ -870,8 +1050,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         // Fallback to generic error message
         setEvmAddressError(
           cleanErrorMessage(
-            err?.message || t('noteSaveFailed') || 'Save failed'
-          )
+            err?.message || t('noteSaveFailed') || 'Save failed',
+          ),
         );
       }
     } finally {
@@ -880,8 +1060,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   // API Access 风险提示弹框状态
-  const [showApiRiskDialog, setShowApiRiskDialog] = useState(false);
-  const [apiRiskAcknowledged, setApiRiskAcknowledged] = useState(false);
+  // const [showApiRiskDialog, setShowApiRiskDialog] = useState(false);
+  // const [apiRiskAcknowledged, setApiRiskAcknowledged] = useState(false);
 
   return (
     <div className='flex flex-col h-full min-h-0 relative'>
@@ -892,58 +1072,191 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <HeaderRightControls
             onOpenMessages={() => navigateTo('/messages')}
             onClose={onClose}
-            onOpenSettings={() => { }}
+            onOpenSettings={() => {}}
           />
         }
       />
       {isLoading ? (
         <div className='flex-1 flex items-center justify-center'>
-          <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2'></div>
+          <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-xhunt-accent mx-auto mb-2'></div>
         </div>
       ) : (
         <>
-          <div ref={scrollContainerRef} className='flex-1 min-h-0 overflow-y-auto scrollbar-hide'>
+          <div
+            ref={scrollContainerRef}
+            className='flex-1 min-h-0 overflow-y-auto scrollbar-hide'
+          >
             <div className='py-2'>
-              <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md'>
+              <div className='ml-1 mr-1'>
                 {/* 分组设置：将基础设置放到最前 */}
                 {renderSettingsGroup(
                   'others',
                   t('otherSettings'),
-                  groupedSettings.others
+                  groupedSettings.others,
                 )}
+                {/* 领域偏好设置 */}
+                <div
+                  className='theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 mt-2 overflow-hidden'
+                  data-section='domain-preference'
+                >
+                  <div
+                    className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors'
+                    onClick={() => toggleGroup('domainPreference')}
+                  >
+                    <span className='text-[12px] font-semibold theme-text-primary tracking-wide leading-4'>
+                      {t('domainPreferenceTitle') || '感兴趣领域'}
+                    </span>
+                    {expandedGroups.domainPreference ? (
+                      <ChevronDown className='w-4 h-4 theme-text-secondary' />
+                    ) : (
+                      <ChevronRight className='w-4 h-4 theme-text-secondary' />
+                    )}
+                  </div>
+                  {expandedGroups.domainPreference && (
+                    <div className='border-t theme-border'>
+                      {/* Web3 */}
+                      <div className='flex items-center justify-between py-2 px-3'>
+                        <span className='text-[13px] leading-tight flex items-center gap-2 theme-text-primary'>
+                          {lang === 'zh'
+                            ? t('domainWeb3Desc') || '区块链'
+                            : t('domainWeb3') || 'Web3'}
+                          {/* {primaryDomain === 'web3' && domains.includes('web3') && (
+                            <span className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-xhunt-accent/15 text-xhunt-accent'>
+                              {t('domainPrimary') || '主'}
+                            </span>
+                          )} */}
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          <label className='relative inline-flex items-center shrink-0'>
+                            <input
+                              type='checkbox'
+                              className='sr-only peer'
+                              checked={domains.includes('web3')}
+                              disabled={
+                                domains.length === 1 && domains.includes('web3')
+                              }
+                              onChange={(e) => handleToggleDomain('web3')}
+                            />
+                            <div className="relative w-9 h-5 bg-gray-500/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-xhunt-accent"></div>
+                          </label>
+                        </div>
+                      </div>
+                      {/* AI */}
+                      <div className='flex items-center justify-between py-2 px-3'>
+                        <span className='text-[13px] leading-tight flex items-center gap-2 theme-text-primary'>
+                          {lang === 'zh'
+                            ? t('domainAiDesc') || '人工智能'
+                            : t('domainAi') || 'AI'}
+                          {/* {primaryDomain === 'ai' && domains.includes('ai') && (
+                            <span className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-500'>
+                              {t('domainPrimary') || '主'}
+                            </span>
+                          )} */}
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          <label className='relative inline-flex items-center shrink-0'>
+                            <input
+                              type='checkbox'
+                              className='sr-only peer'
+                              checked={domains.includes('ai')}
+                              disabled={
+                                domains.length === 1 && domains.includes('ai')
+                              }
+                              onChange={(e) => handleToggleDomain('ai')}
+                            />
+                            <div className="relative w-9 h-5 bg-gray-500/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-xhunt-accent"></div>
+                          </label>
+                        </div>
+                      </div>
+                      {/* 首选切换（仅双选时显示） */}
+                      {domains.includes('web3') && domains.includes('ai') && (
+                        <div className='flex items-center justify-between py-2 px-3'>
+                          <span className='text-[13px] theme-text-primary leading-tight'>
+                            {t('domainPriorityTitle') || '首选'}
+                          </span>
+                          <div className='inline-flex items-center gap-1 theme-bg-tertiary rounded-full p-0.5'>
+                            <button
+                              className={`px-2.5 py-0.5 text-[11px] rounded-full transition-colors ${
+                                primaryDomain === 'web3'
+                                  ? 'bg-xhunt-accent text-white'
+                                  : 'theme-text-secondary hover:theme-text-primary'
+                              }`}
+                              onClick={() => {
+                                setPrimaryDomain('web3');
+                              }}
+                            >
+                              Web3
+                              {/* {lang === 'zh' ? (t('domainWeb3Desc') || '区块链') : (t('domainWeb3') || 'Web3')} */}
+                            </button>
+                            <button
+                              className={`px-2.5 py-0.5 text-[11px] rounded-full transition-colors ${
+                                primaryDomain === 'ai'
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'theme-text-secondary hover:theme-text-primary'
+                              }`}
+                              onClick={() => {
+                                setPrimaryDomain('ai');
+                              }}
+                            >
+                              {/* {lang === 'zh' ? (t('domainAiDesc') || '人工智能') : (t('domainAi') || 'AI')} */}
+                              AI
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {renderSettingsGroup(
                   'avatarSettings',
                   t('avatarSettings'),
-                  groupedSettings.avatarSettings
+                  groupedSettings.avatarSettings,
                 )}
                 {renderSettingsGroup(
                   'profilePage',
                   t('profilePageSettings'),
-                  groupedSettings.profilePage
+                  groupedSettings.profilePage,
                 )}
-                {renderSettingsGroup(
-                  'homeRightSidebar',
-                  t('homeRightSidebar'),
-                  groupedSettings.homeRightSidebar
-                )}
+                {groupedSettings.homeRightSidebar.length > 0 &&
+                  renderSettingsGroup(
+                    'homeRightSidebar',
+                    t('homeRightSidebar'),
+                    groupedSettings.homeRightSidebar,
+                  )}
+                <div ref={web3SettingsRef}>
+                  {renderSettingsGroup(
+                    'web3OnlySettings',
+                    t('web3OnlySettings') || 'Web3 领域设置',
+                    groupedSettings.web3OnlySettings,
+                    !domains.includes('web3'),
+                  )}
+                </div>
+                <div ref={aiSettingsRef}>
+                  {renderSettingsGroup(
+                    'aiOnlySettings',
+                    t('aiOnlySettings') || 'AI 领域设置',
+                    groupedSettings.aiOnlySettings,
+                    !domains.includes('ai'),
+                  )}
+                </div>
                 {renderSettingsGroup(
                   'floatingPanel',
                   t('floatingPanelSettings'),
-                  []
+                  [],
                 )}
                 {/* 测试分组（仅测试者可见）*/}
                 {isTesterOnly && (
-                  <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md mb-2'>
+                  <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 overflow-hidden'>
                     {/* 分组标题 */}
-                    <div className='flex items-center justify-between py-1.5 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors rounded-md'>
-                      <span className='text-[12px] font-semibold theme-text-primary tracking-wide flex items-center gap-1.5'>
+                    <div className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors'>
+                      <span className='text-[12px] font-semibold theme-text-primary tracking-wide leading-4 flex items-center gap-1.5'>
                         {t('testerSettings')}
                         <span className='inline-flex items-center gap-1 group relative'>
                           <Info className='w-3 h-3 theme-text-secondary/70 hover:theme-text-secondary cursor-pointer transition-colors' />
                           <div className='absolute bottom-full left-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 min-w-[200px] max-w-[360px] whitespace-normal'>
                             {t('testerSettingsInfo').replace(
                               '{list}',
-                              testersListStr
+                              testersListStr,
                             )}
                             <div className='absolute top-full left-4 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800'></div>
                           </div>
@@ -952,7 +1265,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     </div>
                     {/* 分组内容 */}
                     <div className='border-t theme-border'>
-                      <div className='flex items-center justify-between py-1.5 px-3'>
+                      <div className='flex items-center justify-between py-2 px-3'>
                         <span className='text-[13px] theme-text-primary leading-tight inline-flex items-center gap-1.5'>
                           {t('disableTesting')}
                           <span className='inline-flex items-center gap-1 group relative'>
@@ -972,7 +1285,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                               setDisableTesting(e.target.checked)
                             }
                           />
-                          <div className="relative w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                          <div className="relative w-9 h-5 bg-gray-500/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-xhunt-accent"></div>
                         </label>
                       </div>
                     </div>
@@ -984,11 +1297,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
               {/* EVM 地址绑定 - 仅登录时显示 */}
               {token && (
-                <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-r-md mb-2'>
+                <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 overflow-hidden'>
                   {/* 分组标题 */}
-                  <div className='flex items-center justify-between py-1.5 px-3'>
+                  <div className='flex items-center justify-between py-2 px-3'>
                     <div className='flex items-center gap-1.5 group relative'>
-                      <span className='text-[12px] font-semibold theme-text-primary tracking-wide cursor-pointer'>
+                      <span className='text-[12px] font-semibold theme-text-primary tracking-wide leading-4 cursor-pointer'>
                         {t('evmAddressBinding')}
                       </span>
                       <Info className='w-3 h-3 theme-text-secondary/60 hover:theme-text-secondary cursor-pointer transition-colors' />
@@ -1001,7 +1314,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                   {/* 分组内容 */}
                   <div className='border-t theme-border'>
-                    <div className='flex items-center justify-between py-1.5 px-3 gap-2'>
+                    <div className='flex items-center justify-between py-2 px-3 gap-2'>
                       <input
                         type='text'
                         value={evmAddress}
@@ -1010,7 +1323,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           t('mantleHunterPlaceholderEvmAddress') || '0x...'
                         }
                         ref={evmAddressInputRef}
-                        className='flex-1 text-[10px] theme-text-primary theme-bg-tertiary rounded-md px-2 py-1.5 outline-none border theme-border focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/20 transition-all placeholder:theme-text-secondary/60'
+                        className='flex-1 text-[10px] theme-text-primary theme-bg-tertiary rounded-lg px-2.5 py-1.5 outline-none border theme-border focus:border-xhunt-accent/50 focus:ring-1 focus:ring-xhunt-accent/20 transition-all placeholder:theme-text-secondary/60'
                         onFocus={() => {
                           currentInputRef.current = evmAddressInputRef.current;
                         }}
@@ -1031,7 +1344,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           (evmAddress.length > 0 &&
                             !isValidEvmAddress(evmAddress))
                         }
-                        className='inline-flex items-center justify-center px-2 py-1.5 text-[11px] font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0 disabled:hover:bg-blue-500'
+                        className='inline-flex items-center justify-center px-2 py-1.5 text-[11px] font-medium rounded-lg bg-xhunt-accent text-white hover:bg-xhunt-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0 disabled:hover:bg-xhunt-accent'
                       >
                         {isSavingEvmAddress ? (
                           <div className='w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin' />
@@ -1056,51 +1369,54 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       (evmAddress &&
                         evmAddress.length > 0 &&
                         !isValidEvmAddress(evmAddress))) && (
-                        <div
-                          className={`mx-3 px-3 py-2 border-t theme-border ${evmAddressError
+                      <div
+                        className={`mx-3 px-3 py-2 border-t theme-border ${
+                          evmAddressError
                             ? 'bg-red-500/10 border-red-500/20'
                             : 'theme-bg-tertiary/50'
-                            }`}
-                        >
-                          <div
-                            className={`text-[11px] leading-relaxed whitespace-pre-line ${evmAddressError
+                        }`}
+                      >
+                        <div
+                          className={`text-[11px] leading-relaxed whitespace-pre-line ${
+                            evmAddressError
                               ? 'text-red-400 font-medium'
                               : 'theme-text-secondary'
-                              }`}
-                          >
-                            {evmAddressError ||
-                              t('mantleHunterEvmAddressFormatIncorrect')}
-                          </div>
+                          }`}
+                        >
+                          {evmAddressError ||
+                            t('mantleHunterEvmAddressFormatIncorrect')}
                         </div>
-                      )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* API Access 板块（通过 useCrossPageSettings 控制，无显式开关） */}
-              {isEnabled('showApiAccess') && (
-                <ApiAccessSection
-                  onApplySuccess={() => {
-                    // 申请成功后滚动到底部
-                    scrollContainerRef.current?.scrollTo({
-                      top: scrollContainerRef.current.scrollHeight,
-                      behavior: 'smooth',
-                    });
-                  }}
-                  onShowRiskDialog={() => {
-                    setApiRiskAcknowledged(false);
-                    setShowApiRiskDialog(true);
-                  }}
-                />
-              )}
+              {/*{isEnabled('showApiAccess') && (*/}
+              {/*  <ApiAccessSection*/}
+              {/*    onApplySuccess={() => {*/}
+              {/*      // 申请成功后滚动到底部*/}
+              {/*      scrollContainerRef.current?.scrollTo({*/}
+              {/*        top: scrollContainerRef.current.scrollHeight,*/}
+              {/*        behavior: 'smooth',*/}
+              {/*      });*/}
+              {/*    }}*/}
+              {/*    onShowRiskDialog={() => {*/}
+              {/*      setApiRiskAcknowledged(false);*/}
+              {/*      setShowApiRiskDialog(true);*/}
+              {/*    }}*/}
+              {/*  />*/}
+              {/*)}*/}
             </div>
           </div>
 
           {/* 底部信息 - 左侧图标（仅登录时显示），右侧版本/环境 */}
-          <div className='sticky bottom-0 z-0 px-2 py-2 border-t theme-border theme-bg-secondary/95'>
+          <div className='sticky bottom-0 z-0 px-2.5 py-2 border-t theme-border theme-bg-secondary/95 backdrop-blur-sm'>
             <div
-              className={`flex items-center ${token ? 'justify-between' : 'justify-end'
-                }`}
+              className={`flex items-center ${
+                token ? 'justify-between' : 'justify-end'
+              }`}
             >
               {token && (
                 <div className='flex items-center gap-1'>
@@ -1109,7 +1425,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     target='_blank'
                     rel='noopener noreferrer'
                     title='@xhunt_ai'
-                    className='inline-flex items-center px-1.5 py-1 rounded-md hover:theme-bg-tertiary transition-colors'
+                    className='inline-flex items-center px-1.5 py-1 rounded-lg hover:theme-bg-tertiary transition-colors'
                   >
                     <svg
                       viewBox='0 0 24 24'
@@ -1124,7 +1440,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     target='_blank'
                     rel='noopener noreferrer'
                     title='GitHub'
-                    className='inline-flex items-center px-1.5 py-1 rounded-md hover:theme-bg-tertiary transition-colors'
+                    className='inline-flex items-center px-1.5 py-1 rounded-lg hover:theme-bg-tertiary transition-colors'
                   >
                     <Github className='w-4 h-4 theme-text-primary' />
                   </a>
@@ -1134,7 +1450,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     target='_blank'
                     rel='noopener noreferrer'
                     title='Telegram'
-                    className='inline-flex items-center px-1.5 py-1 rounded-md hover:theme-bg-tertiary transition-colors'
+                    className='inline-flex items-center px-1.5 py-1 rounded-lg hover:theme-bg-tertiary transition-colors'
                   >
                     <svg
                       // t='1757566474599'
@@ -1168,7 +1484,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     isCanaryUser
                       ? 'text-yellow-800/60 dark:text-yellow-300/70'
                       : 'theme-text-secondary'
-                    }`}
+                  }`}
                 >
                   {process.env.PLASMO_PUBLIC_ENV === 'dev' ? 'DEV' : 'BETA'}
                 </span>
@@ -1176,7 +1492,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <button
                   type='button'
                   onClick={handleClearCache}
-                  className='inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-md border theme-border theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors'
+                  className='inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg border theme-border theme-text-secondary hover:theme-text-primary hover:theme-bg-tertiary transition-colors'
                   title={t('clearCache')}
                 >
                   {t('clearCache')}
@@ -1185,61 +1501,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           </div>
         </>
-      )}
-
-      {/* API Access 风险提示弹框 - 相对于SettingsPage根容器绝对定位 */}
-      {showApiRiskDialog && (
-        <div
-          className='absolute z-50 theme-bg-secondary theme-text-primary rounded-lg border theme-border p-4 w-[320px] shadow-xl'
-          style={{
-            top: '55%',
-            left: '50%',
-            transform: 'translate(-50%, 0)'
-          }}
-        >
-          <div className='text-xs whitespace-pre-line theme-text-secondary leading-relaxed'>
-            {t('apiAutoWalletRiskDesc')}
-            <br /><br />
-            {t('apiAutoWalletRisk1')}
-            <br />
-            {t('apiAutoWalletRisk2')}
-            <br />
-            {t('apiAutoWalletRisk3')}
-            <br />
-            {t('apiAutoWalletRisk4')}
-          </div>
-          <label className='mt-3 flex items-center gap-2 text-xs theme-text-secondary'>
-            <input
-              type='checkbox'
-              checked={apiRiskAcknowledged}
-              onChange={(e) => setApiRiskAcknowledged(e.target.checked)}
-            />
-            <span>{t('apiAutoWalletAgree')}</span>
-          </label>
-          <div className='mt-3 flex justify-end gap-2'>
-            <button
-              type='button'
-              className='px-3 py-1.5 text-xs rounded-md theme-hover border theme-border theme-text-primary'
-              onClick={() => setShowApiRiskDialog(false)}
-            >
-              {t('apiAutoWalletCancel')}
-            </button>
-            <button
-              type='button'
-              className='px-3 py-1.5 text-xs rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed'
-              onClick={() => {
-                // 通过自定义事件通知 ApiAccessSection
-                window.dispatchEvent(new CustomEvent('xhunt-api-risk-confirmed', {
-                  detail: { acknowledged: apiRiskAcknowledged }
-                }));
-                setShowApiRiskDialog(false);
-              }}
-              disabled={!apiRiskAcknowledged}
-            >
-              {t('apiAutoWalletConfirm')}
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

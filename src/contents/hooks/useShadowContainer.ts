@@ -48,6 +48,15 @@ export interface UseShadowContainerOptions {
    * Shadow 容器创建后的回调函数
    */
   onShadowCreated?: (shadowRoot: ShadowRoot, target: HTMLElement) => void;
+  /**
+   * 当 useSiblings 自动创建同级坑位时，是否清理同一基准元素附近残留的旧坑位。
+   * 主要用于会因主题切换整体 remount 的入口，避免 closed shadow root 无法复用导致重复注入。
+   */
+  cleanupStaleSiblings?: boolean;
+  /**
+   * 当前 Shadow 容器的唯一标识。配合 cleanupStaleSiblings 使用时，只清理相同 key 的旧容器。
+   */
+  containerKey?: string;
 }
 
 // 全局 z-index 管理
@@ -97,7 +106,7 @@ const cleanupZIndexInstance = (instanceId: string) => {
     instance.element.removeEventListener('click', instance.clickHandler);
     instance.element.removeEventListener(
       'mouseenter',
-      instance.mouseenterHandler
+      instance.mouseenterHandler,
     );
 
     // 如果是当前激活的实例，恢复 z-index
@@ -119,6 +128,9 @@ const cleanupZIndexInstance = (instanceId: string) => {
 const isElementInDocument = (element: HTMLElement | null): boolean => {
   return !!(element && document.body.contains(element));
 };
+
+const AUTO_CREATED_ATTR = 'data-plasmo-shadow-container-autocreated';
+const CONTAINER_KEY_ATTR = 'data-xhunt-shadow-container-key';
 
 // 全局窗口大小变化监听器
 let resizeObserver: ResizeObserver | null = null;
@@ -206,6 +218,8 @@ export default function useShadowContainer({
   targetStyle = '',
   autoZIndex = true,
   onShadowCreated,
+  cleanupStaleSiblings = false,
+  containerKey,
 }: UseShadowContainerOptions): ShadowRoot | null {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
@@ -213,25 +227,50 @@ export default function useShadowContainer({
   const currentUrl = useCurrentUrl();
 
   // 生成稳定的配置 key，避免对象引用变化导致 effect 重创建
-  const configKey = useMemo(() => JSON.stringify({
-    selector,
-    selectorXPath,
-    useSiblings,
-    siblingsPosition,
-    siblingsXPath,
-    siblingsStyle,
-    targetStyle,
-    styleText,
-    shadowMode,
-    theme,
-    targetFilter: targetFilter?.toString(), // 函数转为字符串
-  }), [selector, selectorXPath, useSiblings, siblingsPosition, siblingsXPath, siblingsStyle, targetStyle, styleText, shadowMode, theme, targetFilter]);
+  const configKey = useMemo(
+    () =>
+      JSON.stringify({
+        selector,
+        selectorXPath,
+        useSiblings,
+        siblingsPosition,
+        siblingsXPath,
+        siblingsStyle,
+        targetStyle,
+        styleText,
+        shadowMode,
+        theme,
+        cleanupStaleSiblings,
+        containerKey,
+        targetFilter: targetFilter?.toString(), // 函数转为字符串
+      }),
+    [
+      selector,
+      selectorXPath,
+      useSiblings,
+      siblingsPosition,
+      siblingsXPath,
+      siblingsStyle,
+      targetStyle,
+      styleText,
+      shadowMode,
+      theme,
+      cleanupStaleSiblings,
+      containerKey,
+      targetFilter,
+    ],
+  );
   // 用于标记是否已经创建过容器，避免重复创建
   const createdRef = useRef(false);
   // 当前实例的唯一 ID（延迟创建）
   const instanceIdRef = useRef<string>('');
   // 保存当前 target 元素的引用
   const currentTargetRef = useRef<HTMLElement | null>(null);
+  // 自动创建的同级坑位，仅这类节点允许在组件卸载时移除
+  const autoCreatedTargetRef = useRef<HTMLElement | null>(null);
+  const autoCreatedBaseRef = useRef<Element | null>(null);
+  // 保存已绑定 z-index 事件的 target，避免同一个元素重复解绑/绑定
+  const zIndexBoundTargetRef = useRef<HTMLElement | null>(null);
   // 保存回调函数的引用
   const onShadowCreatedRef = useLatest(onShadowCreated);
 
@@ -241,6 +280,24 @@ export default function useShadowContainer({
       instanceIdRef.current = `shadow-${Date.now()}-${Math.random()}`;
     }
     const instanceId = instanceIdRef.current;
+
+    // 无需自动 z-index 时，清理已绑定实例并仅更新当前 target 引用
+    if (!autoZIndexRef.current) {
+      cleanupZIndexInstance(instanceId);
+      zIndexBoundTargetRef.current = null;
+      currentTargetRef.current = targetElement;
+      return;
+    }
+
+    // 同一个 target 已经绑定过时，不重复 cleanup / addEventListener
+    const existingInstance = zIndexInstances.get(instanceId);
+    if (
+      zIndexBoundTargetRef.current === targetElement &&
+      existingInstance?.element === targetElement
+    ) {
+      currentTargetRef.current = targetElement;
+      return;
+    }
 
     // 清理之前的实例（如果存在）
     cleanupZIndexInstance(instanceId);
@@ -267,10 +324,8 @@ export default function useShadowContainer({
     };
 
     // 添加事件监听器
-    autoZIndexRef.current &&
-      targetElement.addEventListener('click', clickHandler);
-    autoZIndexRef.current &&
-      targetElement.addEventListener('mouseenter', mouseenterHandler);
+    targetElement.addEventListener('click', clickHandler);
+    targetElement.addEventListener('mouseenter', mouseenterHandler);
 
     // 注册到全局管理器
     zIndexInstances.set(instanceId, {
@@ -283,6 +338,7 @@ export default function useShadowContainer({
 
     // 更新当前 target 引用
     currentTargetRef.current = targetElement;
+    zIndexBoundTargetRef.current = targetElement;
   };
 
   // 创建 Shadow 容器的函数（使用 useCallback 缓存）
@@ -291,7 +347,8 @@ export default function useShadowContainer({
     if (createdRef.current) {
       // 检查当前引用的元素是否仍在文档中
       if (isElementInDocument(currentTargetRef.current)) {
-        // 元素仍在文档中，重新设置 z-index 管理
+        // 元素仍在文档中，同步主题并重新设置 z-index 管理
+        currentTargetRef.current!.setAttribute('data-theme', theme);
         setupAutoZIndex(currentTargetRef.current!);
         return true;
       } else {
@@ -304,7 +361,7 @@ export default function useShadowContainer({
     // 1. 根据 selectorXPath 或 selector 查找基准元素
     const evaluateXPathSingle = (
       xpath: string,
-      context: Node = document
+      context: Node = document,
     ): Element | null => {
       try {
         const result = document.evaluate(
@@ -312,7 +369,7 @@ export default function useShadowContainer({
           context,
           null,
           XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
+          null,
         );
         return (result.singleNodeValue as Element) || null;
       } catch (e) {
@@ -327,7 +384,7 @@ export default function useShadowContainer({
           context,
           null,
           XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-          null
+          null,
         );
         const nodes: Element[] = [];
         for (let i = 0; i < snapshot.snapshotLength; i++) {
@@ -351,15 +408,44 @@ export default function useShadowContainer({
       if (!targetFilter && !siblingsXPath) {
         if (
           baseEl.getAttribute('data-plasmo-shadow-container-useSiblings') ===
-          'true' && shadowRoot
+            'true' &&
+          shadowRoot &&
+          isElementInDocument(currentTargetRef.current)
         ) {
+          currentTargetRef.current!.setAttribute('data-theme', theme);
+          setupAutoZIndex(currentTargetRef.current!);
+          createdRef.current = true;
           return true;
         }
+
+        if (cleanupStaleSiblings && baseEl.parentElement) {
+          Array.from(baseEl.parentElement.children).forEach((el) => {
+            if (el === baseEl || el === currentTargetRef.current) return;
+            if (el.getAttribute('data-plasmo-shadow-container') !== 'true') {
+              return;
+            }
+            if (containerKey) {
+              if (el.getAttribute(CONTAINER_KEY_ATTR) !== containerKey) {
+                return;
+              }
+            } else if (el.getAttribute(AUTO_CREATED_ATTR) !== 'true') {
+              return;
+            }
+            el.remove();
+          });
+        }
+
         const placeholder = document.createElement('div');
+        placeholder.setAttribute(AUTO_CREATED_ATTR, 'true');
+        if (containerKey) {
+          placeholder.setAttribute(CONTAINER_KEY_ATTR, containerKey);
+        }
         placeholder.style.cssText = siblingsStyle || '';
         baseEl.insertAdjacentElement(siblingsPosition, placeholder);
         baseEl.setAttribute('data-plasmo-shadow-container-useSiblings', 'true');
         target = placeholder;
+        autoCreatedTargetRef.current = placeholder;
+        autoCreatedBaseRef.current = baseEl;
       } else if (siblingsXPath) {
         // 优先使用 XPath 在同级中查找
         if (!baseEl.parentElement) return false;
@@ -371,11 +457,11 @@ export default function useShadowContainer({
         // 如果提供了 targetFilter，则在 baseEl 的同级中查找符合条件的目标
         if (!baseEl.parentElement) return false;
         const siblings = Array.from(baseEl.parentElement.children).filter(
-          (el) => el !== baseEl
+          (el) => el !== baseEl,
         );
         target =
           siblings.find((el) =>
-            typeof targetFilter === 'function' ? targetFilter(el) : false
+            typeof targetFilter === 'function' ? targetFilter(el) : false,
           ) || null;
       }
     } else {
@@ -386,6 +472,17 @@ export default function useShadowContainer({
 
     // 2. 检查目标元素内是否已存在唯一的容器
     if (target.getAttribute('data-plasmo-shadow-container') === 'true') {
+      // Shadow 容器已存在时也要同步主题，否则首次安装默认 dark 后切 light 会残留浅灰图标
+      target.setAttribute('data-theme', theme);
+      const existingShadow = (target as HTMLElement).shadowRoot;
+      const styleEl = existingShadow?.querySelector('style');
+      if (
+        styleEl &&
+        styleEl.textContent !== styleText &&
+        typeof styleText === 'string'
+      ) {
+        styleEl.textContent = styleText;
+      }
       // 重新设置 z-index 管理
       setupAutoZIndex(target as HTMLElement);
       return true;
@@ -406,7 +503,9 @@ export default function useShadowContainer({
         target.setAttribute('data-theme', theme);
         // 合并 targetStyle 和 autoZIndex 的 z-index
         const zIndexStyle = autoZIndex ? 'z-index: 1;' : '';
-        const finalStyle = targetStyle ? `${targetStyle} ${zIndexStyle}`.trim() : zIndexStyle;
+        const finalStyle = targetStyle
+          ? `${targetStyle} ${zIndexStyle}`.trim()
+          : zIndexStyle;
         if (finalStyle) {
           target.setAttribute('style', finalStyle);
         }
@@ -438,6 +537,34 @@ export default function useShadowContainer({
     return true;
   }, [configKey, shadowRoot]); // configKey 已包含 targetFilter
 
+  useEffect(() => {
+    return () => {
+      cleanupZIndexInstance(instanceIdRef.current);
+
+      const autoCreatedTarget = autoCreatedTargetRef.current;
+      if (autoCreatedTarget?.isConnected) {
+        autoCreatedTarget.remove();
+      }
+
+      const autoCreatedBase = autoCreatedBaseRef.current;
+      if (
+        autoCreatedBase?.getAttribute(
+          'data-plasmo-shadow-container-useSiblings',
+        ) === 'true'
+      ) {
+        autoCreatedBase.removeAttribute(
+          'data-plasmo-shadow-container-useSiblings',
+        );
+      }
+
+      currentTargetRef.current = null;
+      autoCreatedTargetRef.current = null;
+      autoCreatedBaseRef.current = null;
+      zIndexBoundTargetRef.current = null;
+      createdRef.current = false;
+    };
+  }, []);
+
   // 处理窗口大小变化
   useDebounceEffect(
     () => {
@@ -457,7 +584,7 @@ export default function useShadowContainer({
       wait: 100,
       leading: true,
       trailing: true,
-    }
+    },
   );
 
   useDebounceEffect(
@@ -475,13 +602,14 @@ export default function useShadowContainer({
         { childList: true, subtree: true },
         {
           debugName: 'useShadowContainer',
-        }
+        },
       );
 
       return () => {
         unsubscribe();
         // 清理 z-index 管理
         cleanupZIndexInstance(instanceIdRef.current);
+        zIndexBoundTargetRef.current = null;
       };
     },
     [configKey, currentUrl, waitTime], // 使用 configKey 简化依赖
@@ -490,7 +618,7 @@ export default function useShadowContainer({
       maxWait: 300,
       leading: true,
       trailing: true,
-    }
+    },
   );
 
   return shadowRoot;

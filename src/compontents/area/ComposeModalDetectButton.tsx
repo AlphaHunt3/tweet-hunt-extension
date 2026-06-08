@@ -6,6 +6,7 @@ import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { useCrossPageSettings } from '~utils/settingsManager';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLockFn } from 'ahooks';
 import { fetchAiDetect, fetchAiDetectQuota, getTwitterAuthUrl } from '~contents/services/api';
@@ -360,7 +361,7 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
       const confirmMessage = lang === 'zh'
         ? '跳转登录前，请确保您已保存推文内容或存储为草稿，避免登录后刷新导致内容丢失。\n\n是否继续跳转登录？'
         : 'Before redirecting to login, please make sure you have saved your tweet content or stored it as a draft to avoid losing it after the page refreshes.\n\nContinue to login?';
-      
+
       if (window.confirm(confirmMessage)) {
         await redirectToLogin();
       }
@@ -516,19 +517,21 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
 
 // 原来的 Compose Modal 检测按钮
 function _ComposeModalDetectButton() {
-  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
-  
+  const { isEnabled } = useCrossPageSettings();
+  const showAiDetectButton = isEnabled('showAiDetectButton');
+
   if (!showAiDetectButton) {
     return null;
   }
-  
+
   return <_DetectButton selector={COMPOSE_MODAL_SELECTOR} componentType='compose' />;
 }
 
 // 内联回复检测按钮 - 只在帖子详情页显示 (/status/)
 function _InlineReplyDetectButton() {
   const currentUrl = useCurrentUrl();
-  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
+  const { isEnabled } = useCrossPageSettings();
+  const showAiDetectButton = isEnabled('showAiDetectButton');
 
   const isStatusPage = useMemo(() => /\/status\/\d+/.test(currentUrl), [currentUrl]);
 
@@ -548,7 +551,8 @@ function _InlineReplyDetectButton() {
 // Home Timeline 检测按钮 - 只在首页显示 (/home)
 function _HomeTimelineDetectButton() {
   const currentUrl = useCurrentUrl();
-  const [showAiDetectButton] = useLocalStorage('@settings/showAiDetectButton', true);
+  const { isEnabled } = useCrossPageSettings();
+  const showAiDetectButton = isEnabled('showAiDetectButton');
   const isHomePage = useMemo(() => /\/home/.test(currentUrl), [currentUrl]);
 
   // 如果开关关闭，不渲染

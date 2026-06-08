@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { sanitizeHtml } from '~utils/sanitizeHtml';
 
 // 定义提示类型
 type TipType = 'suc' | 'fail' | 'warning' | 'default';
@@ -70,7 +71,7 @@ export function GlobalTips() {
         )}`}
       >
         <p
-          dangerouslySetInnerHTML={{ __html: currentTip.text }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentTip.text) }}
         />
       </div>
     </div>

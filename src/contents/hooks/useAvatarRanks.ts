@@ -7,8 +7,24 @@ import packageJson from '../../../package.json';
 import usePlacementTracking from './usePlacementTracking';
 import { useDebounceEffect } from 'ahooks';
 import { formatRank } from '~js/utils';
+import { sanitizeHtml } from '~utils/sanitizeHtml';
 
 const HIGH_RANK_THRESHOLD = 10000;
+const avatarShapeCache = new WeakMap<
+  HTMLElement,
+  {
+    url: string;
+    isSquare: boolean;
+  }
+>();
+const avatarDomMetaCache = new WeakMap<
+  HTMLElement,
+  {
+    url: string;
+    hasTweetUserAvatar: boolean;
+    borderRadius: string;
+  }
+>();
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
@@ -18,7 +34,12 @@ const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
 };
 
 class AvatarStyler {
-  static findAvatarImage(container: HTMLElement): boolean {
+  static findAvatarImage(container: HTMLElement, currentUrl: string): boolean {
+    const cachedShape = avatarShapeCache.get(container);
+    if (cachedShape?.url === currentUrl) {
+      return cachedShape.isSquare;
+    }
+
     try {
       const aTag = container.querySelector('a');
       if (aTag) {
@@ -26,6 +47,10 @@ class AvatarStyler {
         for (const div of divs) {
           const computedStyle = window.getComputedStyle(div);
           if (computedStyle.clipPath?.includes('#shape-square')) {
+            avatarShapeCache.set(container, {
+              url: currentUrl,
+              isSquare: true,
+            });
             return true;
           }
         }
@@ -37,17 +62,25 @@ class AvatarStyler {
         if (firstDiv) {
           const computedStyle = window.getComputedStyle(firstDiv);
           if (computedStyle.clipPath?.includes('#shape-square')) {
+            avatarShapeCache.set(container, {
+              url: currentUrl,
+              isSquare: true,
+            });
             return true;
           }
         }
       }
 
+      avatarShapeCache.set(container, {
+        url: currentUrl,
+        isSquare: false,
+      });
       return false;
     } catch (error) {
       devLog(
         'error',
         `📊 [v${packageJson.version}] Error in findAvatarImage:`,
-        error
+        error,
       );
       return false;
     }
@@ -57,49 +90,52 @@ class AvatarStyler {
     container: HTMLElement,
     rank: number,
     isLoading: boolean,
-    avatarRankMode: 'influence' | 'composite',
+    avatarRankMode: 'web3' | 'ai',
     isSpecialCase: boolean = false,
     isLarge: boolean = false,
     username: string = '',
     theme: string,
-    hasCredibilityBadge: boolean = false
+    hasCredibilityBadge: boolean = false,
   ) {
     try {
-      let badge = container.querySelector('.xhunt-avatar-rank-badge');
+      let badge = container.querySelector<HTMLElement>(
+        '.xhunt-avatar-rank-badge',
+      );
 
       if (!badge) {
         badge = document.createElement('div');
         badge.className = 'xhunt-avatar-rank-badge';
 
-        if (hasCredibilityBadge) {
-          badge.classList.add('xhunt-badge-top');
-        }
-
         if (isSpecialCase) {
-          // @ts-ignore
           badge.style.zIndex = '9999';
-        }
-        if (isLarge) {
-          badge.classList.add('large');
-        }
-        if (rank > 0 && rank <= HIGH_RANK_THRESHOLD) {
-          badge.classList.add('high-ranked');
         }
         container.appendChild(badge);
       }
 
       badge.setAttribute('data-theme', theme);
       badge.classList.toggle('loading', isLoading);
-      badge.innerHTML = `<span class="xhunt-avatar-rank-text">${formatRank(
-        Number(rank),
-        avatarRankMode,
-        username
-      )}</span>`;
+      badge.classList.toggle('xhunt-badge-top', hasCredibilityBadge);
+      badge.classList.toggle('large', isLarge);
+      badge.classList.toggle(
+        'high-ranked',
+        rank > 0 && rank <= HIGH_RANK_THRESHOLD,
+      );
+
+      const nextHtml = sanitizeHtml(
+        `<span class="xhunt-avatar-rank-text">${formatRank(
+          Number(rank),
+          avatarRankMode,
+          username,
+        )}</span>`,
+      );
+      if (badge.innerHTML !== nextHtml) {
+        badge.innerHTML = nextHtml;
+      }
     } catch (error) {
       devLog(
         'error',
         `📊 [v${packageJson.version}] Error in updateRankBadge:`,
-        error
+        error,
       );
     }
   }
@@ -135,10 +171,45 @@ class AvatarStyler {
       devLog(
         'error',
         `📊 [v${packageJson.version}] Error in setDMOverflowVisible:`,
-        error
+        error,
       );
     }
   }
+}
+
+function getAvatarDomMeta(
+  el: HTMLElement,
+  parent: HTMLElement,
+  currentUrl: string,
+) {
+  const cachedMeta = avatarDomMetaCache.get(el);
+  if (cachedMeta?.url === currentUrl) {
+    return cachedMeta;
+  }
+
+  let hasTweetUserAvatar = false;
+  let ancestor: HTMLElement | null = parent;
+  while (ancestor) {
+    if (ancestor.getAttribute('data-testid') === 'Tweet-User-Avatar') {
+      hasTweetUserAvatar = true;
+      break;
+    }
+    ancestor = ancestor.parentElement;
+  }
+
+  const isSquareShape = AvatarStyler.findAvatarImage(el, currentUrl);
+  const meta = {
+    url: currentUrl,
+    hasTweetUserAvatar,
+    borderRadius: isSquareShape ? '10%' : '50%',
+  };
+  avatarDomMetaCache.set(el, meta);
+  return meta;
+}
+
+function clearAvatarElementCache(el: HTMLElement) {
+  avatarShapeCache.delete(el);
+  avatarDomMetaCache.delete(el);
 }
 
 // 🆕 处理 unknown username 的特殊情况
@@ -161,7 +232,7 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
           if (username && username !== 'unknown') {
             devLog(
               'log',
-              `📊 [v${packageJson.version}] Resolved unknown username via ancestor: ${username}`
+              `📊 [v${packageJson.version}] Resolved unknown username via ancestor: ${username}`,
             );
             return username;
           }
@@ -180,7 +251,7 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
           if (username && username !== 'unknown') {
             devLog(
               'log',
-              `📊 [v${packageJson.version}] Resolved unknown username via sibling: ${username}`
+              `📊 [v${packageJson.version}] Resolved unknown username via sibling: ${username}`,
             );
             return username;
           }
@@ -190,14 +261,14 @@ function resolveUnknownUsername(element: HTMLElement): string | null {
 
     devLog(
       'log',
-      `📊 [v${packageJson.version}] Could not resolve unknown username, will be filtered out`
+      `📊 [v${packageJson.version}] Could not resolve unknown username, will be filtered out`,
     );
     return null;
   } catch (error) {
     devLog(
       'error',
       `📊 [v${packageJson.version}] Error resolving unknown username:`,
-      error
+      error,
     );
     return null;
   }
@@ -208,17 +279,26 @@ export function useAvatarRanks() {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [showAvatarRank, , { isLoading: isShowAvatarRankLoading }] =
     useLocalStorage('@settings/showAvatarRank', true);
-  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
-      '@settings/avatarRankMode',
-      'influence'
-    );
+  const [
+    avatarRankMode,
+    setAvatarRankMode,
+    { isLoading: isAvatarRankModeLoading },
+  ] = useLocalStorage<'web3' | 'ai'>('@settings/avatarRankMode', 'web3');
+
+  // 迁移旧数据：influence / composite -> web3
+  useEffect(() => {
+    const raw = avatarRankMode as any;
+    if (raw === 'influence' || raw === 'composite') {
+      setAvatarRankMode('web3');
+    }
+  }, [avatarRankMode, setAvatarRankMode]);
+
   const currentUrl = useCurrentUrl();
   const { twitterId, loading: isLoadingHtml } = usePlacementTracking();
   const preUrlRef = useRef('');
   const hasCredibilityBadgeRef = useRef<undefined | boolean>(undefined);
   const [loadingUsernames, setLoadingUsernames] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   // 初始化排名服务
@@ -247,6 +327,8 @@ export function useAvatarRanks() {
       const matchedElements = new Set<HTMLElement>();
 
       targetElements.forEach((el: HTMLElement) => {
+        if (!document.body.contains(el)) return;
+
         const processedUrl = (el as any).processedUrl;
         if (!processedUrl || processedUrl !== currentUrl) {
           matchedElements.add(el);
@@ -286,10 +368,12 @@ export function useAvatarRanks() {
         return;
       }
 
+      const uniqueUsernamesToCheck = Array.from(new Set(usernamesToCheck));
+
       // 使用排名服务获取排名
       const ranks = await rankService.getRanks(
-        usernamesToCheck,
-        avatarRankMode
+        uniqueUsernamesToCheck,
+        avatarRankMode,
       );
 
       // 处理排名结果并更新UI（批量读写，减少布局抖动）
@@ -302,18 +386,11 @@ export function useAvatarRanks() {
         const parent = el.parentElement;
         if (!parent) continue;
 
-        let hasTweetUserAvatar = false;
-        let ancestor: HTMLElement | null = parent;
-        while (ancestor) {
-          if (ancestor.getAttribute('data-testid') === 'Tweet-User-Avatar') {
-            hasTweetUserAvatar = true;
-            break;
-          }
-          ancestor = ancestor.parentElement;
-        }
-
-        const isSquareShape = AvatarStyler.findAvatarImage(el);
-        const borderRadius = isSquareShape ? '10%' : '50%';
+        const { hasTweetUserAvatar, borderRadius } = getAvatarDomMeta(
+          el,
+          parent,
+          currentUrl,
+        );
 
         // 单次测量
         const rect = el.getBoundingClientRect();
@@ -322,6 +399,8 @@ export function useAvatarRanks() {
 
         // 收集写任务
         writeTasks.push(() => {
+          if (!document.body.contains(el)) return;
+
           if (hasTweetUserAvatar) {
             if (!parent.classList.contains('xhunt-avatar-inner-border')) {
               parent.classList.add('xhunt-avatar-inner-border');
@@ -349,7 +428,7 @@ export function useAvatarRanks() {
                 isLarge,
                 username,
                 theme,
-                hasCredibilityBadgeRef.current
+                hasCredibilityBadgeRef.current,
               );
             }
           } else {
@@ -374,7 +453,7 @@ export function useAvatarRanks() {
               isLarge,
               username,
               theme,
-              hasCredibilityBadgeRef.current
+              hasCredibilityBadgeRef.current,
             );
           }
 
@@ -396,7 +475,7 @@ export function useAvatarRanks() {
       devLog(
         'error',
         `📊 [v${packageJson.version}] Error in processAvatars:`,
-        error
+        error,
       );
     }
   };
@@ -414,19 +493,23 @@ export function useAvatarRanks() {
         return;
       }
       hasCredibilityBadgeRef.current = !!document.querySelector(
-        '.credibility-badge-wrapper'
+        '.credibility-badge-wrapper',
       );
-      const largeAvatars = (useAvatarElements as any).getLargeAvatars();
+      const getProcessedAvatars = (useAvatarElements as any)
+        .getProcessedAvatars;
       const resetAvatar = (useAvatarElements as any).resetAvatar;
-      const processedNodesRef = (useAvatarElements as any).processedNodes;
 
-      if (preUrlRef.current !== currentUrl && largeAvatars?.size > 0) {
+      if (preUrlRef.current !== currentUrl) {
+        const processedAvatars: Set<HTMLElement> | undefined =
+          getProcessedAvatars?.();
         const elementsToReprocess = new Set<HTMLElement>();
 
-        largeAvatars.forEach((trackedAvatar: any) => {
-          resetAvatar(trackedAvatar.element);
-          elementsToReprocess.add(trackedAvatar.element);
-          processedNodesRef.current.delete(trackedAvatar.element);
+        processedAvatars?.forEach((element) => {
+          if (!document.body.contains(element)) return;
+
+          clearAvatarElementCache(element);
+          resetAvatar(element);
+          elementsToReprocess.add(element);
         });
 
         if (elementsToReprocess.size > 0) {
@@ -456,7 +539,7 @@ export function useAvatarRanks() {
       maxWait: 150,
       leading: true,
       trailing: true,
-    }
+    },
   );
 
   // 🆕 返回缓存管理方法供调试使用

@@ -10,6 +10,7 @@ interface KolFollowersSectionProps {
   kolData: KolData;
   isHoverPanel?: boolean;
   defaultTab?: KolTabType;
+  domain?: 'web3' | 'ai';
 }
 
 // 生成基于字符串的一致颜色（恢复原来的颜色生成方式）
@@ -146,6 +147,7 @@ export function KolFollowersSection({
   kolData,
   defaultTab = 'global',
   isHoverPanel = false,
+  domain = 'web3',
 }: KolFollowersSectionProps) {
   const [activeKolTab, setActiveKolTab] = useState<KolTabType>(
     defaultTab as KolTabType
@@ -154,29 +156,45 @@ export function KolFollowersSection({
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
+  const isAi = domain === 'ai';
+
   const getActiveKolList = (): KolFollower[] => {
     let result: KolFollower[] = [];
 
     switch (activeKolTab) {
       case 'global':
-        result = kolData?.kolFollow?.globalKolFollowers || [];
+        result = isAi
+          ? kolData?.kolFollow?.globalKolFollowersAi || []
+          : kolData?.kolFollow?.globalKolFollowers || [];
         break;
       case 'cn':
-        result = kolData?.kolFollow?.cnKolFollowers || [];
+        result = isAi
+          ? kolData?.kolFollow?.cnKolFollowersAi || []
+          : kolData?.kolFollow?.cnKolFollowers || [];
         break;
       case 'top100':
-        result = kolData?.kolFollow?.topKolFollowers || [];
+        result = isAi
+          ? kolData?.kolFollow?.topKolFollowersAi || []
+          : kolData?.kolFollow?.topKolFollowers || [];
         break;
       default:
-        result = kolData?.kolFollow?.globalKolFollowers || [];
+        result = isAi
+          ? kolData?.kolFollow?.globalKolFollowersAi || []
+          : kolData?.kolFollow?.globalKolFollowers || [];
     }
 
     return Array.isArray(result) ? result : [];
   };
 
-  const globalFollowers = kolData?.kolFollow?.globalKolFollowersCount || 0;
-  const cnFollowers = kolData?.kolFollow?.cnKolFollowersCount || 0;
-  const topFollowers = kolData?.kolFollow?.topKolFollowersCount || 0;
+  const globalFollowers = isAi
+    ? kolData?.kolFollow?.globalKolFollowersCountAi || 0
+    : kolData?.kolFollow?.globalKolFollowersCount || 0;
+  const cnFollowers = isAi
+    ? kolData?.kolFollow?.cnKolFollowersCountAi || 0
+    : kolData?.kolFollow?.cnKolFollowersCount || 0;
+  const topFollowers = isAi
+    ? kolData?.kolFollow?.topKolFollowersCountAi || 0
+    : kolData?.kolFollow?.topKolFollowersCount || 0;
   const activeKolList = getActiveKolList();
 
   // 根据是否为 HoverPanel 决定显示的数量

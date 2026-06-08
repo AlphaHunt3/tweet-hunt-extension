@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import { select, selectAll } from 'd3-selection';
+import { scaleLog } from 'd3-scale';
 import cloud from 'd3-cloud';
 import { cleanupCanvasContexts } from '~utils/canvasContextManager';
 
@@ -63,7 +64,7 @@ function TokenWordCloud({
 
   // Colors for the word cloud - more vibrant colors
   const colors = [
-    '#60a5fa', // blue-400
+    '#1D9BF0', // blue-400
     '#10b981', // green-500
     '#f59e0b', // yellow-500
     '#ef4444', // red-500
@@ -110,14 +111,13 @@ function TokenWordCloud({
     cleanupCanvasContexts();
 
     // Clear previous content
-    d3.select(svgRef.current).selectAll('*').remove();
+    select(svgRef.current).selectAll('*').remove();
 
     // Calculate font size range based on token values
     const minValue =
       sortedTokens.length > 1 ? sortedTokens[sortedTokens.length - 1].value : 1;
     const maxValue = sortedTokens.length > 0 ? sortedTokens[0].value : 2;
-    const fontSizeScale = d3
-      .scaleLog()
+    const fontSizeScale = scaleLog()
       .domain([Math.max(1, minValue), Math.max(2, maxValue)])
       .range([14, 28])
       .clamp(true);
@@ -131,7 +131,7 @@ function TokenWordCloud({
           size: fontSizeScale(Math.max(1, d.value)),
           value: d.value,
           rotate: 0,
-        }))
+        })),
       )
       .padding(5)
       .rotate(() => 0)
@@ -146,7 +146,7 @@ function TokenWordCloud({
 
     // Function to draw the word cloud
     function draw(words: any[]) {
-      const svg = d3.select(svgRef.current);
+      const svg = select(svgRef.current);
 
       const group = svg
         .attr('width', dimensions.width)
@@ -154,7 +154,7 @@ function TokenWordCloud({
         .append('g')
         .attr(
           'transform',
-          `translate(${dimensions.width / 2},${dimensions.height / 2})`
+          `translate(${dimensions.width / 2},${dimensions.height / 2})`,
         );
 
       // Add words
@@ -172,7 +172,7 @@ function TokenWordCloud({
         .attr('text-anchor', 'middle')
         .attr(
           'transform',
-          (d) => `translate(${d.x},${d.y}) rotate(${d.rotate})`
+          (d) => `translate(${d.x},${d.y}) rotate(${d.rotate})`,
         )
         .text((d) => d.text)
         .style('opacity', 1);
@@ -181,8 +181,7 @@ function TokenWordCloud({
       group
         .selectAll('text')
         .on('mouseover', function (event, d) {
-          const tooltip = d3
-            .select('body')
+          const tooltip = select('body')
             .append('div')
             .attr('class', 'token-tooltip')
             .style('position', 'absolute')
@@ -201,17 +200,17 @@ function TokenWordCloud({
             .style('left', `${event.pageX + 10}px`)
             .style('top', `${event.pageY - 28}px`);
 
-          d3.select(this).style('filter', 'brightness(1.2)');
+          select(this).style('filter', 'brightness(1.2)');
         })
         .on('mouseout', function () {
-          d3.selectAll('.token-tooltip').remove();
-          d3.select(this).style('filter', 'brightness(1)');
+          selectAll('.token-tooltip').remove();
+          select(this).style('filter', 'brightness(1)');
         });
     }
 
     return () => {
-      d3.select(svgRef.current).selectAll('*').remove();
-      d3.selectAll('.token-tooltip').remove();
+      select(svgRef.current).selectAll('*').remove();
+      selectAll('.token-tooltip').remove();
       // 清理WebGL上下文
       cleanupCanvasContexts();
     };

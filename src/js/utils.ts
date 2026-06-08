@@ -2,7 +2,7 @@ import { SPECIAL_AUTHORED_RANK } from '~contents/constants/rank';
 
 export const formatRank = (
   rank: number | null | undefined,
-  avatarRankMode: 'influence' | 'composite',
+  avatarRankMode: 'web3' | 'ai',
   username?: string
 ): string => {
   if (rank === -2 && username) return '~';
@@ -16,7 +16,7 @@ export const formatRank = (
   }
   if (rank === undefined || rank === null || rank < 0) return '-';
 
-  const icon = avatarRankMode === 'influence' ? '🏆' : '🏅';
+  const icon = avatarRankMode === 'ai' ? '🏅' : '🏆';
 
   let trophy = '#';
   if (rank < 2000) {

@@ -2,15 +2,16 @@ import { localStorageInstance } from './index';
 import { ChatHistory, ChatMessage } from '~/types';
 
 const CHAT_HISTORY_KEY = 'ai_chat_history';
-const MAX_KOL_CHATS = 3; // 最多存储3个KOL的聊天记录
-const MAX_MESSAGES_PER_KOL = 20; // 每个KOL最多存储20条消息
+const MAX_KOL_CHATS = 8; // 最多存储5个KOL的聊天记录
+const MAX_MESSAGES_PER_KOL = 40; // 每个KOL最多存储40条消息
 const MAX_HISTORY_FOR_API = 5; // 发送给API的最近消息数量
 
 export class ChatHistoryManager {
   private static instance: ChatHistoryManager;
   private histories: Map<string, ChatHistory> = new Map();
+  private currentUserId: string | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ChatHistoryManager {
     if (!ChatHistoryManager.instance) {
@@ -19,9 +20,16 @@ export class ChatHistoryManager {
     return ChatHistoryManager.instance;
   }
 
-  async init(): Promise<void> {
+  private getStorageKey(): string {
+    return this.currentUserId ? `${CHAT_HISTORY_KEY}_${this.currentUserId}` : CHAT_HISTORY_KEY;
+  }
+
+  async init(userId?: string): Promise<void> {
+    if (this.currentUserId === userId) return;
+    this.currentUserId = userId || null;
+    this.histories.clear();
     try {
-      const stored = await localStorageInstance.get(CHAT_HISTORY_KEY);
+      const stored = await localStorageInstance.get(this.getStorageKey());
       if (stored && Array.isArray(stored)) {
         stored.forEach((item: ChatHistory) => {
           this.histories.set(item.handle, item);
@@ -94,7 +102,7 @@ export class ChatHistoryManager {
   private async saveToStorage(): Promise<void> {
     try {
       const historiesArray = Array.from(this.histories.values());
-      await localStorageInstance.set(CHAT_HISTORY_KEY, historiesArray);
+      await localStorageInstance.set(this.getStorageKey(), historiesArray);
     } catch (error) {
       console.error('Failed to save chat history:', error);
     }

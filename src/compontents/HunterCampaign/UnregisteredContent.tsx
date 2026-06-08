@@ -33,6 +33,7 @@ import { HunterCampaignConfig } from './types';
 import { CampaignTags } from './CampaignTags';
 import { isUrlValid } from './utils';
 import { openNewTab } from '~contents/utils';
+import { sanitizeHtml } from '~utils/sanitizeHtml';
 
 interface UnregisteredContentProps {
   tasks: Task[];
@@ -397,7 +398,7 @@ export function UnregisteredContent({
             <div
               className='prose prose-invert max-w-none text-xs'
               dangerouslySetInnerHTML={{
-                __html: campaignConfig?.riskConfirmHtml || '',
+                __html: sanitizeHtml(campaignConfig?.riskConfirmHtml || ''),
               }}
             />
             <div className='mt-3 flex justify-end gap-2'>
@@ -656,7 +657,7 @@ export function UnregisteredContent({
               <p
                 className='text-[10px] leading-relaxed theme-text-secondary/80 select-none'
                 dangerouslySetInnerHTML={{
-                  __html: t('hunterCampaignPaidPartnershipDisclaimer'),
+                  __html: sanitizeHtml(t('hunterCampaignPaidPartnershipDisclaimer')),
                 }}
               />
             </label>

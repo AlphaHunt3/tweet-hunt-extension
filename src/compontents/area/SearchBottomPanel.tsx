@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import cssText from 'data-text:~/css/style.css';
 import avatarCssText from 'data-text:~/css/avatar-rank.css';
 import ReactDOM from 'react-dom';
 import { MainData } from '~contents/hooks/useMainData.ts';
-import { TwitterHomeRightSidebar } from '~/compontents/TwitterHomeRightSidebar';
+import { HomeRightSidebar } from '~/compontents/homeRightSidebar/HomeRightSidebar';
 import { TwitterPersonalRightSidebar } from '~/compontents/TwitterPersonalRightSidebar';
 import useWaitForElement from '~contents/hooks/useWaitForElement.ts';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
@@ -12,33 +12,37 @@ import { useLocalStorage } from '~storage/useLocalStorage';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 
+type SearchBottomPanelProps = Pick<
+  MainData,
+  'error' | 'newTwitterData' | 'loadingTwInfo'
+>;
+
 function _SearchBottomPanel({
   error,
-  userId: _userId,
   newTwitterData,
   loadingTwInfo,
-}: MainData) {
-  // const handleShadowCreated = useCallback(() => {
-  //   const r1h3ijdo = document.querySelector(
-  //     "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1h3ijdo']"
-  //   );
-  //   if (r1h3ijdo && r1h3ijdo instanceof HTMLElement) {
-  //     r1h3ijdo.style.display = 'none';
-  //   }
-  // }, []);
+}: SearchBottomPanelProps) {
+  const handleShadowCreated = useCallback(() => {
+    const r1h3ijdo = document.querySelector(
+      "div[data-testid='sidebarColumn'] div[class='css-g5y9jx r-1h3ijdo']",
+    );
+    if (r1h3ijdo && r1h3ijdo instanceof HTMLElement) {
+      r1h3ijdo.style.display = 'none';
+    }
+  }, []);
 
   const shadowOptions = useMemo(
     () => ({
       selector:
-        "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1adg3ll']",
+        "div[data-testid='sidebarColumn'] div[aria-label][tabindex] > div:first-child",
       styleText: cssText + avatarCssText,
       autoZIndex: false,
       useSiblings: true,
       siblingsPosition: 'beforebegin' as InsertPosition,
       siblingsStyle: 'width:auto;height:auto;max-width:100%;z-index:0',
-      // onShadowCreated: handleShadowCreated,
+      onShadowCreated: handleShadowCreated,
     }),
-    []
+    [],
   );
 
   const shadowRoot = useShadowContainer(shadowOptions);
@@ -50,6 +54,18 @@ function _SearchBottomPanel({
     handler: userId,
     loading: isLoadingHtml,
   } = usePlacementTracking();
+  const stableRouteContextRef = useRef({ urlUid: '', userId: '' });
+
+  if (!isLoadingHtml) {
+    stableRouteContextRef.current = { urlUid: urlUid || '', userId: userId || '' };
+  }
+
+  const displayUrlUid = isLoadingHtml
+    ? stableRouteContextRef.current.urlUid
+    : urlUid || '';
+  const displayUserId = isLoadingHtml
+    ? stableRouteContextRef.current.userId
+    : userId || '';
   // 如果是 https://x.com/i/premium 或其子路径，直接返回空
   const isPremiumRoute = useMemo(() => {
     try {
@@ -62,35 +78,32 @@ function _SearchBottomPanel({
     }
   }, [currentUrl]);
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
-      '@settings/avatarRankMode',
-      'influence'
-    );
+    useLocalStorage<'web3' | 'ai'>('@settings/avatarRankMode', 'web3');
+
+
   // 检测搜索框是否存在来决定marginTop
   const searchInput = useWaitForElement(
     "div[data-testid='sidebarColumn'] input[data-testid='SearchBox_Search_Input']",
-    [userId, currentUrl, isLoadingHtml]
+    [userId, currentUrl, isLoadingHtml],
   );
   const r1h3ijdoDom = useWaitForElement(
     "div[data-testid='sidebarColumn'] div[class='css-175oi2r r-1h3ijdo']",
-    [userId, currentUrl, isLoadingHtml]
+    [userId, currentUrl, isLoadingHtml],
   );
   const dynamicMarginTop = useMemo(() => {
-    return userId || searchInput ? 65 : 15;
-  }, [userId, searchInput]);
+    return displayUserId || searchInput ? 65 : 15;
+  }, [displayUserId, searchInput]);
 
   // 计算是否应该显示组件
   const shouldShow = useMemo(() => {
     return (
       !isPremiumRoute &&
-      !isLoadingHtml &&
       shadowRoot &&
       !error &&
       !isAvatarRankModeLoading
     );
   }, [
     isPremiumRoute,
-    isLoadingHtml,
     shadowRoot,
     error,
     isAvatarRankModeLoading,
@@ -136,17 +149,34 @@ function _SearchBottomPanel({
         pointerEvents: isVisible ? 'auto' : 'none',
       }}
     >
-      {!urlUid ? (
-        <TwitterHomeRightSidebar />
-      ) : (
+      <div
+        style={{
+          position: !displayUrlUid ? 'relative' : 'absolute',
+          inset: !displayUrlUid ? undefined : 0,
+          visibility: !displayUrlUid ? 'visible' : 'hidden',
+          opacity: !displayUrlUid ? 1 : 0,
+          pointerEvents: !displayUrlUid ? 'auto' : 'none',
+        }}
+      >
+        <HomeRightSidebar />
+      </div>
+      <div
+        style={{
+          position: displayUrlUid ? 'relative' : 'absolute',
+          inset: displayUrlUid ? undefined : 0,
+          visibility: displayUrlUid ? 'visible' : 'hidden',
+          opacity: displayUrlUid ? 1 : 0,
+          pointerEvents: displayUrlUid ? 'auto' : 'none',
+        }}
+      >
         <TwitterPersonalRightSidebar
-          userId={userId}
+          userId={displayUserId}
           newTwitterData={newTwitterData}
           loadingTwInfo={loadingTwInfo}
         />
-      )}
+      </div>
     </div>,
-    portalHost!
+    portalHost!,
   );
 }
 

@@ -44,6 +44,8 @@ export function TweetTagFilter(props: {
   }) => void;
   /** 筛选悬浮框展开/收起时回调，便于父组件锁定列表滚动 */
   onExpandChange?: (expanded: boolean) => void;
+  /** 仅显示指定的领域标签，为空则不过滤 */
+  allowedDomains?: string[];
 }) {
   const { t } = useI18n();
   const { translateTag } = useTagTranslation();
@@ -56,6 +58,7 @@ export function TweetTagFilter(props: {
     selectedHotTag,
     onChange,
     onExpandChange,
+    allowedDomains,
   } = props;
   const [expandedGroupId, setExpandedGroupId] = React.useState<string | null>(
     null
@@ -120,6 +123,7 @@ export function TweetTagFilter(props: {
 
     return Array.from(all)
       .filter(Boolean)
+      .filter((id) => (!allowedDomains || allowedDomains.length === 0) ? true : allowedDomains.includes(id))
       .map((id) => {
         const children =
           id === 'crypto'
@@ -150,7 +154,7 @@ export function TweetTagFilter(props: {
         if (b.id === 'ai') return 1;
         return b.count - a.count;
       });
-  }, [tagStats]);
+  }, [tagStats, allowedDomains]);
 
   const hotTagGroups: TagGroup[] = React.useMemo(() => {
     return Array.from(tagStats.hotTagCount.entries())
@@ -693,10 +697,18 @@ export function TweetTagFilter(props: {
                 <div
                   className='rounded-xl border p-2 shadow-lg'
                   style={{
+                    ...fixedStyle,
+                    boxSizing: 'border-box',
+                    padding: 8,
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderRadius: 12,
                     backgroundColor: theme === 'dark' ? '#15202b' : '#ffffff',
                     borderColor: theme === 'dark' ? '#374151' : '#eff3f4',
                     backgroundImage: 'none',
-                    ...fixedStyle,
+                    boxShadow: theme === 'dark'
+                      ? '0 12px 28px rgba(0, 0, 0, 0.35)'
+                      : '0 12px 28px rgba(15, 23, 42, 0.12)',
                   }}
                   onMouseEnter={() => {
                     if (closeTimerRef.current) {
@@ -709,9 +721,37 @@ export function TweetTagFilter(props: {
                   }}
                   onMouseLeave={() => scheduleCloseExpandedGroup(expandedGroupId)}
                 >
-                  <div className='flex flex-wrap gap-2'>
+                  <div
+                    className='flex flex-wrap gap-2'
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                    }}
+                  >
                     {(g.children || []).map((c) => {
                       const active = selectedSubTagId === c.id;
+                      const baseButtonStyle: React.CSSProperties = {
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                        margin: 0,
+                        padding: '4px 10px',
+                        borderWidth: 1,
+                        borderStyle: 'solid',
+                        borderRadius: 9999,
+                        fontSize: 11,
+                        lineHeight: '16px',
+                        fontWeight: active ? 600 : 500,
+                        fontFamily: 'inherit',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        backgroundImage: 'none',
+                      };
+
                       return (
                         <button
                           key={c.id}
@@ -722,15 +762,17 @@ export function TweetTagFilter(props: {
                             }`}
                           style={active
                             ? {
-                                backgroundColor: 'rgba(161, 161, 170, 0.4)',
-                                borderColor: 'rgba(161, 161, 170, 0.5)',
-                                color: theme === 'dark' ? '#ffffff' : '#000000',
-                              }
+                              ...baseButtonStyle,
+                              backgroundColor: 'rgba(161, 161, 170, 0.4)',
+                              borderColor: 'rgba(161, 161, 170, 0.5)',
+                              color: theme === 'dark' ? '#ffffff' : '#000000',
+                            }
                             : {
-                                backgroundColor: theme === 'dark' ? 'rgba(30, 39, 50, 0.2)' : 'rgba(243, 244, 246, 0.2)',
-                                borderColor: theme === 'dark' ? 'rgba(163, 172, 184, 0.4)' : 'rgba(107, 114, 128, 0.2)',
-                                color: theme === 'dark' ? '#ffffff' : '#000000',
-                              }
+                              ...baseButtonStyle,
+                              backgroundColor: theme === 'dark' ? 'rgba(30, 39, 50, 0.2)' : 'rgba(243, 244, 246, 0.2)',
+                              borderColor: theme === 'dark' ? 'rgba(163, 172, 184, 0.4)' : 'rgba(107, 114, 128, 0.2)',
+                              color: theme === 'dark' ? '#ffffff' : '#000000',
+                            }
                           }
                           onClick={() => {
                             onChange({

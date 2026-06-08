@@ -59,6 +59,7 @@ const subscriberDebounceStates = new Map<string, SubscriberDebounceState>();
 
 // 全局的 requestAnimationFrame ID（用于无防抖/节流的订阅者）
 let globalThrottleId: number | null = null;
+let pendingMutations: MutationRecord[] = [];
 
 /**
  * 合并配置选项（取并集）
@@ -302,20 +303,19 @@ const initGlobalObserver = (options: MutationObserverInit): void => {
   globalObserver = new MutationObserver((mutations) => {
     if (mutations.length === 0) return;
 
+    // 合并同一帧内的 mutation，避免高频 DOM 更新时跳过后续批次。
+    // X 页面会分批插入头像/文本节点，直接丢弃可能导致少量元素漏处理。
+    pendingMutations.push(...Array.from(mutations));
+
     // 使用 requestAnimationFrame 将处理推迟到浏览器下一次重绘之前
     // 这样可以避免在 DOM 变化的高频期间阻塞主线程
     if (globalThrottleId === null) {
-      // 创建 mutations 的快照（因为 mutations 数组在回调结束后可能会被重用）
-      const mutationsSnapshot = Array.from(mutations);
-
       globalThrottleId = window.requestAnimationFrame(() => {
+        const mutationsSnapshot = pendingMutations;
+        pendingMutations = [];
         handleMutations(mutationsSnapshot);
         globalThrottleId = null;
       });
-    } else {
-      // 如果已经有待执行的 frame，说明浏览器还没重绘
-      // 这里可以选择合并 mutations 或者跳过，为了简化，我们跳过本次
-      // 因为下一次 frame 会处理最新的 DOM 状态
     }
   });
 
@@ -353,6 +353,7 @@ const cleanupGlobalObserver = (): void => {
     window.cancelAnimationFrame(globalThrottleId);
     globalThrottleId = null;
   }
+  pendingMutations = [];
 
   // 重置配置
   mergedOptions = {

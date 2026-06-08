@@ -13,6 +13,7 @@ import {
 import dayjs from 'dayjs';
 import numeral from 'numeral';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
+import { navigateInX } from '~contents/utils/navigateInX';
 
 type HotTweetItem = {
     id?: string;
@@ -42,6 +43,8 @@ type HotTweetItem = {
             bookmark_count?: number;
         };
         ai?: {
+            title_cn?: string;
+            title_en?: string;
             summary_cn?: string;
             summary_en?: string;
             domain_tag?: string;
@@ -163,8 +166,16 @@ export function TweetList(props: {
 
                 const summary =
                     lang === 'zh'
-                        ? ai?.summary_cn || ''
-                        : ai?.summary_en || ai?.summary_cn || '';
+                        ? ai?.title_cn ||
+                        ai?.summary_cn ||
+                        ai?.title_en ||
+                        ai?.summary_en ||
+                        ''
+                        : ai?.title_en ||
+                        ai?.summary_en ||
+                        ai?.title_cn ||
+                        ai?.summary_cn ||
+                        '';
 
                 const username = profile?.username_raw || profile?.username || 'unknown';
                 const tweetId = tw?.id || it?.id || 'unknown';
@@ -173,7 +184,7 @@ export function TweetList(props: {
                 const rank = it?.rank ?? idx + 1;
 
                 const handleTweetClick = () => {
-                    window.open(`https://x.com/${username}/status/${tweetId}`, '_blank');
+                    navigateInX(`https://x.com/${username}/status/${tweetId}`);
                 };
 
                 return (
@@ -219,11 +230,13 @@ export function TweetList(props: {
                                             <div className='flex items-center gap-2 min-w-0 flex-1'>
                                                 <a
                                                     href={`https://x.com/${username}`}
-                                                    target='_blank'
-                                                    rel='noopener noreferrer'
                                                     className='font-semibold truncate hover:underline'
                                                     title={profile?.name || username}
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        navigateInX(`https://x.com/${username}`);
+                                                    }}
                                                 >
                                                     {profile?.name || username}
                                                 </a>

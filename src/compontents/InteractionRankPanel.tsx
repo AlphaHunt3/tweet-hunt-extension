@@ -14,6 +14,7 @@ import { fetchFanByHandle } from '~contents/services/api.ts';
 import { getCurrentUserInfo } from '~contents/utils/helpers';
 import { useRequest } from 'ahooks';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import { navigateInX } from '~contents/utils/navigateInX';
 
 interface InteractionRankPanelProps {
   userId: string;
@@ -38,9 +39,9 @@ export function InteractionRankPanel({
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
+    useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
-      'influence'
+      'web3'
     );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
@@ -264,7 +265,7 @@ interface InteractionRankItemRowProps {
   rank?: number;
   isLoading?: boolean;
   theme: string;
-  avatarRankMode: 'influence' | 'composite';
+  avatarRankMode: 'web3' | 'ai';
   isCurrentUser?: boolean;
 }
 
@@ -280,9 +281,11 @@ function InteractionRankItemRow({
   return (
     <a
       href={`https://x.com/${item.username_raw}`}
-      target='_blank'
-      rel='noopener noreferrer'
-      className={`flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors ${isCurrentUser
+      onClick={(event) => {
+        event.preventDefault();
+        navigateInX(`https://x.com/${item.username_raw}`);
+      }}
+      className={`group flex items-center gap-2.5 px-6 py-2 rounded-md theme-hover transition-colors ${isCurrentUser
           ? 'ring-2 ring-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20 mx-0.5'
           : ''
         }`}
@@ -310,7 +313,7 @@ function InteractionRankItemRow({
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-1'>
           <p
-            className={`font-medium text-sm truncate ${isCurrentUser
+            className={`font-medium text-sm truncate group-hover:underline ${isCurrentUser
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'theme-text-primary'
               }`}

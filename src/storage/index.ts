@@ -13,7 +13,7 @@ interface StorageChange {
 class SelectiveEncryptedStorage {
   private ready: Promise<void>;
   private cryptoKey: CryptoKey | null = null;
-  private _watchHandlers: Map<string, Set<() => void>> | null = null;
+  private _watchHandlers: Map<string, Set<(change?: StorageChange) => void>> | null = null;
   private _globalListener:
     |
     ((changes: Record<string, StorageChange>, areaName: string) => void)
@@ -141,7 +141,7 @@ class SelectiveEncryptedStorage {
     await underlying.clear();
   }
 
-  watch(handlers: Record<string, () => void>): void {
+  watch(handlers: Record<string, (change?: StorageChange) => void>): void {
     try {
       // 分离加密 key 和非加密 key
       const encryptedHandlers: Record<string, () => void> = {};
@@ -189,11 +189,15 @@ class SelectiveEncryptedStorage {
             // 只处理加密 key
             if (!this.isEncryptedKey(key)) continue;
 
+            const change = changes[key];
+            // 防御性检查：确保 change 存在
+            if (!change) continue;
+
             const handlerSet = this._watchHandlers.get(key);
             if (handlerSet) {
-              // 触发所有该 key 的 handlers
-              // hook 内部会调用 get() 方法，此时会经过我们的解密逻辑
-              handlerSet.forEach((handler) => handler());
+              // 触发所有该 key 的 handlers，传入 change 对象
+              // Plasmo hook 内部需要访问 change.newValue
+              handlerSet.forEach((handler) => handler(change));
             }
           }
         };
@@ -231,7 +235,7 @@ class SelectiveEncryptedStorage {
     }
   }
 
-  unwatch(handlers: Record<string, () => void>): void {
+  unwatch(handlers: Record<string, (change?: StorageChange) => void>): void {
     try {
       // 分离加密 key 和非加密 key
       const encryptedHandlers: Record<string, () => void> = {};

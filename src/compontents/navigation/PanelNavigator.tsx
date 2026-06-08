@@ -6,8 +6,10 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
-import { navigationService } from './NavigationService';
 import { useDebounceFn } from 'ahooks';
+import { navigationService } from './NavigationService';
+
+const panelId = 'main-panel'; // Unique ID for this panel
 
 // Define route types
 export interface Route {
@@ -53,8 +55,14 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   routes,
   initialRoute = '/home',
 }) => {
-  const [history, setHistory] = useState<string[]>([initialRoute]);
-  const panelId = 'main-panel'; // Unique ID for this panel
+  const [history, setHistory] = useState<string[]>(() => {
+    const storedHistory = navigationService
+      .getPanelHistory(panelId)
+      ?.filter((route) => !!routes[route]);
+
+    return storedHistory?.length ? storedHistory : [initialRoute];
+  });
+  const previousInitialRouteRef = React.useRef(initialRoute);
   const pendingPayloadRef = React.useRef<{
     route: string;
     props?: Record<string, any>;
@@ -67,10 +75,22 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   const supportsViewTransition =
     typeof document !== 'undefined' && 'startViewTransition' in document;
 
-  // Update history when initialRoute changes
+  // Update history when initialRoute changes, but keep the user's restored route
   useEffect(() => {
-    setHistory([initialRoute]);
+    const previousInitialRoute = previousInitialRouteRef.current;
+    if (previousInitialRoute === initialRoute) return;
+
+    previousInitialRouteRef.current = initialRoute;
+    setHistory((prev) => {
+      const last = prev[prev.length - 1];
+      return last === previousInitialRoute ? [initialRoute] : prev;
+    });
   }, [initialRoute]);
+
+  // Remember current navigation stack for the current tab session
+  useEffect(() => {
+    navigationService.savePanelHistory(panelId, history);
+  }, [history]);
 
   const navigateTo = useCallback(
     (path: string) => {
@@ -95,7 +115,7 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
         // console.log(`Route "${path}" not found`);
       }
     },
-    [routes, supportsViewTransition]
+    [routes, supportsViewTransition],
   );
 
   const goBack = useCallback(() => {
@@ -128,7 +148,7 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
           if (scrollToId) {
             try {
               target = container.querySelector(
-                `#${scrollToId.replace(/([^a-zA-Z0-9_\-])/g, '\\$1')}`
+                `#${scrollToId.replace(/([^a-zA-Z0-9_\-])/g, '\\$1')}`,
               );
             } catch {}
           }
@@ -155,7 +175,7 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
 
       try {
         window.dispatchEvent(
-          new CustomEvent('xhunt:route-enter', { detail: payload })
+          new CustomEvent('xhunt:route-enter', { detail: payload }),
         );
       } catch {}
       pendingPayloadRef.current = null;
@@ -167,7 +187,7 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
     () => {
       flushPendingPayload();
     },
-    { wait: 400, trailing: true, leading: !!contentRef.current }
+    { wait: 400, trailing: true, leading: !!contentRef.current },
   );
 
   // Register this panel with the navigation service
@@ -192,7 +212,7 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
     navigationService.registerPanel(panelId, navigateWithProps);
     try {
       window.dispatchEvent(
-        new CustomEvent('xhunt:panel-registered', { detail: panelId })
+        new CustomEvent('xhunt:panel-registered', { detail: panelId }),
       );
     } catch {}
 

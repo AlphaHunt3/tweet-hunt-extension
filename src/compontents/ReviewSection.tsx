@@ -290,10 +290,10 @@ function _ReviewSection({
   if (!stats) return null;
 
   return (
-    <div className='p-3 space-y-4'>
+    <div className='p-3.5 space-y-4'>
       {/* Star Rating */}
       <div
-        className='flex items-center gap-1.5'
+        className='flex items-center gap-1.5 rounded-xl border theme-border px-3 py-2.5'
         onMouseLeave={handleMouseLeave}
       >
         {[1, 2, 3, 4, 5].map((star) => renderStar(star))}
@@ -315,7 +315,7 @@ function _ReviewSection({
           {selectedTags.map((tag) => (
             <span
               key={tag}
-              className='theme-text-primary inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#1d9bf0]/10 text-xs'
+              className='theme-text-primary inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1d9bf0]/10 text-xs'
             >
               {tag}
               <button
@@ -330,7 +330,7 @@ function _ReviewSection({
             <button
               disabled={selectedTags?.length >= 5}
               onClick={() => setIsAddingTag(true)}
-              className='inline-flex items-center gap-1 px-2 py-1 rounded-full border border-dashed border-[#1d9bf0]/30 theme-text-primary hover:border-[#1d9bf0] text-xs transition-colors'
+              className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-dashed border-[#1d9bf0]/30 theme-text-secondary hover:theme-text-primary hover:border-[#1d9bf0] text-xs transition-colors'
             >
               <Plus className='w-3 h-3' />
               {t('addTag')}
@@ -360,12 +360,12 @@ function _ReviewSection({
               }}
               onChange={handleInputChange}
               placeholder={t('customTag')}
-              className='theme-text-primary flex-1 px-2 py-1 rounded bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 text-xs focus:outline-none focus:ring-1 focus:ring-[#1d9bf0] placeholder-gray-400'
+              className='theme-text-primary flex-1 px-2.5 py-1.5 rounded-lg bg-[#1d9bf0]/5 border border-[#1d9bf0]/20 text-xs focus:outline-none focus:ring-1 focus:ring-[#1d9bf0]/40 focus:border-[#1d9bf0]/60 placeholder-gray-400'
             />
             <button
               disabled={selectedTags?.length >= 5}
               onClick={addCustomTag}
-              className='whitespace-nowrap px-2 py-1 rounded bg-[#1d9bf0] text-white text-xs hover:bg-[#1a8cd8] transition-colors'
+              className='whitespace-nowrap px-3 py-1.5 rounded-full bg-[#1d9bf0] text-white text-xs hover:bg-[#1a8cd8] transition-colors'
             >
               {t('add')}
             </button>
@@ -379,7 +379,7 @@ function _ReviewSection({
         )}
 
         {/* Preset Tags */}
-        <div className='flex flex-wrap gap-2 border-t theme-border pt-2'>
+        <div className='flex flex-wrap gap-1.5 rounded-xl border theme-border p-2'>
           {(stats?.defaultTags || PRESET_TAGS)[activeCategory].map(
             (tag: string) => {
               const isTagIncluded = selectedTags.includes(tag);
@@ -396,7 +396,7 @@ function _ReviewSection({
                     }
                   }}
                   disabled={isTagIncluded}
-                  className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
                     isTagIncluded
                       ? 'bg-[#1d9bf0]/5 theme-text-secondary cursor-not-allowed'
                       : 'bg-[#1d9bf0]/10 hover:bg-[#1d9bf0]/20 theme-text-primary'
@@ -441,13 +441,13 @@ function _ReviewSection({
           isComposingRef.current = false;
         }}
         placeholder={t('commentPlaceholder')}
-        className='theme-text-primary w-full h-24 px-3 py-2 rounded bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0] placeholder-gray-400'
+        className='theme-text-primary w-full h-24 px-3 py-2.5 rounded-xl bg-[#1d9bf0]/5 border border-[#1d9bf0]/20 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1d9bf0]/40 focus:border-[#1d9bf0]/60 placeholder-gray-400 leading-relaxed transition-colors'
       />
 
       <button
         onClick={handleSubmit}
         disabled={!rating || selectedTags.length === 0 || postReviewInfoLoading}
-        className='w-full py-2 rounded text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-[#1d9bf0] hover:bg-[#1a8cd8]'
+        className='w-full py-2.5 rounded-full text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-[#1d9bf0] hover:bg-[#1a8cd8] shadow-sm'
       >
         {postReviewInfoLoading && (
           <Loader2 className='inline-block animate-spin h-4 w-4 mr-2' />
@@ -459,7 +459,7 @@ function _ReviewSection({
         <button
           onClick={delReview}
           type='button'
-          className='w-full py-1 text-sm font-medium text-red-500 transition-colors hover:text-red-700 focus:outline-none'
+          className='w-full py-1 text-sm font-medium text-red-500/80 transition-colors hover:text-red-600 focus:outline-none'
         >
           {t('delReview')}
         </button>

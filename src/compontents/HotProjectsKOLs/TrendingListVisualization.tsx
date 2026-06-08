@@ -5,6 +5,8 @@ import { HotItem, HotDiscussion, DiscussionAttitudeItem } from './types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { rankService } from '~/utils/rankService';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { useMemoryScrollRestoration } from '~contents/hooks/useMemoryScrollRestoration';
+import { navigateInX } from '~contents/utils/navigateInX';
 import AvatarRankBadge from '../AvatarRankBadge';
 import type { StoredUserInfo } from '~types/review.ts';
 
@@ -14,29 +16,32 @@ interface TrendingListVisualizationProps {
   items: TrendingItem[];
   loading: boolean;
   type: 'project' | 'person' | 'discussion';
+  scrollMemoryKey?: string;
 }
 
 export function TrendingListVisualization({
   items,
   loading,
   type,
+  scrollMemoryKey,
 }: TrendingListVisualizationProps) {
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [token] = useLocalStorage('@xhunt/token', '');
   const [user] = useLocalStorage<StoredUserInfo | null>('@xhunt/user', null);
-
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
+    useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
-      'influence'
+      'web3'
     );
   const { lang } = useI18n();
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());
 
-  const containerRef = useRef(null);
+  const { scrollRef: containerRef } =
+    useMemoryScrollRestoration<HTMLDivElement>({
+      memoryKey: scrollMemoryKey || type,
+    });
   const wrapperRef = useRef(null);
-
   // 按热度指数排序（从高到低）
   const sortedItems = useMemo(() => {
     // For 'person' type with score, sort by score descending.
@@ -70,8 +75,8 @@ export function TrendingListVisualization({
       point: scoreVal
         ? (scoreVal ?? 0) * 100
         : sortedItems[idx].share
-        ? Math.round(sortedItems[idx].share * 10000)
-        : 0,
+          ? Math.round(sortedItems[idx].share * 10000)
+          : 0,
     };
   }, [sortedItems, token, user?.username]);
 
@@ -122,7 +127,7 @@ export function TrendingListVisualization({
 
   const { t } = useI18n();
 
-  if (loading) {
+  if (loading && !items.length) {
     return (
       <div className='flex items-center justify-center h-full'>
         <div className='w-6 h-6 border-2 border-blue-400/20 border-t-blue-400 rounded-full animate-spin'></div>
@@ -154,12 +159,12 @@ export function TrendingListVisualization({
               </span>
               <span className='text-xs font-medium theme-text-primary'>
                 {currentUserRank &&
-                typeof currentUserRank.fan_rank === 'number' &&
-                currentUserRank.fan_rank > 0
+                  typeof currentUserRank.fan_rank === 'number' &&
+                  currentUserRank.fan_rank > 0
                   ? t('irRankN').replace(
-                      '@{n}',
-                      String(currentUserRank.fan_rank)
-                    )
+                    '@{n}',
+                    String(currentUserRank.fan_rank)
+                  )
                   : t('irNotRanked')}
               </span>
               {typeof currentUserRank?.point === 'number' && (
@@ -225,7 +230,7 @@ interface TrendingListItemProps {
   isLoading: boolean;
   type: 'project' | 'person' | 'discussion';
   lang: string;
-  avatarRankMode: 'influence' | 'composite';
+  avatarRankMode: 'web3' | 'ai';
 }
 
 function TrendingListItem({
@@ -259,34 +264,34 @@ function TrendingListItem({
         ? (item as any).summary_cn
         : (item as any).summary_en
       : null;
+  const itemUrl =
+    (item as any).tweet_url || `https://x.com/${item.twitter.username}`;
 
   return (
     <div className='px-3 py-2 rounded-md theme-hover transition-colors virtual-list-item'>
       <a
-        href={
-          (item as any).tweet_url || `https://x.com/${item.twitter.username}`
-        }
-        target='_blank'
-        rel='noopener noreferrer'
-        className='flex items-center gap-2.5 flex-wrap'
+        href={itemUrl}
+        onClick={(event) => {
+          event.preventDefault();
+          navigateInX(itemUrl);
+        }}
+        className='group flex items-center gap-2.5 flex-wrap'
       >
         {/* 排名序号 - 仅当列表总数 > 20 时显示 */}
         {totalItems > 20 && (
           <div
-            className={`flex-shrink-0 flex justify-center w-7 ${
-              narrative || summary ? 'translate-y-[8px]' : ''
-            }`}
+            className={`flex-shrink-0 flex justify-center w-7 ${narrative || summary ? 'translate-y-[8px]' : ''
+              }`}
           >
             <span
-              className={`min-w-[20px] px-1.5 h-5 flex items-center justify-center text-[11px] font-semibold rounded-full ${
-                index === 0
-                  ? 'bg-[#e3c102]/90 text-white'
-                  : index === 1
+              className={`min-w-[20px] px-1.5 h-5 flex items-center justify-center text-[11px] font-semibold rounded-full ${index === 0
+                ? 'bg-[#e3c102]/90 text-white'
+                : index === 1
                   ? 'bg-[#C0C0C0]/90 text-white'
                   : index === 2
-                  ? 'bg-[#CD7F32]/90 text-white'
-                  : 'bg-black/5 theme-text-secondary'
-              }`}
+                    ? 'bg-[#CD7F32]/90 text-white'
+                    : 'bg-black/5 theme-text-secondary'
+                }`}
             >
               {index + 1}
             </span>
@@ -294,9 +299,8 @@ function TrendingListItem({
         )}
 
         <div
-          className={`relative rounded-full ${
-            narrative || summary ? 'translate-y-[8px]' : ''
-          }`}
+          className={`relative rounded-full ${narrative || summary ? 'translate-y-[8px]' : ''
+            }`}
           style={{ border: '3px solid var(--xhunt-avatar-outer-border-color)' }}
         >
           <img
@@ -318,7 +322,7 @@ function TrendingListItem({
         </div>
         <div className='flex-1 min-w-0 pl-[3px]'>
           <div className='flex items-center gap-1'>
-            <p className='font-medium text-sm theme-text-primary truncate'>
+            <p className='font-medium text-sm theme-text-primary truncate group-hover:underline'>
               {item.twitter.name}
             </p>
             {item.twitter.profile.is_blue_verified && (
@@ -340,18 +344,17 @@ function TrendingListItem({
               {(item as DiscussionAttitudeItem).displayValue
                 ? (item as DiscussionAttitudeItem).displayValue
                 : scoreVal !== null
-                ? `${t('score')} ${Number(Number(scoreVal) * 100).toFixed(0)}`
-                : heatIndex !== null
-                ? `${t('heat')} ${heatIndex}`
-                : ''}
+                  ? `${t('score')} ${Number(Number(scoreVal) * 100).toFixed(0)}`
+                  : heatIndex !== null
+                    ? `${t('heat')} ${heatIndex}`
+                    : ''}
             </p>
           </div>
         </div>
         {narrative && (
           <div
-            className={`inline-grid w-full ${
-              totalItems > 20 ? 'ml-[5.9rem]' : 'ml-14'
-            } -mt-3 mr-2 pointer-events-none`}
+            className={`inline-grid w-full ${totalItems > 20 ? 'ml-[5.9rem]' : 'ml-14'
+              } -mt-3 mr-2 pointer-events-none`}
             data-testid='narrative'
           >
             <p
@@ -364,9 +367,8 @@ function TrendingListItem({
         )}
         {summary && (
           <div
-            className={`inline-grid w-full ${
-              totalItems > 20 ? 'ml-[5.9rem]' : 'ml-14'
-            } -mt-3 mr-2 pointer-events-none`}
+            className={`inline-grid w-full ${totalItems > 20 ? 'ml-[5.9rem]' : 'ml-14'
+              } -mt-3 mr-2 pointer-events-none`}
             data-testid='summary'
           >
             <p

@@ -1,9 +1,13 @@
+import type { HierarchyRectangularNode } from 'd3-hierarchy';
+
 export interface HotItem {
   id: string;
   score?: number;
   share: number;
   summary_cn?: string;
   summary_en?: string;
+  tweet_id?: string;
+  tweet_url?: string;
   twitter: {
     ai: {
       classification: 'project' | 'person';
@@ -30,7 +34,7 @@ export interface HotItem {
   };
 }
 
-export interface TreemapNode extends d3.HierarchyRectangularNode<HotItem> {
+export interface TreemapNode extends HierarchyRectangularNode<HotItem> {
   data: HotItem;
 }
 
@@ -47,7 +51,7 @@ export interface HotToken {
 }
 
 export interface TokenTreemapNode
-  extends d3.HierarchyRectangularNode<HotToken> {
+  extends HierarchyRectangularNode<HotToken> {
   data: HotToken;
 }
 
@@ -134,6 +138,6 @@ export interface DiscussionAttitudeItem {
 }
 
 export interface DiscussionTreemapNode
-  extends d3.HierarchyRectangularNode<HotDiscussion> {
+  extends HierarchyRectangularNode<HotDiscussion> {
   data: HotDiscussion;
 }

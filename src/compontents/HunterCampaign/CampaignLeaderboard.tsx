@@ -32,9 +32,9 @@ export function CampaignLeaderboard({
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
-    useLocalStorage<'influence' | 'composite'>(
+    useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
-      'influence'
+      'web3'
     );
   const [userRanks, setUserRanks] = useState<Record<string, number>>({});
   const [loadingRanks, setLoadingRanks] = useState<Set<string>>(new Set());

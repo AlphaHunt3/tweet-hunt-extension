@@ -6,7 +6,7 @@ export const generateShareColor = (share: number, index: number): string => {
     '#ef4444',
     '#f97316',
     '#10b981',
-    '#3b82f6',
+    '#1D9BF0',
     '#8b5cf6',
     '#ec4899',
     '#06b6d4',
@@ -42,7 +42,7 @@ export const processItemsForTreemap = (items: HotItem[]): HotItem[] => {
   // 确保总和严格等于1，避免D3计算误差
   const currentTotal = processedItems.reduce(
     (sum, item) => sum + item.normalizedShare,
-    0
+    0,
   );
   if (Math.abs(currentTotal - 1) > 0.001) {
     // 如果总和不等于1，按比例调整所有项目

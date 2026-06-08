@@ -432,12 +432,20 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
         onMouseEnter={handleMouseEnter}
         disabled={isLoading}
         aria-label={getButtonText()}
-        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] text-white mr-3 shadow-sm hover:opacity-90 overflow-hidden ${isLoading && hasProgressStarted
-            ? 'bg-slate-500'
-            : 'bg-gradient-to-r from-blue-500 to-purple-500'
-          } ${isLoading ? 'cursor-not-allowed pointer-events-none' : ''} ${isLoading && hasProgressStarted ? 'pr-10' : ''
-          }`}
-        style={{ overflow: 'hidden' }}
+        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] mr-3 shadow-sm hover:opacity-90 overflow-hidden ${
+          isLoading ? 'cursor-not-allowed pointer-events-none' : ''
+        } ${isLoading && hasProgressStarted ? 'pr-10' : ''}`}
+        style={{
+          overflow: 'hidden',
+          color: 'var(--xhunt-avatar-rank-text-color)',
+          background:
+            isLoading && hasProgressStarted
+              ? 'rgba(100, 116, 139, 0.55)'
+              : 'var(--xhunt-avatar-rank-bg)',
+          border: '1px solid var(--xhunt-avatar-rank-border)',
+          boxShadow:
+            '0 1px 2px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.16)',
+        }}
       // title={getButtonText()}
       // aria-label={getButtonText()}
       >
@@ -445,11 +453,12 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
         {isLoading && hasProgressStarted ? (
           <span
             aria-hidden
-            className='absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-purple-500'
+            className='absolute left-0 top-0 h-full'
             style={{
               width: `${Math.round(Math.min(progress, 0.99) * 100)}%`,
               transition: 'width 120ms linear',
               zIndex: 1,
+              background: 'var(--xhunt-avatar-rank-bg)',
             }}
           />
         ) : null}
@@ -477,7 +486,7 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
           }}
         >
           <svg
-            className='h-4 w-4 text-white'
+            className='h-4 w-4 text-current'
             viewBox='0 0 1024 1024'
             xmlns='http://www.w3.org/2000/svg'
             aria-hidden='true'
@@ -500,7 +509,7 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
           <span
             className='pointer-events-none absolute right-2 text-xs font-semibold'
             style={{
-              color: '#f8fafc',
+              color: 'var(--xhunt-avatar-rank-text-color)',
               zIndex: 5,
             }}
           >

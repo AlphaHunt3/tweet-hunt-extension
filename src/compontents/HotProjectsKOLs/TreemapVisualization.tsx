@@ -1,5 +1,7 @@
 import React, { useRef, useEffect } from 'react';
-import * as d3 from 'd3';
+import { hierarchy, treemap as createTreemap } from 'd3-hierarchy';
+import { select } from 'd3-selection';
+import 'd3-transition';
 import { HotItem, TreemapNode } from './types';
 import { generateShareColor, processItemsForTreemap } from './utils';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
@@ -67,19 +69,19 @@ export function TreemapVisualization({ items, loading, width, height }: TreemapV
   useEffect(() => {
     if (!svgRef.current || !items.length || loading) return;
 
-    const svg = d3.select(svgRef.current);
+    const svg = select(svgRef.current);
     svg.selectAll('*').remove();
 
     const processedItems = processItemsForTreemap(items);
 
     // 创建treemap布局
-    const treemap = d3.treemap<HotItem>()
+    const treemapLayout = createTreemap<HotItem>()
     .size([width, height])
     .padding(2)
     .round(true);
 
     // 准备数据 - 修复类型问题
-    const root = d3.hierarchy<HotItem>({ children: processedItems } as any)
+    const root = hierarchy<HotItem>({ children: processedItems } as any)
     .sum(d => {
       // 检查是否是叶子节点（实际数据）
       if ('normalizedShare' in d) {
@@ -89,7 +91,7 @@ export function TreemapVisualization({ items, loading, width, height }: TreemapV
     })
     .sort((a, b) => (b.value || 0) - (a.value || 0));
 
-    treemap(root);
+    treemapLayout(root);
 
     // 创建组 - 只处理叶子节点
     const leaves = root.leaves() as TreemapNode[];
@@ -292,7 +294,7 @@ export function TreemapVisualization({ items, loading, width, height }: TreemapV
     cell
     .style('cursor', 'pointer')
     .on('mouseenter', function (event: MouseEvent, d: TreemapNode) {
-      const cellSelection = d3.select(this);
+      const cellSelection = select(this);
 
       // 背景图缩小效果
       if (d.data.twitter.profile.profile_banner_url) {
@@ -330,7 +332,7 @@ export function TreemapVisualization({ items, loading, width, height }: TreemapV
       }
     })
     .on('mouseleave', function (event: MouseEvent, d: TreemapNode) {
-      const cellSelection = d3.select(this);
+      const cellSelection = select(this);
 
       // 背景图恢复原尺寸
       if (d.data.twitter.profile.profile_banner_url) {
@@ -397,7 +399,7 @@ export function TreemapVisualization({ items, loading, width, height }: TreemapV
     // cell.selectAll('text')
     //   .filter(function() {
     //     // 只选择名字文本（不是奖牌和百分比）
-    //     const element = d3.select(this);
+    //     const element = select(this);
     //     return element.attr('fill') === '#ffffff' &&
     //            element.style('pointer-events') !== 'none' &&
     //            !element.text().includes('%') &&

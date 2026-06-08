@@ -7,6 +7,39 @@ import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
 const THEME_KEY = '@xhunt/theme';
 // const RELOAD_GUARD_KEY = '@xhunt/theme-reload-guard';
 
+function getWebBackgroundColor(theme: 'light' | 'dark') {
+  try {
+    const inlineBg = String(document.body?.style?.backgroundColor || '').trim();
+    const computedBg = String(
+      window.getComputedStyle(document.body).backgroundColor || ''
+    ).trim();
+    const bg = inlineBg || computedBg;
+
+    if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+      return theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+    }
+
+    return bg;
+  } catch {
+    return theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+  }
+}
+
+function syncXhuntWebBg(theme: 'light' | 'dark') {
+  try {
+    const webBg = getWebBackgroundColor(theme);
+    const currentWebBg = document.documentElement.style
+      .getPropertyValue('--xhunt-web-bg')
+      .trim();
+
+    if (currentWebBg !== webBg) {
+      document.documentElement.style.setProperty('--xhunt-web-bg', webBg);
+    }
+  } catch {
+    // ignore theme sync errors
+  }
+}
+
 function detectSystemTheme(): 'light' | 'dark' | '' {
   try {
     // 首先尝试通过 color-scheme 检测
@@ -50,6 +83,8 @@ export function useThemeWatcher() {
     if (newTheme === '') return;
     const body = document.body;
     if (!body) return;
+
+    syncXhuntWebBg(newTheme);
 
     // Sync body attribute for CSS variables/themes
     if (body.getAttribute('data-theme') !== newTheme) {

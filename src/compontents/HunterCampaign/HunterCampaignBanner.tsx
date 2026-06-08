@@ -41,7 +41,7 @@ export function HunterCampaignBanner({
   // =========================================
   const { t } = useI18n();
   const [, setTips] = useGlobalTips();
-  const [showHotTrending] = useLocalStorage('@settings/showHotTrending', true);
+  const [showHotTrending] = useLocalStorage('@settings/showHotTrendingWeb3', true);
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;
 
