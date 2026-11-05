@@ -39,6 +39,8 @@ import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { ProRequired } from '~compontents/ProRequired';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { EditedTweetsSection } from '~compontents/EditedTweetsSection';
+import { useEditedTweets } from '~contents/hooks/useEditedTweets';
 
 type DomainType = 'web3' | 'ai';
 const AI_ABILITY_MIN_SCORE = 70;
@@ -50,6 +52,7 @@ type NameRightDataProps = Pick<
   | 'newTwitterData'
   | 'twInfo'
   | 'deletedTweets'
+  | 'deletedTweetsIsVip'
   | 'loadingTwInfo'
   | 'loadingDel'
   | 'error'
@@ -460,6 +463,7 @@ function _NameRightData({
   newTwitterData,
   twInfo,
   deletedTweets,
+  deletedTweetsIsVip,
   loadingTwInfo,
   loadingDel,
   error,
@@ -501,6 +505,8 @@ function _NameRightData({
     handler: userId,
     loading: isLoadingHtml,
   } = usePlacementTracking();
+  const showEditInfo = isEnabled('showEditInfo');
+  const editedTweets = useEditedTweets(String(twitterId || ''), showEditInfo);
 
   // 获取灵魂指数数据
   const { data: soulData, loading: loadingSoulData } = useRequest<
@@ -888,10 +894,38 @@ function _NameRightData({
                     isHoverPanel={true}
                     deletedTweets={deletedTweets}
                     loadingDel={loadingDel}
+                    isVip={deletedTweetsIsVip}
                   />
                 </ProRequired>
               }
+              panelMaxWidth={560}
+              panelMaxHeight={560}
               valueClassName='text-red-400'
+            />
+          ) : null}
+
+          {/*改贴*/}
+          {showEditInfo && !editedTweets.loadingCount && editedTweets.count > 0 ? (
+            <HoverStatItem
+              label={t('editInfo')}
+              value={`(${editedTweets.count})`}
+              hoverContent={
+                <EditedTweetsSection
+                  count={editedTweets.count}
+                  access={editedTweets.access}
+                  items={editedTweets.items}
+                  loading={editedTweets.loadingDetails}
+                  loaded={editedTweets.detailsLoaded}
+                  error={editedTweets.error}
+                  hasMore={editedTweets.hasMore}
+                  onRetry={editedTweets.retryDetails}
+                  onLoadMore={editedTweets.loadMore}
+                />
+              }
+              onHover={editedTweets.loadDetails}
+              panelMaxWidth={560}
+              panelMaxHeight={560}
+              valueClassName='text-amber-500'
             />
           ) : null}
 

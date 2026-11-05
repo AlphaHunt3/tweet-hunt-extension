@@ -43,9 +43,28 @@ export function openCleanerSettings() {
   setTimeout(triggerFocus, 500);
 }
 
+/**
+ * 净化流折叠状态下的作者昵称脱敏：
+ * 规则：第一个字 + 星号最多3个 + 最后一个字
+ */
+export function maskCleanerAuthorName(name: string): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+
+  const chars = Array.from(trimmed);
+  if (chars.length <= 1) {
+    return chars[0] || '';
+  }
+
+  const starCount = Math.min(3, Math.max(1, chars.length - 2));
+  return `${chars[0]}${'*'.repeat(starCount)}${chars[chars.length - 1]}`;
+}
+
 export interface ApplyActionParams {
   article: HTMLElement;
   handle: string;
+  authorName?: string;
   category?: CleanerCategory;
   mode: CleanerMode;
   warnLabel: string;
@@ -55,6 +74,7 @@ export interface ApplyActionParams {
 export function applyAction({
   article,
   handle,
+  authorName,
   category,
   mode,
   warnLabel,
@@ -186,11 +206,19 @@ export function applyAction({
     const userNameEl = article.querySelector(
       "div[data-testid='User-Name'], div[data-testid='UserName']"
     );
-    const nickname = userNameEl?.querySelector('span')?.textContent?.trim() || '';
+    const rawName =
+      authorName ||
+      userNameEl?.querySelector('span')?.textContent?.trim() ||
+      '';
     const barName = bar.querySelector<HTMLElement>('.xhunt-cleaner-bar-name');
     if (barName) {
-      barName.textContent = nickname;
-      barName.style.setProperty('display', nickname ? '' : 'none', 'important');
+      const maskedName = maskCleanerAuthorName(rawName);
+      barName.textContent = maskedName;
+      barName.style.setProperty(
+        'display',
+        maskedName ? '' : 'none',
+        'important'
+      );
     }
 
     const barHandle = bar.querySelector<HTMLElement>('.xhunt-cleaner-bar-handle');

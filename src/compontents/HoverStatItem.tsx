@@ -18,6 +18,8 @@ interface StatItemProps {
   className?: string;
   onHover?: () => Promise<void> | void;
   preferredPlacement?: 'auto' | 'top' | 'bottom';
+  panelMaxWidth?: number;
+  panelMaxHeight?: number;
 }
 
 // Module-level counter for unique IDs
@@ -33,8 +35,8 @@ const PANEL_FADE_DURATION_MS = 160;
 const VIEWPORT_EDGE_GAP = 10;
 const TOP_OPACITY_CONTROL_MIN_TOP = 55;
 const TOP_PLACEMENT_MIN_TOP = 5;
-const PANEL_MAX_WIDTH = 400;
-const PANEL_MAX_HEIGHT = 400;
+const DEFAULT_PANEL_MAX_WIDTH = 400;
+const DEFAULT_PANEL_MAX_HEIGHT = 400;
 
 type HoverPanelPlacement = 'top' | 'bottom';
 
@@ -153,7 +155,11 @@ export function HoverStatItem({
   className = '',
   onHover,
   preferredPlacement = 'auto',
+  panelMaxWidth = DEFAULT_PANEL_MAX_WIDTH,
+  panelMaxHeight = DEFAULT_PANEL_MAX_HEIGHT,
 }: StatItemProps) {
+  const resolvedPanelMaxWidth = Math.max(240, panelMaxWidth);
+  const resolvedPanelMaxHeight = Math.max(160, panelMaxHeight);
   const [isHovered, setIsHovered] = useState(false);
   const [isPanelMounted, setIsPanelMounted] = useState(false);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -188,8 +194,8 @@ export function HoverStatItem({
     left: 0,
     top: 0,
     placement: 'top',
-    maxHeight: PANEL_MAX_HEIGHT,
-    maxWidth: PANEL_MAX_WIDTH,
+    maxHeight: resolvedPanelMaxHeight,
+    maxWidth: resolvedPanelMaxWidth,
   });
 
   const clearShowTimer = () => {
@@ -222,6 +228,8 @@ export function HoverStatItem({
     const host = document.createElement('div');
     host.setAttribute('data-xhunt-hover-portal', 'true');
     host.setAttribute('data-theme', theme);
+    host.setAttribute('translate', 'no');
+    host.classList.add('notranslate');
     host.style.cssText = [
       'position: fixed',
       'inset: 0',
@@ -366,7 +374,7 @@ export function HoverStatItem({
     const panelContentRect = panelContent?.getBoundingClientRect();
     const maxWidth = Math.max(
       0,
-      Math.min(PANEL_MAX_WIDTH, viewportWidth - VIEWPORT_EDGE_GAP * 2),
+      Math.min(resolvedPanelMaxWidth, viewportWidth - VIEWPORT_EDGE_GAP * 2),
     );
 
     const panelGap = 8;
@@ -374,8 +382,8 @@ export function HoverStatItem({
       panelContent?.scrollHeight ||
       panelContentRect?.height ||
       panelRect.height ||
-      PANEL_MAX_HEIGHT,
-      PANEL_MAX_HEIGHT,
+      resolvedPanelMaxHeight,
+      resolvedPanelMaxHeight,
     );
     const availableTop = Math.max(
       0,
@@ -391,7 +399,7 @@ export function HoverStatItem({
       triggerRect.top - panelHeight - panelGap;
     const isTopPlacementTooCloseToViewportTop =
       estimatedTopPlacementPanelTop < TOP_PLACEMENT_MIN_TOP;
-    const preferredPanelHeight = Math.min(panelHeight, PANEL_MAX_HEIGHT);
+    const preferredPanelHeight = Math.min(panelHeight, resolvedPanelMaxHeight);
     const autoPlacement: HoverPanelPlacement =
       !isTopPlacementTooCloseToViewportTop &&
         (availableTop >= preferredPanelHeight || availableTop >= availableBottom)
@@ -441,9 +449,15 @@ export function HoverStatItem({
 
     const availableHeight =
       placement === 'top' ? availableTop : availableBottom;
-    const maxHeight = Math.max(80, Math.min(PANEL_MAX_HEIGHT, availableHeight));
+    const maxHeight = Math.max(
+      80,
+      Math.min(resolvedPanelMaxHeight, availableHeight),
+    );
 
-    const panelWidth = Math.min(panelRect.width || PANEL_MAX_WIDTH, maxWidth);
+    const panelWidth = Math.min(
+      panelRect.width || resolvedPanelMaxWidth,
+      maxWidth,
+    );
     const baseLeft = triggerRect.left + triggerRect.width / 2 - panelWidth / 2;
     const minLeft = VIEWPORT_EDGE_GAP;
     const maxLeft = Math.max(
@@ -481,7 +495,7 @@ export function HoverStatItem({
       }
       return next;
     });
-  }, [preferredPlacement]);
+  }, [preferredPlacement, resolvedPanelMaxHeight, resolvedPanelMaxWidth]);
 
   const scheduleClose = () => {
     clearHideTimer();
@@ -703,8 +717,11 @@ export function HoverStatItem({
       ? createPortal(
         <div
           ref={panelRef}
+          id={`${idRef.current}-panel`}
+          role={typeof label === 'string' ? 'region' : undefined}
+          aria-label={typeof label === 'string' ? label : undefined}
           data-theme={theme}
-          className={`fixed w-max max-w-[400px] ${isHovered ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          className={`fixed w-max ${isHovered ? 'pointer-events-auto' : 'pointer-events-none'}`}
           style={{
             left: panelPosition.left,
             top: panelPosition.top,
@@ -762,13 +779,30 @@ export function HoverStatItem({
       }}
       onMouseLeave={(event) => handleMouseLeave(event.relatedTarget, event)}
     >
-      <div
-        className={`flex items-center gap-1 rounded px-1 -mx-1 transition-colors ${
+      <button
+        type='button'
+        disabled={!hasHoverContent}
+        aria-expanded={hasHoverContent ? isPanelMounted : undefined}
+        aria-controls={hasHoverContent ? `${idRef.current}-panel` : undefined}
+        className={`flex min-h-6 items-center gap-1 rounded border-0 bg-transparent px-1 -mx-1 font-inherit text-inherit transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9BF0] ${
           hasHoverContent ? 'cursor-pointer theme-hover' : ''
         }`}
         style={{
           backgroundColor:
             isPanelMounted && hasHoverContent ? 'var(--hover-bg)' : undefined,
+        }}
+        onClick={() => {
+          if (!hasHoverContent) return;
+          isPointerInsideRef.current = true;
+          clearShowTimer();
+          openHoverPanel();
+          if (onHover) debouncedHover();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && isPanelMounted) {
+            event.preventDefault();
+            closeHoverPanel();
+          }
         }}
       >
         {typeof label === 'string' ? (
@@ -792,7 +826,7 @@ export function HoverStatItem({
             {value != null ? value : ''}
           </span>
         )}
-      </div>
+      </button>
 
       {hoverPanel}
     </div>

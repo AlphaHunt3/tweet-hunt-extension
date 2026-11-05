@@ -28,6 +28,7 @@ export function TrendingListVisualization({
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [token] = useLocalStorage('@xhunt/token', '');
   const [user] = useLocalStorage<StoredUserInfo | null>('@xhunt/user', null);
+  const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
   const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
     useLocalStorage<'web3' | 'ai'>(
       '@settings/avatarRankMode',
@@ -52,11 +53,10 @@ export function TrendingListVisualization({
     return [...items].sort((a, b) => b.share - a.share);
   }, [items, type]);
 
+  const myUsername = (token ? user?.username : '') || currentUsername;
+
   // 我当前用户排名：不请求 API，直接在 sortedItems 里按 username（大小写不敏感）查找
   const currentUserRank = useMemo(() => {
-    if (!token) return null;
-
-    const myUsername = user?.username;
     if (!myUsername) return null;
 
     const myUsernameLower = myUsername.toLowerCase();
@@ -78,7 +78,7 @@ export function TrendingListVisualization({
           ? Math.round(sortedItems[idx].share * 10000)
           : 0,
     };
-  }, [sortedItems, token, user?.username]);
+  }, [sortedItems, myUsername]);
 
   const [list] = useVirtualList(sortedItems, {
     containerTarget: containerRef,
@@ -148,8 +148,8 @@ export function TrendingListVisualization({
 
   return (
     <div>
-      {/* 我的排名 - 仅登录后显示 */}
-      {type === 'person' && token && (
+      {/* 我的排名 */}
+      {type === 'person' && Boolean(myUsername) && (
         <div className='relative flex items-center gap-1.5 px-2 py-1 rounded-md theme-bg-secondary/50 border theme-border whitespace-nowrap flex-shrink-0 mx-3 mt-2 mb-2 mr-4'>
           {
             <>

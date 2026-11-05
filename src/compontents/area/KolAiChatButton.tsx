@@ -16,12 +16,27 @@ import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 function _KolAiChatButton() {
   const { t, lang } = useI18n();
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const keepSocialCircleFirst = React.useCallback(
+    (_shadowRoot: ShadowRoot, host: HTMLElement) => {
+      const socialCircleHost =
+        host.parentElement?.querySelector<HTMLElement>(
+          '[data-xhunt-shadow-container-key="kol-social-circle"]',
+        );
+      if (socialCircleHost && socialCircleHost !== host) {
+        host.parentElement?.insertBefore(socialCircleHost, host);
+      }
+    },
+    [],
+  );
   const shadowRoot = useShadowContainer({
     selector:
       'div[data-testid="placementTracking"], a[data-testid="editProfileButton"]',
     useSiblings: true,
     siblingsPosition: 'beforebegin',
     styleText: cssText,
+    containerKey: 'kol-ai-chat',
+    cleanupStaleSiblings: true,
+    onShadowCreated: keepSocialCircleFirst,
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
 

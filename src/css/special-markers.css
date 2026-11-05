@@ -1,0 +1,314 @@
+/* ==========================================================================
+   Twitter 账号特殊标记（全局宿主页面注入样式）
+   ========================================================================== */
+
+.xhunt-special-marker {
+  display: inline-flex !important;
+  align-items: center !important;
+  align-self: center !important;
+  gap: 3px !important;
+  vertical-align: middle !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+  margin-left: 4px !important;
+  margin-right: 4px !important;
+  user-select: none !important;
+  cursor: pointer !important;
+  transform: scale(0.9) !important;
+  transform-origin: center center !important;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  text-decoration: none !important;
+  height: fit-content !important;
+  flex-shrink: 0 !important;
+}
+
+.xhunt-special-marker:hover {
+  opacity: 0.92 !important;
+  transform: scale(0.9) translateY(-0.5px) !important;
+}
+
+/* 图标强制微型化，防止被父容器或 SVG 自身尺寸撑爆 */
+.xhunt-special-marker-icon {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  max-width: 12px !important;
+  min-height: 12px !important;
+  max-height: 12px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+.xhunt-special-marker-text {
+  font-size: 11px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* --------------------------------------------------------------------------
+   1. 警示红 (danger-red: 疑似诈骗 / 钓鱼高危)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-danger-red.xhunt-variant-subtle {
+  background-color: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(220, 38, 38, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-danger-red.xhunt-variant-subtle {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(248, 113, 113, 0.35) !important;
+}
+.xhunt-marker-danger-red.xhunt-variant-solid {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-danger-red.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-danger-red.xhunt-variant-outline {
+  color: #f87171 !important;
+  border-color: #f87171 !important;
+}
+.xhunt-marker-danger-red.xhunt-variant-glow {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border: 1px solid #ef4444 !important;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. 风险橙 (warning-orange: 风险 / 可疑 / 搬运)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-warning-orange.xhunt-variant-subtle {
+  background-color: #ffedd5 !important;
+  color: #ea580c !important;
+  border: 1px solid rgba(234, 88, 12, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-warning-orange.xhunt-variant-subtle {
+  background-color: rgba(249, 115, 22, 0.18) !important;
+  color: #fb923c !important;
+  border: 1px solid rgba(251, 146, 60, 0.35) !important;
+}
+.xhunt-marker-warning-orange.xhunt-variant-solid {
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-warning-orange.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #ea580c !important;
+  border: 1px solid #ea580c !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-warning-orange.xhunt-variant-outline {
+  color: #fb923c !important;
+  border-color: #fb923c !important;
+}
+.xhunt-marker-warning-orange.xhunt-variant-glow {
+  background-color: rgba(249, 115, 22, 0.2) !important;
+  color: #fb923c !important;
+  border: 1px solid #f97316 !important;
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. 认证蓝 (info-blue: 官方 / 合作 / 背书)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-info-blue.xhunt-variant-subtle {
+  background-color: #dbeafe !important;
+  color: #2563eb !important;
+  border: 1px solid rgba(37, 99, 235, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-info-blue.xhunt-variant-subtle {
+  background-color: rgba(59, 130, 246, 0.18) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(96, 165, 250, 0.35) !important;
+}
+.xhunt-marker-info-blue.xhunt-variant-solid {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-info-blue.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #2563eb !important;
+  border: 1px solid #2563eb !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-info-blue.xhunt-variant-outline {
+  color: #60a5fa !important;
+  border-color: #60a5fa !important;
+}
+.xhunt-marker-info-blue.xhunt-variant-glow {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+  border: 1px solid #3b82f6 !important;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. 安全绿 (success-green: 安全 / 合规 / 已核实)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-success-green.xhunt-variant-subtle {
+  background-color: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid rgba(22, 163, 74, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-success-green.xhunt-variant-subtle {
+  background-color: rgba(34, 197, 94, 0.18) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(74, 222, 128, 0.35) !important;
+}
+.xhunt-marker-success-green.xhunt-variant-solid {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-success-green.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #16a34a !important;
+  border: 1px solid #16a34a !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-success-green.xhunt-variant-outline {
+  color: #4ade80 !important;
+  border-color: #4ade80 !important;
+}
+.xhunt-marker-success-green.xhunt-variant-glow {
+  background-color: rgba(34, 197, 94, 0.2) !important;
+  color: #4ade80 !important;
+  border: 1px solid #22c55e !important;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. 尊享紫 (purple-special: 特别关注 / 核心顾问)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-purple-special.xhunt-variant-subtle {
+  background-color: #f3e8ff !important;
+  color: #9333ea !important;
+  border: 1px solid rgba(147, 51, 234, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-purple-special.xhunt-variant-subtle {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(192, 132, 252, 0.35) !important;
+}
+.xhunt-marker-purple-special.xhunt-variant-solid {
+  background-color: #9333ea !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-purple-special.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #9333ea !important;
+  border: 1px solid #9333ea !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-purple-special.xhunt-variant-outline {
+  color: #c084fc !important;
+  border-color: #c084fc !important;
+}
+.xhunt-marker-purple-special.xhunt-variant-glow {
+  background-color: rgba(168, 85, 247, 0.2) !important;
+  color: #c084fc !important;
+  border: 1px solid #a855f7 !important;
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. 黄金金 (gold-amber: 创始人 / 项目方核心)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-gold-amber.xhunt-variant-subtle {
+  background-color: #fef3c7 !important;
+  color: #b45309 !important;
+  border: 1px solid rgba(217, 119, 6, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-gold-amber.xhunt-variant-subtle {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(251, 191, 36, 0.35) !important;
+}
+.xhunt-marker-gold-amber.xhunt-variant-solid {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-gold-amber.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #b45309 !important;
+  border: 1px solid #d97706 !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-gold-amber.xhunt-variant-outline {
+  color: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+}
+.xhunt-marker-gold-amber.xhunt-variant-glow {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border: 1px solid #f59e0b !important;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. 中性灰 (neutral-gray: 存档 / 搬运号 / 已注销)
+   -------------------------------------------------------------------------- */
+.xhunt-marker-neutral-gray.xhunt-variant-subtle {
+  background-color: #f3f4f6 !important;
+  color: #4b5563 !important;
+  border: 1px solid rgba(75, 85, 99, 0.3) !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-neutral-gray.xhunt-variant-subtle {
+  background-color: rgba(156, 163, 175, 0.18) !important;
+  color: #9ca3af !important;
+  border: 1px solid rgba(156, 163, 175, 0.35) !important;
+}
+.xhunt-marker-neutral-gray.xhunt-variant-solid {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+.xhunt-marker-neutral-gray.xhunt-variant-outline {
+  background-color: transparent !important;
+  color: #4b5563 !important;
+  border: 1px solid #4b5563 !important;
+}
+:is([data-theme='dark'], html[style*='color-scheme: dark'], html.dark, body[style*='background-color: rgb(0, 0, 0)'], body[style*='background-color: rgb(21, 32, 43)']) .xhunt-marker-neutral-gray.xhunt-variant-outline {
+  color: #9ca3af !important;
+  border-color: #9ca3af !important;
+}
+.xhunt-marker-neutral-gray.xhunt-variant-glow {
+  background-color: rgba(156, 163, 175, 0.2) !important;
+  color: #9ca3af !important;
+  border: 1px solid #9ca3af !important;
+  box-shadow: 0 0 6px rgba(156, 163, 175, 0.55) !important;
+}
+
+/* --------------------------------------------------------------------------
+   呼吸微动效 (Pulse Effect，适配 scale 0.9)
+   -------------------------------------------------------------------------- */
+@keyframes xhunt-marker-pulse-anim {
+  0% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+}
+
+.xhunt-effect-pulse {
+  animation: xhunt-marker-pulse-anim 2.2s infinite ease-in-out !important;
+}

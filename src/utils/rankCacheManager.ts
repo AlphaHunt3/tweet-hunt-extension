@@ -3,8 +3,8 @@ import packageJson from '../../package.json';
 import { localStorageInstance } from '~storage/index.ts';
 
 // Constants
-const MAX_CACHE_SIZE = 800;
-const CACHE_EXPIRATION = 15 * 60 * 60 * 1000; // 15小时
+const MAX_CACHE_SIZE = 1000;
+const CACHE_EXPIRATION = 4 * 60 * 60 * 1000; // 4小时
 const RANK_CACHE_KEY_OLD = '@xhunt/rank-cache';
 const RANK_CACHE_KEY = '@xhunt/rank-cache-new';
 

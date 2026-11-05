@@ -2,6 +2,15 @@
 import packageJson from '../../package.json';
 import { nacosCacheManager } from './nacosCacheManager';
 import { localStorageInstance } from '~storage/index.ts';
+import type { UnfollowVipCta } from '~types';
+
+export const DEFAULT_UNFOLLOW_VIP_CTA: UnfollowVipCta = {
+  url: 'https://docs.google.com/document/d/example',
+  label: {
+    zh: '近 3 天的取关动态仅对 VIP 用户开放',
+    en: 'Unfollow activity from the last 3 days is VIP only',
+  },
+};
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
@@ -50,6 +59,8 @@ export interface XHuntConfig {
   };
   // 🆕 首页推荐位轮播配置
   featureSlots?: FeatureBannerItem[];
+  // 取关 VIP 引导按钮配置
+  unfollowVipCta?: UnfollowVipCta;
 }
 
 export interface DailyLimits {
@@ -72,6 +83,7 @@ class ConfigManager {
     bybitHunterProgramGuide: '',
     bybitHunterProgramActiveURL: '',
     realTimeSubscriptionSSE: true,
+    unfollowVipCta: DEFAULT_UNFOLLOW_VIP_CTA,
   };
   private configFetched: boolean = false;
   private isInitialized: boolean = false;
@@ -367,6 +379,18 @@ class ConfigManager {
   public getBybitHunterProgramActiveURL(): string {
     const config = this.getConfig();
     return (config as any).bybitHunterProgramActiveURL || '';
+  }
+
+  public getUnfollowVipCta(): UnfollowVipCta {
+    const config = this.getConfig();
+    const cta = config.unfollowVipCta;
+    return {
+      url: cta?.url?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.url,
+      label: {
+        zh: cta?.label?.zh?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.label.zh,
+        en: cta?.label?.en?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.label.en,
+      },
+    };
   }
 
   // 增加错误上报计数

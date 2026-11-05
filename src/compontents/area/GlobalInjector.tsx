@@ -3,21 +3,33 @@ import avatarRankCss from 'data-text:~/css/avatar-rank.css';
 import tokenHighlightCss from 'data-text:~/css/token-highlight.css';
 import floatingContainerCss from 'data-text:~/css/floating-container.css';
 import cleanerCss from 'data-text:~/css/cleaner.css';
+import specialMarkersCss from 'data-text:~/css/special-markers.css';
 
 export function GlobalInjector() {
   useEffect(() => {
-    // Create style element for global styles
-    const style = document.createElement('style');
-    style.setAttribute('id', 'xhunt-global-styles');
-    style.textContent =
-      avatarRankCss + tokenHighlightCss + floatingContainerCss + cleanerCss;
-    document.head.appendChild(style);
+    const head = document.head || document.documentElement;
+    if (!head) return;
 
-    // Cleanup function
+    let style = document.getElementById(
+      'xhunt-global-styles',
+    ) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement('style');
+      style.setAttribute('id', 'xhunt-global-styles');
+      head.appendChild(style);
+    }
+
+    style.textContent =
+      avatarRankCss +
+      tokenHighlightCss +
+      floatingContainerCss +
+      cleanerCss +
+      specialMarkersCss;
+
     return () => {
       const styleElement = document.getElementById('xhunt-global-styles');
-      if (styleElement) {
-        document.head.removeChild(styleElement);
+      if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
       }
     };
   }, []);

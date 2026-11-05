@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useGlobalScroll } from '~contents/hooks/useGlobalScroll';
+import { subscribeToScroll } from '~contents/hooks/useGlobalScroll';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 
 interface PortalTooltipProps {
@@ -59,14 +59,12 @@ export const PortalTooltip: React.FC<PortalTooltipProps> = ({
     });
   }, [fitContent, maxWidth]);
 
-  useGlobalScroll(() => {
-    if (show) updatePos();
-  }, [show, updatePos]);
-
+  // 仅在气泡显示时动态订阅全局滚动，隐藏时 0 监听器占用，杜绝无谓的性能开销
   useEffect(() => {
-    if (show) {
-      updatePos();
-    }
+    if (!show) return;
+    updatePos();
+    const unsubscribe = subscribeToScroll(updatePos);
+    return unsubscribe;
   }, [show, updatePos]);
 
   if (!content) {

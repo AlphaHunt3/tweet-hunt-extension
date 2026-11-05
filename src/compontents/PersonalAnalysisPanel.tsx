@@ -64,9 +64,13 @@ export function PersonalAnalysisPanel({
   const contentScrollRef = useRef<HTMLDivElement>(null);
 
   const redirectToLogin = useLockFn(async () => {
-    const ret = await getTwitterAuthUrl();
-    if (ret?.url) {
-      openNewTab(ret.url);
+    try {
+      const ret = await getTwitterAuthUrl();
+      if (ret?.url) {
+        openNewTab(ret.url);
+      }
+    } catch (err) {
+      console.error('[PersonalAnalysisPanel] Failed to redirect to login:', err);
     }
   });
 
@@ -230,9 +234,17 @@ export function PersonalAnalysisPanel({
   // Calculate counts
   const followsCount = followRelationData?.following_action?.length || 0;
   const followersCount = followRelationData?.followed_action?.length || 0;
+  const unfollowInnerData = unfollowRelationData?.data;
+  const isUnfollowVip = unfollowRelationData?.isVip ?? false;
+  const maskedUnfollowingCount =
+    unfollowRelationData?.maskedUnfollowingCount || 0;
+  const maskedUnfollowedCount =
+    unfollowRelationData?.maskedUnfollowedCount || 0;
+
   const unfollowingCount =
-    (unfollowRelationData?.unfollowing_action?.length || 0) +
-    (unfollowRelationData?.unfollowed_action?.length || 0);
+    (unfollowInnerData?.unfollowing_action?.length || 0) +
+    (unfollowInnerData?.unfollowed_action?.length || 0) +
+    (!isUnfollowVip ? maskedUnfollowingCount + maskedUnfollowedCount : 0);
 
   // Calculate profile changes count
   const profileChangesCount = (() => {
@@ -246,18 +258,38 @@ export function PersonalAnalysisPanel({
 
   // Merge data for unfollow panel consumption
   const mergedUnfollowData = useMemo(() => {
-    if (!followRelationData && !unfollowRelationData) return undefined;
+    if (
+      !followRelationData &&
+      !unfollowInnerData &&
+      (loadingFollowRelation || loadingUnfollowRelation)
+    ) {
+      return undefined;
+    }
     return {
       followed_action: followRelationData?.followed_action || [],
       following_action: followRelationData?.following_action || [],
-      unfollowing_action: unfollowRelationData?.unfollowing_action || [],
-      unfollowed_action: unfollowRelationData?.unfollowed_action || [],
+      unfollowing_action: unfollowInnerData?.unfollowing_action || [],
+      unfollowed_action: unfollowInnerData?.unfollowed_action || [],
       twitter_users: {
         ...(followRelationData?.twitter_users || {}),
-        ...(unfollowRelationData?.twitter_users || {}),
+        ...(unfollowInnerData?.twitter_users || {}),
       },
+      is_vip: isUnfollowVip,
+      vip_masked: unfollowRelationData?.vipMasked,
+      masked_unfollowing_count: maskedUnfollowingCount,
+      masked_unfollowed_count: maskedUnfollowedCount,
+      vip_cta: unfollowRelationData?.vipCta,
     };
-  }, [followRelationData, unfollowRelationData]);
+  }, [
+    followRelationData,
+    unfollowInnerData,
+    loadingFollowRelation,
+    loadingUnfollowRelation,
+    isUnfollowVip,
+    unfollowRelationData,
+    maskedUnfollowingCount,
+    maskedUnfollowedCount,
+  ]);
 
   // Handle tab change with UI fix
   const handleTabChange = (id: string) => {
@@ -281,20 +313,15 @@ export function PersonalAnalysisPanel({
     }> = [
         { id: 'follows', label: `${t('recentFollows')} (${followsCount})` },
         { id: 'followers', label: `${t('recentFollowers')} (${followersCount})` },
+        {
+          id: 'unfollowing',
+          label: `${t('unfollowInfo')} (${unfollowingCount})`,
+        },
+        {
+          id: 'profile',
+          label: `${t('profileChanges')} (${profileChangesCount})`,
+        },
       ];
-
-    // Add "取关信息" tab only when data exists, and place it before profile
-    if (unfollowingCount > 0) {
-      baseTabs.push({
-        id: 'unfollowing',
-        label: `${t('unfollowInfo')} (${unfollowingCount})`,
-      });
-    }
-
-    baseTabs.push({
-      id: 'profile',
-      label: `${t('profileChanges')} (${profileChangesCount})`,
-    });
 
     // Add "互动榜" tab if we have data or have ever had data (to prevent tab from disappearing during loading)
     if (hasInteractionRankData) {
@@ -548,7 +575,11 @@ export function PersonalAnalysisPanel({
             <UnfollowInfoPanel
               userId={userId}
               followRelationData={mergedUnfollowData}
-              isPro={true}
+              isPro={isUnfollowVip}
+              isVip={isUnfollowVip}
+              maskedUnfollowingCount={maskedUnfollowingCount}
+              maskedUnfollowedCount={maskedUnfollowedCount}
+              vipCta={unfollowRelationData?.vipCta}
             />
           )}
 

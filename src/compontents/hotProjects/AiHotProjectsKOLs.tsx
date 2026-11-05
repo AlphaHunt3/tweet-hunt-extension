@@ -781,7 +781,13 @@ export function AiHotProjectsKOLs({ className = '' }: AiHotProjectsKOLsProps) {
       {/* Content区域 */}
       <div
         ref={contentScrollRef}
-        className={`relative flex-1 overflow-x-hidden max-h-[430px] scrollbar-hide ${activeType === 'tweet' && filterPanelExpanded ? 'overflow-y-hidden' : 'overflow-y-auto'}`}
+        className={`relative flex-1 overflow-x-hidden scrollbar-hide ${
+          activeType === 'person'
+            ? 'overflow-y-hidden'
+            : activeType === 'tweet' && filterPanelExpanded
+              ? 'max-h-[430px] overflow-y-hidden'
+              : 'max-h-[430px] overflow-y-auto'
+        }`}
       >
         {activeType === 'media' && (
           <div className='sticky top-0 z-10 pt-2 pb-2 filter backdrop-blur-sm' style={{

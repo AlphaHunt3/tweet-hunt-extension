@@ -166,3 +166,4 @@ tests/e2e/reports/latest/*
 # AI code review generated latest report
 reports/code-review/latest/*
 !reports/code-review/latest/.gitkeep
+/$HOME/

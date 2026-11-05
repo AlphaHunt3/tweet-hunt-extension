@@ -6,6 +6,7 @@ import {
   X,
   Ban,
   User,
+  Info,
 } from 'lucide-react';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
@@ -150,7 +151,7 @@ export const FeedCleanerSettingsSection: React.FC = () => {
     const newWords = keywordInput
       .split(/[,，\n]+/)
       .map((w) => w.trim())
-      .filter(Boolean);
+      .filter((word) => word.length >= 2);
 
     if (newWords.length > 0) {
       setCustomKeywords((prev) => {
@@ -381,12 +382,25 @@ export const FeedCleanerSettingsSection: React.FC = () => {
                   className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/40 transition-colors'
                   onClick={() => setOpenKeywords(!openKeywords)}
                 >
-                  <span className='text-[13px] theme-text-primary leading-tight'>
-                    {t('cleanerCustomKeywordsTitle')}
-                    <span className='text-[11px] theme-text-secondary ml-1.5'>
-                      ({customKeywords.length})
+                  <div className='flex items-center gap-1.5'>
+                    <span className='text-[13px] theme-text-primary leading-tight'>
+                      {t('cleanerCustomKeywordsTitle')}
+                      <span className='text-[11px] theme-text-secondary ml-1.5'>
+                        ({customKeywords.length})
+                      </span>
                     </span>
-                  </span>
+                    <PortalTooltip
+                      content={t('cleanerCustomKeywordsTip')}
+                      maxWidth={260}
+                    >
+                      <span
+                        className='inline-flex items-center cursor-help text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors'
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Info className='w-3.5 h-3.5' />
+                      </span>
+                    </PortalTooltip>
+                  </div>
                   {openKeywords ? (
                     <ChevronDown className='w-3.5 h-3.5 theme-text-secondary' />
                   ) : (

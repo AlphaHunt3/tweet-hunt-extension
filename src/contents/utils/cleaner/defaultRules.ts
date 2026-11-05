@@ -430,5 +430,13 @@ export const DEFAULT_OFFLINE_RULES: CleanerRemoteConfig = {
       ]
     }
   },
-  globalExemptHandles: ['x', 'support', 'twitter', 'xhunt_ai']
+  globalExemptHandles: ['x', 'support', 'twitter', 'xhunt_ai'],
+  kolFollowerExempt: {
+    enabled: true,
+    minCount: 1,
+    matchMode: 'any',
+    cacheTtlHours: 12,
+    negativeCacheHours: 1,
+    activeDomains: ['ai_cn', 'ai_global', 'web3_cn', 'web3_global'],
+  }
 };

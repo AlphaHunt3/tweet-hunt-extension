@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { PersonalAnalysisPanel } from './PersonalAnalysisPanel';
 import { useCrossPageSettings } from '~utils/settingsManager';
-import { HunterCampaignBanner } from './HunterCampaign/HunterCampaignBanner';
-import { getActiveCampaignForUserAsync } from './HunterCampaign/campaignConfigs';
-import { CampaignProviderBadge } from './HunterCampaign/CampaignProviderBadge';
 import { LoginRequired } from './LoginRequired';
 import ErrorBoundary from './ErrorBoundary';
 
@@ -25,27 +22,9 @@ export function TwitterPersonalRightSidebar({
   const [currentUsername] = useLocalStorage('@xhunt/current-username', '');
   const { isEnabled } = useCrossPageSettings();
 
-  // 根据 userId 获取应该显示的活动配置（逻辑封装在 campaignConfigs.ts 中）
-  const [activeHunterCampaignConfig, setActiveHunterCampaignConfig] = useState(
-    null as ReturnType<() => any>
-  );
-
-  useEffect(() => {
-    let mounted = true;
-    const uid = userId || '';
-    if (!uid) {
-      setActiveHunterCampaignConfig(null as any);
-      return;
-    }
-    getActiveCampaignForUserAsync(uid)
-      .then((cfg) => {
-        if (mounted) setActiveHunterCampaignConfig(cfg as any);
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, [userId]);
+  if (!isEnabled('showSearchPanel')) {
+    return null;
+  }
 
   return (
     <div
@@ -58,37 +37,18 @@ export function TwitterPersonalRightSidebar({
         borderColor: 'var(--border-color)',
       }}
     >
-      {/* Campaign Banner at the very top - 独立控制 */}
-      {activeHunterCampaignConfig && isEnabled('showHunterCampaign') && (
-        <div className='px-3 pt-3'>
-          <div className='mb-2 flex justify-center'>
-            <CampaignProviderBadge variant='topbar' />
-          </div>
-          <HunterCampaignBanner
-            unregisteredMode='collapsed'
-            showMantleHunterComponents={
-              activeHunterCampaignConfig.showExtraComponents
-            }
-            campaignConfig={activeHunterCampaignConfig}
-            defaultExpanded={false}
-          />
-        </div>
-      )}
-
       {/* 内容区域 */}
-      {isEnabled('showSearchPanel') && (
-        <div className='personal-sidebar-content'>
-          <LoginRequired showInCenter={true}>
-            <ErrorBoundary name='PersonalAnalysisPanel'>
-              <PersonalAnalysisPanel
-                userId={userId}
-                newTwitterData={newTwitterData}
-                loadingTwInfo={loadingTwInfo}
-              />
-            </ErrorBoundary>
-          </LoginRequired>
-        </div>
-      )}
+      <div className='personal-sidebar-content'>
+        <LoginRequired showInCenter={true}>
+          <ErrorBoundary name='PersonalAnalysisPanel'>
+            <PersonalAnalysisPanel
+              userId={userId}
+              newTwitterData={newTwitterData}
+              loadingTwInfo={loadingTwInfo}
+            />
+          </ErrorBoundary>
+        </LoginRequired>
+      </div>
     </div>
   );
 }

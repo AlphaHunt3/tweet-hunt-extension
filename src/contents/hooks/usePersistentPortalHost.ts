@@ -5,8 +5,12 @@ export default function usePersistentPortalHost(shadowRoot: ShadowRoot | null) {
   if (!hostRef.current) {
     hostRef.current = document.createElement('div');
     hostRef.current.style.display = 'contents';
+    hostRef.current.setAttribute('translate', 'no');
+    hostRef.current.classList.add('notranslate');
   }
   useEffect(() => {
+    hostRef.current?.setAttribute('translate', 'no');
+    hostRef.current?.classList.add('notranslate');
     if (
       shadowRoot &&
       hostRef.current &&

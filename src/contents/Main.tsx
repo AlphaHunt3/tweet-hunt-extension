@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import usePresencePort from './hooks/usePresencePort.ts';
-import usePlacementTrackingClick from '~contents/hooks/usePlacementTrackingClick.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { usePageReady } from './hooks/usePageReady.ts';
 import cssText from 'data-text:~/css/style.css';
@@ -18,11 +17,11 @@ import { TickerTips } from '~compontents/area/TickerTips.tsx';
 import { AiAnalysisTips } from '~compontents/AiAnalysisTips.tsx';
 import { SearchBottomPanel } from '~compontents/area/SearchBottomPanel.tsx';
 import { useAvatarRanks } from '~contents/hooks/useAvatarRanks.ts';
+import { useSpecialUserMarkers } from '~contents/hooks/useSpecialUserMarkers.ts';
 import { GlobalInjector } from '~compontents/area/GlobalInjector.tsx';
 import { UICheckSection } from '~compontents/UICheckSection.tsx';
 import { useSystemInitialization } from '~contents/hooks/useSystemInitialization.ts';
 import TweetDetailButton from '~compontents/area/TweetDetailButton.tsx';
-import ArticleBottomRightArea from '~compontents/area/ArticleBottomRightArea.tsx';
 import GhostFollowingPanel from '~compontents/area/GhostFollowingPanel.tsx';
 import useThemeWatcher from '~contents/hooks/useThemeWatcher.ts';
 import useOpenSettingsHandler from '~contents/hooks/useOpenSettingsHandler.ts';
@@ -30,7 +29,6 @@ import useInitialStateScript from '~contents/hooks/useInitialStateScript.ts';
 import SoundPlayer from '~compontents/area/SoundPlayer.tsx';
 import { LeaderProvider } from '~contents/contexts/LeaderContext.tsx';
 import RealtimeNotification from '~compontents/RealtimeNotification.tsx';
-import ArticleBoostPanel from '~compontents/ArticleBoostPanel.tsx';
 import FanTipPanel from '~compontents/FanTipPanel.tsx';
 import { PlacementTrackingProvider } from '~contents/contexts/PlacementTrackingContext.tsx';
 import {
@@ -55,6 +53,7 @@ import {
   type UserDomainPreference,
 } from './hooks/useUserDomain.ts';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
+import SocialCircleFeature from '~compontents/SocialCircle/SocialCircleFeature.tsx';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -136,7 +135,6 @@ function MainContent({
   usePresencePort();
   useSystemInitialization();
   useThemeWatcher();
-  usePlacementTrackingClick();
   useVerifyLoginStatus();
   useTwitterAuthCallback();
   const { isSetupCompleted, isSetupLoading } = useUserDomainHook();
@@ -148,6 +146,8 @@ function MainContent({
       data-theme={theme}
       data-xhunt-avatar-rank-mode={avatarRankMode}
       data-xhunt-exclude={'true'}
+      translate='no'
+      className='notranslate'
       data-xhunt-testid='main-root'
       key={`${theme}-${avatarRankMode}-${token}-main-content`}
       style={{
@@ -200,6 +200,7 @@ function FeatureLayer() {
   const mainData = useMainDataContext();
   useTokenHighlightLayer();
   useAvatarRanks();
+  useSpecialUserMarkers();
   useOpenSettingsHandler();
   useInitialStateScript();
 
@@ -230,6 +231,7 @@ function FeatureLayer() {
           newTwitterData={mainData.newTwitterData}
           twInfo={mainData.twInfo}
           deletedTweets={mainData.deletedTweets}
+          deletedTweetsIsVip={mainData.deletedTweetsIsVip}
           loadingTwInfo={mainData.loadingTwInfo}
           loadingDel={mainData.loadingDel}
           error={mainData.error}
@@ -278,20 +280,16 @@ function FeatureLayer() {
         <TweetDetailButton />
       </ErrorBoundary>
 
-      <ErrorBoundary name='ArticleBottomRightArea'>
-        <ArticleBottomRightArea />
-      </ErrorBoundary>
-
-      <ErrorBoundary name='ArticleBoostPanel'>
-        <ArticleBoostPanel />
-      </ErrorBoundary>
-
       <ErrorBoundary name='FanTipPanel'>
         <FanTipPanel />
       </ErrorBoundary>
 
       <ErrorBoundary name='GhostFollowingPanel'>
         <GhostFollowingPanel />
+      </ErrorBoundary>
+
+      <ErrorBoundary name='SocialCircleFeature'>
+        <SocialCircleFeature />
       </ErrorBoundary>
 
       <ErrorBoundary name='KolAiChatButton'>

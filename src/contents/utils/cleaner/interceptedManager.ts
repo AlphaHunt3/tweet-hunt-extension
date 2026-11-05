@@ -9,6 +9,18 @@ const MAX_ACCOUNTS = 300;
 const pendingAccounts = new Map<string, InterceptedAccount>();
 let flushTimer: NodeJS.Timeout | null = null;
 
+// 串行事务锁，彻底规避并发 Read-Modify-Write 竞争与状态覆盖
+let storageLock: Promise<unknown> = Promise.resolve();
+
+function runWithStorageLock<T>(task: () => Promise<T>): Promise<T> {
+  const result = storageLock.then(task, task);
+  storageLock = result.then(
+    () => {},
+    () => {}
+  );
+  return result;
+}
+
 export interface RecordInterceptedParams {
   handle: string;
   name?: string;
@@ -72,56 +84,58 @@ async function flushPendingAccounts(): Promise<void> {
   const toFlush = new Map(pendingAccounts);
   pendingAccounts.clear();
 
-  try {
-    const stored = (await localStorageInstance.get(
-      INTERCEPTED_STORAGE_KEY
-    )) as InterceptedAccount[] | null;
-    const currentList: InterceptedAccount[] = Array.isArray(stored)
-      ? [...stored]
-      : [];
-    const accountMap = new Map<string, InterceptedAccount>();
+  return runWithStorageLock(async () => {
+    try {
+      const stored = (await localStorageInstance.get(
+        INTERCEPTED_STORAGE_KEY
+      )) as InterceptedAccount[] | null;
+      const currentList: InterceptedAccount[] = Array.isArray(stored)
+        ? [...stored]
+        : [];
+      const accountMap = new Map<string, InterceptedAccount>();
 
-    currentList.forEach((acc) => {
-      accountMap.set(acc.handle.toLowerCase(), acc);
-    });
+      currentList.forEach((acc) => {
+        accountMap.set(acc.handle.toLowerCase(), acc);
+      });
 
-    // 落库前再校验一次：排名数据可能在缓冲防抖期间到达，有排名的账号一律不写
-    const eligibleFlush = new Map<string, InterceptedAccount>();
-    toFlush.forEach((newAcc, handle) => {
-      if (!hasKolRankInCache(handle)) {
-        eligibleFlush.set(handle, newAcc);
-      }
-    });
+      // 落库前再校验一次：排名数据可能在缓冲防抖期间到达，有排名的账号一律不写
+      const eligibleFlush = new Map<string, InterceptedAccount>();
+      toFlush.forEach((newAcc, handle) => {
+        if (!hasKolRankInCache(handle)) {
+          eligibleFlush.set(handle, newAcc);
+        }
+      });
 
-    eligibleFlush.forEach((newAcc, handle) => {
-      const existing = accountMap.get(handle);
-      if (existing) {
-        // 只更新资料信息，不刷新 lastSeenAt，保持列表既有顺序稳定
-        if (newAcc.name) existing.name = newAcc.name;
-        if (newAcc.avatar) existing.avatar = newAcc.avatar;
-        if (newAcc.reason) existing.reason = newAcc.reason;
-        if (newAcc.matchedWord) existing.matchedWord = newAcc.matchedWord;
-      } else {
-        accountMap.set(handle, newAcc);
-      }
-    });
+      eligibleFlush.forEach((newAcc, handle) => {
+        const existing = accountMap.get(handle);
+        if (existing) {
+          // 只更新资料信息，不刷新 lastSeenAt，保持列表既有顺序稳定
+          if (newAcc.name) existing.name = newAcc.name;
+          if (newAcc.avatar) existing.avatar = newAcc.avatar;
+          if (newAcc.reason) existing.reason = newAcc.reason;
+          if (newAcc.matchedWord) existing.matchedWord = newAcc.matchedWord;
+        } else {
+          accountMap.set(handle, newAcc);
+        }
+      });
 
-    // 新出现的账号按时间倒序排在最前，已有记录保持原顺序不变
-    const newAccounts = eligibleFlush.size
-      ? Array.from(eligibleFlush.keys())
-          .filter((handle) => !currentList.some(
-            (acc) => acc.handle.toLowerCase() === handle
-          ))
-          .map((handle) => accountMap.get(handle)!)
-          .sort((a, b) => b.lastSeenAt - a.lastSeenAt)
-      : [];
+      // 新出现的账号按时间倒序排在最前，已有记录保持原顺序不变
+      const newAccounts = eligibleFlush.size
+        ? Array.from(eligibleFlush.keys())
+            .filter((handle) => !currentList.some(
+              (acc) => acc.handle.toLowerCase() === handle
+            ))
+            .map((handle) => accountMap.get(handle)!)
+            .sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+        : [];
 
-    const merged = [...newAccounts, ...currentList];
-    const trimmed = merged.slice(0, MAX_ACCOUNTS);
-    await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, trimmed);
-  } catch (err) {
-    // 忽略异常写入
-  }
+      const merged = [...newAccounts, ...currentList];
+      const trimmed = merged.slice(0, MAX_ACCOUNTS);
+      await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, trimmed);
+    } catch (err) {
+      // 忽略异常写入
+    }
+  });
 }
 
 /**
@@ -133,21 +147,23 @@ export async function removeInterceptedAccount(handle: string): Promise<void> {
 
   pendingAccounts.delete(clean);
 
-  try {
-    const stored = (await localStorageInstance.get(
-      INTERCEPTED_STORAGE_KEY
-    )) as InterceptedAccount[] | null;
-    if (!Array.isArray(stored)) return;
+  return runWithStorageLock(async () => {
+    try {
+      const stored = (await localStorageInstance.get(
+        INTERCEPTED_STORAGE_KEY
+      )) as InterceptedAccount[] | null;
+      if (!Array.isArray(stored)) return;
 
-    const filtered = stored.filter(
-      (acc) => acc.handle.toLowerCase() !== clean
-    );
-    if (filtered.length !== stored.length) {
-      await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, filtered);
+      const filtered = stored.filter(
+        (acc) => acc.handle.toLowerCase() !== clean
+      );
+      if (filtered.length !== stored.length) {
+        await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, filtered);
+      }
+    } catch (err) {
+      // 忽略异常
     }
-  } catch (err) {
-    // 忽略异常
-  }
+  });
 }
 
 /**
@@ -165,31 +181,33 @@ export async function updateInterceptedBlockStatus(
     pending.isBlocked = isBlocked;
   }
 
-  try {
-    const stored = (await localStorageInstance.get(
-      INTERCEPTED_STORAGE_KEY
-    )) as InterceptedAccount[] | null;
-    const currentList: InterceptedAccount[] = Array.isArray(stored)
-      ? [...stored]
-      : [];
+  return runWithStorageLock(async () => {
+    try {
+      const stored = (await localStorageInstance.get(
+        INTERCEPTED_STORAGE_KEY
+      )) as InterceptedAccount[] | null;
+      const currentList: InterceptedAccount[] = Array.isArray(stored)
+        ? [...stored]
+        : [];
 
-    let changed = false;
-    const updated = currentList.map((acc) => {
-      if (acc.handle.toLowerCase() === clean) {
-        if (acc.isBlocked !== isBlocked) {
-          changed = true;
-          return { ...acc, isBlocked };
+      let changed = false;
+      const updated = currentList.map((acc) => {
+        if (acc.handle.toLowerCase() === clean) {
+          if (acc.isBlocked !== isBlocked) {
+            changed = true;
+            return { ...acc, isBlocked };
+          }
         }
-      }
-      return acc;
-    });
+        return acc;
+      });
 
-    if (changed) {
-      await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, updated);
-      return true;
+      if (changed) {
+        await localStorageInstance.set(INTERCEPTED_STORAGE_KEY, updated);
+        return true;
+      }
+    } catch (err) {
+      // 忽略异常
     }
-  } catch (err) {
-    // 忽略异常
-  }
-  return false;
+    return false;
+  });
 }

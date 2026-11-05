@@ -59,6 +59,8 @@ function _SideBarIcon() {
 
   // 获取宽度并计算 isExpanded
   const updateIsExpanded = useCallback(() => {
+    // 后台/隐藏状态下 DOM 尺寸可能测得 0，跳过更新以防误折叠
+    if (typeof document !== 'undefined' && document.hidden) return;
     if (!sidebar) return;
 
     const profileLink = document.querySelector(
@@ -96,17 +98,37 @@ function _SideBarIcon() {
     maxWait: 200,
   });
 
-  // 监听窗口大小变化
+  // 1. 监听窗口大小变化
   useGlobalResize(() => {
     debouncedUpdateIsExpanded();
   }, [debouncedUpdateIsExpanded]);
 
-  // 初始化和 sidebar 变化时也更新
+  // 2. 网页从休眠/后台切回前台（唤醒/激活）时重新计算
+  useEffect(() => {
+    const handleWake = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      // 唤醒后在下一帧及短延时后重新测量，确保 layout 重排已落定
+      requestAnimationFrame(updateIsExpanded);
+      setTimeout(updateIsExpanded, 150);
+    };
+
+    document.addEventListener('visibilitychange', handleWake);
+    window.addEventListener('focus', handleWake);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWake);
+      window.removeEventListener('focus', handleWake);
+    };
+  }, [updateIsExpanded]);
+
+  // 3. 初始化、sidebar 挂载或路由切换时更新
   useEffect(() => {
     if (sidebar?.parentElement) {
       updateIsExpanded();
+      const timer = setTimeout(updateIsExpanded, 150);
+      return () => clearTimeout(timer);
     }
-  }, [sidebar, updateIsExpanded]);
+  }, [sidebar, currentUrl, updateIsExpanded]);
 
   // Update message manager language when user language changes
   useEffect(() => {

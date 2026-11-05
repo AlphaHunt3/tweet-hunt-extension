@@ -132,6 +132,11 @@ const isElementInDocument = (element: HTMLElement | null): boolean => {
 const AUTO_CREATED_ATTR = 'data-plasmo-shadow-container-autocreated';
 const CONTAINER_KEY_ATTR = 'data-xhunt-shadow-container-key';
 
+const markShadowHostAsNotTranslatable = (element: HTMLElement) => {
+  element.setAttribute('translate', 'no');
+  element.classList.add('notranslate');
+};
+
 // 全局窗口大小变化监听器
 let resizeObserver: ResizeObserver | null = null;
 let resizeCallbacks: Set<() => void> = new Set();
@@ -413,6 +418,7 @@ export default function useShadowContainer({
           isElementInDocument(currentTargetRef.current)
         ) {
           currentTargetRef.current!.setAttribute('data-theme', theme);
+          markShadowHostAsNotTranslatable(currentTargetRef.current!);
           setupAutoZIndex(currentTargetRef.current!);
           createdRef.current = true;
           return true;
@@ -469,6 +475,7 @@ export default function useShadowContainer({
     }
 
     if (!target) return false;
+    markShadowHostAsNotTranslatable(target as HTMLElement);
 
     // 2. 检查目标元素内是否已存在唯一的容器
     if (target.getAttribute('data-plasmo-shadow-container') === 'true') {
@@ -589,19 +596,16 @@ export default function useShadowContainer({
 
   useDebounceEffect(
     () => {
-      if (createShadowContainer()) {
-        return;
-      }
+      createShadowContainer();
 
       const unsubscribe = subscribeToMutation(
         () => {
-          if (createShadowContainer()) {
-            unsubscribe();
-          }
+          createShadowContainer();
         },
         { childList: true, subtree: true },
         {
           debugName: 'useShadowContainer',
+          throttle: waitTime,
         },
       );
 

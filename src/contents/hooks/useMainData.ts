@@ -6,7 +6,7 @@ import {
   fetchTwitterInfoNew,
   convertNewDataToKolData,
   convertNewDataToPopularityInfo,
-  fetchTwRenameInfo,
+
 } from '~contents/services/api.ts';
 import { useEffect, useMemo } from 'react';
 import {
@@ -25,11 +25,13 @@ import {
 import { ReviewStats, UserInfo } from '~types/review.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import usePlacementTracking from './usePlacementTracking';
+import { fetchTwRenameInfo } from '~contents/services/fetchTwRenameInfo.ts';
 
 export interface MainData {
   currentUrl: string;
   userId: string;
   deletedTweets: DeletedTweet[];
+  deletedTweetsIsVip: boolean;
   twInfo: KolData | null;
   loadingTwInfo: boolean;
   loadingDel: boolean;
@@ -73,7 +75,7 @@ const useMainData = (): MainData => {
 
   //删推信息,已改成twid查询
   const {
-    data: deletedTweets = [] as DeletedTweet[],
+    data: deletedData,
     run: fetchDelData,
     loading: loadingDel,
   } = useRequest(() => fetchDelTwitterInfo(twitterId), {
@@ -81,6 +83,8 @@ const useMainData = (): MainData => {
     ready: isProfileHtmlReady,
     ...defaultRequestConfig,
   });
+  const deletedTweets = deletedData?.tweets ?? [];
+  const deletedTweetsIsVip = deletedData?.isVip ?? true;
 
   //使用新接口获取用户信息,已改成twid查询
   const {
@@ -223,6 +227,7 @@ const useMainData = (): MainData => {
       currentUrl,
       userId,
       deletedTweets,
+      deletedTweetsIsVip,
       twInfo,
       loadingTwInfo,
       loadingDel,
@@ -247,6 +252,7 @@ const useMainData = (): MainData => {
       currentUrl,
       userId,
       deletedTweets,
+      deletedTweetsIsVip,
       twInfo,
       loadingTwInfo,
       loadingDel,

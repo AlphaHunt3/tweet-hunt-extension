@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { TwitterUser, FollowRelationData } from '~types';
-import { Loader2 } from 'lucide-react';
+import { TwitterUser, FollowRelationData, UnfollowVipCta } from '~types';
+import { Loader2, Lock } from 'lucide-react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import AvatarRankBadge from './AvatarRankBadge.tsx';
 import { rankService } from '~/utils/rankService';
-import { ProPanel } from './ProPanel.tsx';
 import { navigateInX } from '~contents/utils/navigateInX';
+import { openNewTab } from '~contents/utils';
+import {
+  configManager,
+  DEFAULT_UNFOLLOW_VIP_CTA,
+} from '~utils/configManager';
 
 dayjs.extend(relativeTime);
 
@@ -29,8 +33,17 @@ interface UnfollowInfoPanelProps {
       following_id: string;
       latest?: number;
     }>;
+    is_vip?: boolean;
+    vip_masked?: boolean;
+    masked_unfollowed_count?: number;
+    masked_unfollowing_count?: number;
+    vip_cta?: UnfollowVipCta;
   };
   isPro?: boolean;
+  isVip?: boolean;
+  maskedUnfollowingCount?: number;
+  maskedUnfollowedCount?: number;
+  vipCta?: UnfollowVipCta;
 }
 
 interface FollowRelationItemProps {
@@ -114,8 +127,12 @@ export function UnfollowInfoPanel({
   userId,
   followRelationData,
   isPro = false,
+  isVip,
+  maskedUnfollowingCount,
+  maskedUnfollowedCount,
+  vipCta,
 }: UnfollowInfoPanelProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [activeSubTab, setActiveSubTab] = useState<UnfollowSubTab>('active');
 
@@ -129,6 +146,31 @@ export function UnfollowInfoPanel({
 
   const unfollowingActions = followRelationData?.unfollowing_action || [];
   const unfollowedActions = followRelationData?.unfollowed_action || [];
+
+  const effectiveIsVip =
+    isVip ?? followRelationData?.is_vip ?? isPro ?? false;
+  const effectiveMaskedUnfollowingCount =
+    maskedUnfollowingCount ?? followRelationData?.masked_unfollowing_count ?? 0;
+  const effectiveMaskedUnfollowedCount =
+    maskedUnfollowedCount ?? followRelationData?.masked_unfollowed_count ?? 0;
+  const nacosVipCta = configManager.getUnfollowVipCta();
+  const rawVipCta = vipCta ?? followRelationData?.vip_cta ?? nacosVipCta;
+  const effectiveVipCta: UnfollowVipCta = {
+    url:
+      rawVipCta?.url?.trim() ||
+      nacosVipCta.url ||
+      DEFAULT_UNFOLLOW_VIP_CTA.url,
+    label: {
+      zh:
+        rawVipCta?.label?.zh?.trim() ||
+        nacosVipCta.label.zh ||
+        DEFAULT_UNFOLLOW_VIP_CTA.label.zh,
+      en:
+        rawVipCta?.label?.en?.trim() ||
+        nacosVipCta.label.en ||
+        DEFAULT_UNFOLLOW_VIP_CTA.label.en,
+    },
+  };
 
   // 使用排名服务获取排名
   useEffect(() => {
@@ -150,8 +192,6 @@ export function UnfollowInfoPanel({
       .filter(Boolean) as string[];
 
     const usernames = [...unfollowingUsernames, ...unfollowedUsernames];
-    if (usernames.length === 0) return;
-
     if (usernames.length === 0) return;
 
     // 添加状态监听
@@ -193,101 +233,134 @@ export function UnfollowInfoPanel({
     );
   }
 
-  const BLUR_COUNT = 5; // 需要遮挡的前几条数据
-  const hasActiveUnfollows = unfollowingActions.length > 0;
-  const hasPassiveUnfollows = unfollowedActions.length > 0;
-  const hasBlurredActiveItems = !isPro && unfollowingActions.length > 0;
-  const hasBlurredPassiveItems = !isPro && unfollowedActions.length > 0;
+  // 只要非 VIP（isVip === false），始终展示 VIP 引导遮罩
+  const hasMaskedActive = !effectiveIsVip;
+  const hasMaskedPassive = !effectiveIsVip;
+
+  const activeTotalCount =
+    unfollowingActions.length +
+    (!effectiveIsVip ? effectiveMaskedUnfollowingCount : 0);
+  const passiveTotalCount =
+    unfollowedActions.length +
+    (!effectiveIsVip ? effectiveMaskedUnfollowedCount : 0);
+
+  const hasActiveUnfollows = unfollowingActions.length > 0 || hasMaskedActive;
+  const hasPassiveUnfollows = unfollowedActions.length > 0 || hasMaskedPassive;
 
   // 子 tab 数据
   const subTabs = [
     {
       id: 'active' as const,
       label: t('activeUnfollow'),
-      count: unfollowingActions.length,
+      count: activeTotalCount,
       hasData: hasActiveUnfollows,
-      hasBlurred: hasBlurredActiveItems,
+      hasMasked: hasMaskedActive,
+      maskedCount: effectiveMaskedUnfollowingCount,
       actions: unfollowingActions,
-      getUser: (action: any) => followRelationData?.twitter_users[action.following_id],
+      getUser: (action: any) =>
+        followRelationData?.twitter_users[action.following_id],
       keyPrefix: 'unfollowing',
       noDataText: t('noActiveUnfollows'),
     },
     {
       id: 'passive' as const,
       label: t('passiveUnfollowed'),
-      count: unfollowedActions.length,
+      count: passiveTotalCount,
       hasData: hasPassiveUnfollows,
-      hasBlurred: hasBlurredPassiveItems,
+      hasMasked: hasMaskedPassive,
+      maskedCount: effectiveMaskedUnfollowedCount,
       actions: unfollowedActions,
-      getUser: (action: any) => followRelationData?.twitter_users[action.follower_id],
+      getUser: (action: any) =>
+        followRelationData?.twitter_users[action.follower_id],
       keyPrefix: 'unfollowed',
       noDataText: t('noPassiveUnfollows'),
     },
   ];
 
-  const currentTab = subTabs.find(tab => tab.id === activeSubTab) || subTabs[0];
+  const currentTab =
+    subTabs.find((tab) => tab.id === activeSubTab) || subTabs[0];
+
+  const ctaUrl = effectiveVipCta?.url?.trim() || '';
+  const bannerLabel =
+    lang === 'zh'
+      ? effectiveVipCta?.label?.zh ||
+        effectiveVipCta?.label?.en ||
+        t('unfollowRecentVipOnlyTitle')
+      : effectiveVipCta?.label?.en ||
+        effectiveVipCta?.label?.zh ||
+        t('unfollowRecentVipOnlyTitle');
 
   return (
     <div className='relative'>
-      {/* 子 Tab 切换栏 - 粘性定位 */}
-      <div className='border-b theme-border sticky top-0 z-[99999] theme-bg-primary'>
-        <div className='flex'>
+      {/* 子 Tab 切换栏 + VIP 提示条 - 粘性定位 */}
+      <div className='sticky top-0 z-[99999] theme-bg-primary'>
+        <div className='flex border-b theme-border'>
           {subTabs.map((tab) => (
             <button
               key={tab.id}
-              className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap text-center ${activeSubTab === tab.id
-                ? 'text-blue-400'
-                : 'theme-text-secondary hover:theme-text-primary'
-                }`}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap text-center ${
+                activeSubTab === tab.id
+                  ? 'text-blue-400'
+                  : 'theme-text-secondary hover:theme-text-primary'
+              }`}
               onClick={() => setActiveSubTab(tab.id)}
             >
               {activeSubTab === tab.id && (
                 <span className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400' />
               )}
-              <span>{tab.label} ({tab.count})</span>
+              <span>
+                {tab.label} ({tab.count})
+              </span>
             </button>
           ))}
         </div>
+
+        {currentTab.hasMasked && (
+          <div className='flex items-center justify-between gap-3 px-4 py-2 border-b theme-border bg-amber-500/[0.05] dark:bg-amber-500/[0.08]'>
+            <div className='flex items-center gap-1.5 min-w-0 flex-1'>
+              <Lock className='w-3.5 h-3.5 text-amber-500 flex-shrink-0' />
+              <span className='text-xs font-medium theme-text-primary truncate'>
+                {bannerLabel}
+              </span>
+            </div>
+            {ctaUrl && (
+              <button
+                type='button'
+                onClick={() => openNewTab(ctaUrl)}
+                className='px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-medium hover:opacity-90 transition-opacity whitespace-nowrap flex-shrink-0'
+              >
+                {t('unfollowApplyVip')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 内容区域 */}
       <div className='space-y-2'>
-        {currentTab.hasData ? (
-          <>
-            {currentTab.hasBlurred && (
-              <div className='px-6 pt-2'>
-                <ProPanel
-                  isPro={false}
-                  show={true}
-                  className='border border-gray-200 dark:border-gray-800 rounded-md'
-                  enableAnimation={false}
-                  showExtraTitle={t('proRequiredViewFirst5')}
-                  showBenefits={false}
-                />
-              </div>
-            )}
-            {currentTab.actions.map((action, index) => {
-              const user = currentTab.getUser(action);
-              if (!user) return null;
-              if (!isPro && index < BLUR_COUNT) return null;
+        {currentTab.actions.length > 0 ? (
+          currentTab.actions.map((action) => {
+            const user = currentTab.getUser(action);
+            if (!user) return null;
 
-              const username = user.username_raw;
-              const userRank = userRanks[username] || -1;
-              const isLoading = loadingRanks.has(username);
+            const username = user.username_raw;
+            const userRank = userRanks[username] || -1;
+            const isLoading = loadingRanks.has(username);
 
-              return (
-                <FollowRelationItem
-                  key={`${currentTab.keyPrefix}-${action.created_at}-${action.following_id || action.follower_id}`}
-                  user={user}
-                  timestamp={action.created_at}
-                  rank={userRank}
-                  isLoading={isLoading}
-                  theme={theme}
-                  avatarRankMode={avatarRankMode}
-                />
-              );
-            })}
-          </>
+            return (
+              <FollowRelationItem
+                key={`${currentTab.keyPrefix}-${action.created_at}-${
+                  action.following_id || action.follower_id
+                }`}
+                user={user}
+                timestamp={action.created_at}
+                rank={userRank}
+                isLoading={isLoading}
+                theme={theme}
+                avatarRankMode={avatarRankMode}
+              />
+            );
+          })
         ) : (
           <div className='px-6 py-4'>
             <p className='text-xs theme-text-secondary'>

@@ -32,6 +32,8 @@ const getOrCreateShadowHost = (): { portalHost: HTMLElement } => {
     shadowHost.id = SHADOW_HOST_ID;
     shadowHost.style.cssText =
       'position:fixed;top:0;left:0;width:0;height:0;z-index:99999;';
+    shadowHost.setAttribute('translate', 'no');
+    shadowHost.classList.add('notranslate');
 
     if (document.body?.parentNode) {
       document.body.parentNode.insertBefore(shadowHost, document.body);
@@ -47,13 +49,19 @@ const getOrCreateShadowHost = (): { portalHost: HTMLElement } => {
 
     const portalHost = document.createElement('div');
     portalHost.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+    portalHost.setAttribute('translate', 'no');
+    portalHost.classList.add('notranslate');
     shadowRoot.appendChild(portalHost);
 
     return { portalHost };
   }
 
+  shadowHost.setAttribute('translate', 'no');
+  shadowHost.classList.add('notranslate');
   const portalHost = shadowHost.shadowRoot!.querySelector('div') as HTMLElement;
   portalHost.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+  portalHost.setAttribute('translate', 'no');
+  portalHost.classList.add('notranslate');
   return { portalHost };
 };
 
@@ -318,7 +326,8 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
     <div
       data-theme={theme}
       data-xhunt-testid='user-domain-setup-modal'
-      className='fixed inset-0 flex items-center justify-center'
+      translate='no'
+      className='notranslate fixed inset-0 flex items-center justify-center'
       style={{
         opacity: isAnimating ? 1 : 0,
         transition: 'opacity 0.3s ease',

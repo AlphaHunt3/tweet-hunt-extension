@@ -5,6 +5,7 @@ import type {
   CleanerCategory,
   CleanerDetectionResult,
   CleanerRemoteConfig,
+  KolFollowerExemptConfig,
 } from './types';
 
 const CLEANER_CONFIG_DATA_ID = 'xhunt_cleaner_rules';
@@ -31,7 +32,7 @@ interface CompiledGroup {
   strongKeywords: CompiledKeyword[];
   exactKeywords: CompiledKeyword[];
   fuzzyKeywords: CompiledKeyword[];
-  intentWords: string[];
+  intentKeywords: CompiledKeyword[];
   maxWeakLength: number;
 }
 
@@ -96,6 +97,10 @@ class CleanerRuleManager {
               ...(remoteConfig.globalExemptHandles || []),
             ]),
           ],
+          kolFollowerExempt: {
+            ...DEFAULT_OFFLINE_RULES.kolFollowerExempt!,
+            ...(remoteConfig.kolFollowerExempt || {}),
+          },
         };
       }
     } catch {
@@ -104,6 +109,7 @@ class CleanerRuleManager {
         rules: {
           adult_traffic: defaultAdultTraffic,
         },
+        kolFollowerExempt: DEFAULT_OFFLINE_RULES.kolFollowerExempt,
       };
     } finally {
       this.compileRules();
@@ -128,9 +134,7 @@ class CleanerRuleManager {
         strongKeywords: (group.strongKeywords || []).map(compileKeyword),
         exactKeywords: (group.exactKeywords || []).map(compileKeyword),
         fuzzyKeywords: (group.fuzzyKeywords || []).map(compileKeyword),
-        intentWords: (group.intentKeywords || [])
-          .map((intent) => intent.trim().toLowerCase())
-          .filter(Boolean),
+        intentKeywords: (group.intentKeywords || []).map(compileKeyword),
         maxWeakLength: group.maxWeakSpamLength ?? 80,
       });
 
@@ -173,23 +177,38 @@ class CleanerRuleManager {
     const lowerNormalized = normalized.toLowerCase();
     const textLength = stripped.length;
 
-    // 1. 优先匹配用户自定义关键词
+    // 1. 优先匹配用户自定义关键词（至少 2 个字符，且纯英文/数字做单词边界匹配，避免子串误杀）
     for (const rawKw of customKeywords) {
       const kw = rawKw.trim().toLowerCase();
-      if (!kw) continue;
-      const { stripped: cleanKwStripped } = normalizeTweetText(rawKw);
-      if (
-        lowerNormalized.includes(kw) ||
-        stripped.includes(kw) ||
-        (cleanKwStripped && stripped.includes(cleanKwStripped))
-      ) {
-        return {
-          matched: true,
-          category: 'custom',
-          ruleName: '自定义规则',
-          reason: `命中自定义词: ${rawKw}`,
-          matchedWord: rawKw,
-        };
+      if (!kw || kw.length < 2) continue;
+
+      const isAlphanumericWord = /^[a-z0-9_-]+$/i.test(kw);
+      if (isAlphanumericWord) {
+        const regex = new RegExp(`(^|[^a-z0-9_-])${kw}([^a-z0-9_-]|$)`, 'i');
+        if (regex.test(normalized) || regex.test(rawText)) {
+          return {
+            matched: true,
+            category: 'custom',
+            ruleName: '自定义规则',
+            reason: `命中自定义词: ${rawKw}`,
+            matchedWord: rawKw,
+          };
+        }
+      } else {
+        const { stripped: cleanKwStripped } = normalizeTweetText(rawKw);
+        if (
+          lowerNormalized.includes(kw) ||
+          stripped.includes(kw) ||
+          (cleanKwStripped && stripped.includes(cleanKwStripped))
+        ) {
+          return {
+            matched: true,
+            category: 'custom',
+            ruleName: '自定义规则',
+            reason: `命中自定义词: ${rawKw}`,
+            matchedWord: rawKw,
+          };
+        }
       }
     }
 
@@ -228,46 +247,49 @@ class CleanerRuleManager {
       }
     }
 
-    // 4. 弱特征词过滤（长文本保护 + 短文本引流意向二次确认，只检测黄推）
+    // 4. 短文本特征词过滤（长文本保护，字数 <= maxWeakLength 时只要命中即拦截）
     for (const group of this.compiledGroups) {
       // 长文本保护：超过指定字数（默认 80 字），说明是长篇讨论、分析或观点，不作为引流机器人屏蔽
       if (textLength > group.maxWeakLength) {
         continue;
       }
 
-      // 引流意向二次判定：短文本中必须伴随引流动作词才屏蔽
-      const hasIntent = group.intentWords.some(
-        (cleanIntent) =>
-          lowerNormalized.includes(cleanIntent) ||
-          stripped.includes(cleanIntent)
-      );
-
-      // 弱词匹配检查
-      const checkWeakWord = (kw: CompiledKeyword, isFuzzy: boolean) => {
-        const isMatched = isFuzzy
-          ? kw.cleanStripped && stripped.includes(kw.cleanStripped)
-          : kw.cleanWord && lowerNormalized.includes(kw.cleanWord);
-
-        if (!isMatched) return false;
-
-        // 如果命中弱词：只有同时具有引流动作特征，才判定为引流机器人；纯说话直接无引流特征则放行
-        return hasIntent;
+      const matchWeakKeyword = (kw: CompiledKeyword, isFuzzy: boolean) => {
+        if (isFuzzy) {
+          return Boolean(
+            (kw.cleanStripped && stripped.includes(kw.cleanStripped)) ||
+            (kw.cleanWord && lowerNormalized.includes(kw.cleanWord))
+          );
+        }
+        return Boolean(kw.cleanWord && lowerNormalized.includes(kw.cleanWord));
       };
 
       for (const kw of group.exactKeywords) {
-        if (checkWeakWord(kw, false)) {
+        if (matchWeakKeyword(kw, false)) {
           return {
             matched: true,
             category: group.category,
             ruleName: group.ruleName,
-            reason: `短回复引流特征: ${kw.raw}`,
+            reason: `短回复特征: ${kw.raw}`,
             matchedWord: kw.raw,
           };
         }
       }
 
       for (const kw of group.fuzzyKeywords) {
-        if (checkWeakWord(kw, true)) {
+        if (matchWeakKeyword(kw, true)) {
+          return {
+            matched: true,
+            category: group.category,
+            ruleName: group.ruleName,
+            reason: `短回复特征: ${kw.raw}`,
+            matchedWord: kw.raw,
+          };
+        }
+      }
+
+      for (const kw of group.intentKeywords) {
+        if (matchWeakKeyword(kw, true)) {
           return {
             matched: true,
             category: group.category,
@@ -282,10 +304,113 @@ class CleanerRuleManager {
     return { matched: false };
   }
 
+
+  public checkAuthorSpam(
+    author: { name?: string; handle?: string },
+    customKeywords: string[] = []
+  ): CleanerDetectionResult {
+    const rawName = author.name || "";
+    const rawHandle = (author.handle || "").replace(/^@/, "");
+    if (!rawName.trim() && !rawHandle.trim()) {
+      return { matched: false };
+    }
+
+    const targets = [rawName, rawHandle].filter((t) => Boolean(t && t.trim()));
+
+    for (const targetText of targets) {
+      const { normalized, stripped } = normalizeTweetText(targetText);
+      const lowerNormalized = normalized.toLowerCase();
+
+      // 1. 优先匹配用户自定义关键词
+      for (const rawKw of customKeywords) {
+        const kw = rawKw.trim().toLowerCase();
+        if (!kw || kw.length < 2) continue;
+
+        const isAlphanumericWord = /^[a-z0-9_-]+$/i.test(kw);
+        if (isAlphanumericWord) {
+          const regex = new RegExp(`(^|[^a-z0-9_-])${kw}([^a-z0-9_-]|$)`, "i");
+          if (regex.test(normalized) || regex.test(targetText)) {
+            return {
+              matched: true,
+              category: "custom",
+              ruleName: "自定义规则",
+              reason: `作者名字命中自定义词: ${rawKw}`,
+              matchedWord: rawKw,
+            };
+          }
+        } else {
+          const { stripped: cleanKwStripped } = normalizeTweetText(rawKw);
+          if (
+            lowerNormalized.includes(kw) ||
+            stripped.includes(kw) ||
+            (cleanKwStripped && stripped.includes(cleanKwStripped))
+          ) {
+            return {
+              matched: true,
+              category: "custom",
+              ruleName: "自定义规则",
+              reason: `作者名字命中自定义词: ${rawKw}`,
+              matchedWord: rawKw,
+            };
+          }
+        }
+      }
+
+      // 2. 强特征词（Strong Keywords，黑产专有暗语，只检测黄推）
+      for (const group of this.compiledGroups) {
+        for (const kw of group.strongKeywords) {
+          if (
+            (kw.cleanWord && lowerNormalized.includes(kw.cleanWord)) ||
+            (kw.cleanStripped && stripped.includes(kw.cleanStripped))
+          ) {
+            return {
+              matched: true,
+              category: group.category,
+              ruleName: group.ruleName,
+              reason: `作者名字命中强特征: ${kw.raw}`,
+              matchedWord: kw.raw,
+            };
+          }
+        }
+      }
+    }
+
+    return { matched: false };
+  }
+
   public isGlobalExempt(handle: string): boolean {
     if (!handle) return false;
     const lowerHandle = handle.toLowerCase().replace(/^@/, '');
     return this.globalExemptSet.has(lowerHandle);
+  }
+
+  public getKolFollowerConfig(): KolFollowerExemptConfig {
+    return (
+      this.currentConfig.kolFollowerExempt ||
+      DEFAULT_OFFLINE_RULES.kolFollowerExempt!
+    );
+  }
+
+  public isKolFollowerQualified(
+    counts: Record<string, number> | null | undefined
+  ): boolean {
+    if (!counts || typeof counts !== 'object') return false;
+
+    const config = this.getKolFollowerConfig();
+    if (!config.enabled) return false;
+
+    const domains =
+      config.activeDomains && config.activeDomains.length > 0
+        ? config.activeDomains
+        : ['ai_cn', 'ai_global', 'web3_cn', 'web3_global'];
+    const minCount = config.minCount ?? 1;
+
+    if (config.matchMode === 'total') {
+      const total = domains.reduce((sum, d) => sum + (Number(counts[d]) || 0), 0);
+      return total >= minCount;
+    }
+
+    return domains.some((d) => (Number(counts[d]) || 0) >= minCount);
   }
 
   public getConfig(): CleanerRemoteConfig {

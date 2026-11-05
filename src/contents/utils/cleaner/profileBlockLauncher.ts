@@ -24,8 +24,13 @@ function startNativeBlockAutomation(handle: string, action: NativeBlockAction) {
   let menuOpenedAt = 0;
   const startedAt = Date.now();
   let unsubscribe: (() => void) | null = null;
+  let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
   const finish = () => {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer);
+      timeoutTimer = null;
+    }
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
@@ -114,6 +119,10 @@ function startNativeBlockAutomation(handle: string, action: NativeBlockAction) {
     { childList: true, subtree: true },
     { debugName: 'cleaner-native-block' }
   );
+  timeoutTimer = setTimeout(() => {
+    finish();
+  }, WAIT_TIMEOUT_MS);
+
   // 节点可能已渲染完成，先立即尝试一次
   tryProceed();
 }

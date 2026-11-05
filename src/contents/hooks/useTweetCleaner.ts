@@ -20,30 +20,118 @@ import { RankCacheManager } from '~utils/rankCacheManager';
 import type { RankCacheNamespace } from '~utils/rankCacheManager';
 import { rankService } from '~utils/rankService';
 import type { CleanerMode } from '~contents/utils/cleaner/types';
+import { isCleanerIgnoredUrl, isNotificationInteractionOnOwnPost } from '~contents/utils/cleaner/urlFilter';
+import { kolFollowerCacheManager } from '~contents/utils/cleaner/kolFollowerCacheManager';
+import { kolFollowerBatchService } from '~contents/utils/cleaner/kolFollowerBatchService';
 const TWEET_SELECTOR = 'article[data-testid="tweet"], article[role="article"], article';
 
-// 从推文节点中提取作者 handle（统一供检测与身份校验使用）
+// 从推文节点中提取作者真实 handle（优先从作者个人链接与独立 handle 容器提取，避免 DisplayName 内夹带 @ 误识别）
 const extractTweetHandle = (article: HTMLElement): string => {
   const userNameEl = article.querySelector(
     "div[data-testid='User-Name'], div[data-testid='UserName']"
   );
-  const handleMatch = userNameEl?.textContent?.match(/@([a-zA-Z0-9_]+)/);
-  return handleMatch ? handleMatch[1].toLowerCase() : '';
+  if (!userNameEl) return '';
+
+  // 1. 优先从 User-Name 内部作者个人主页链接的 href 提取（如 href="/elonmusk"）
+  const links = userNameEl.querySelectorAll<HTMLAnchorElement>('a[href]');
+  const reservedPaths = new Set([
+    'home',
+    'explore',
+    'notifications',
+    'messages',
+    'bookmarks',
+    'i',
+    'settings',
+    'search',
+    'tos',
+    'privacy',
+  ]);
+
+  for (const link of links) {
+    const href = link.getAttribute('href') || '';
+    const match = href.match(/^\/([a-zA-Z0-9_]+)(?:\/)?$/);
+    if (match) {
+      const candidate = match[1].toLowerCase();
+      if (!reservedPaths.has(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  // 2. 次选：在 User-Name 区域中寻找完整内容仅为 @handle 的 span 节点
+  const spans = userNameEl.querySelectorAll('span');
+  for (const span of spans) {
+    const text = (span.textContent || '').trim();
+    if (/^@[a-zA-Z0-9_]+$/.test(text)) {
+      return text.slice(1).toLowerCase();
+    }
+  }
+
+  // 3. 兜底：若前两者均未命中，提取最后一个出现 @handle 的段落（Display Name 在前，handle 在后）
+  const allMatches = Array.from(
+    (userNameEl.textContent || '').matchAll(/@([a-zA-Z0-9_]+)/g)
+  );
+  if (allMatches.length > 0) {
+    const lastMatch = allMatches[allMatches.length - 1];
+    return lastMatch[1].toLowerCase();
+  }
+
+  return '';
 };
+
+interface TweetAuthorInfo {
+  handle: string;
+  name: string;
+}
+
+const extractTweetAuthor = (article: HTMLElement): TweetAuthorInfo => {
+  const handle = extractTweetHandle(article);
+  const userNameEl = article.querySelector(
+    "div[data-testid='User-Name'], div[data-testid='UserName']"
+  );
+  if (!userNameEl) {
+    return { handle, name: "" };
+  }
+
+  const profileLink = userNameEl.querySelector<HTMLAnchorElement>("a[href^='/']");
+  if (profileLink) {
+    const linkText = (profileLink.textContent || "").trim();
+    if (linkText && !linkText.startsWith("@")) {
+      return { handle, name: linkText };
+    }
+  }
+
+  const firstSpan = userNameEl.querySelector("span");
+  const name = firstSpan?.textContent?.trim() || "";
+  return { handle, name };
+};
+
 
 export function TweetCleaner() {
   const [enabled] = useLocalStorage<boolean>('@settings/cleaner-enabled', false);
+  const currentUrl = useCurrentUrl();
+  const isIgnored = isCleanerIgnoredUrl(currentUrl);
 
   // 页面加载后若存在“去屏蔽”跳转标记，自动唤起 X 官方屏蔽确认弹窗
   useEffect(() => {
     consumePendingBlockIntent();
   }, []);
 
-  return enabled ? createElement(EnabledTweetCleaner, { enabled }) : null;
+  // 未启用或处于无需净化的页面（通知、私信、Grok、Studio、设置、Lists 等），停止挂载与 DOM 监听
+  if (!enabled || isIgnored) {
+    return null;
+  }
+
+  return createElement(EnabledTweetCleaner, { enabled, currentUrl });
 }
 
-function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
-  const currentUrl = useCurrentUrl();
+function EnabledTweetCleaner({
+  enabled,
+  currentUrl,
+}: {
+  enabled: boolean;
+  currentUrl: string;
+}) {
   const [mode] = useLocalStorage<CleanerMode>(
     '@settings/cleaner-mode',
     'collapse'
@@ -79,11 +167,13 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
   const currentUsernameRef = useRef(currentUsername);
   currentUsernameRef.current = currentUsername;
 
-  useEffect(() => {
-    cleanerRuleManager.init();
+ useEffect(() => {
+   cleanerRuleManager.init();
+   void kolFollowerCacheManager.init();
     void RankCacheManager.preload();
 
     return () => {
+      kolFollowerBatchService.clear();
       const handled = document.querySelectorAll<HTMLElement>(
         "article[data-xhunt-cleaner-handled='true']"
       );
@@ -107,6 +197,11 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
   // 检查是否免除拦截
   const isExempt = useCallback(
     (article: HTMLElement, handle: string): boolean => {
+      // 0. 通知页面卡片中别人对用户本人帖子的互动（如别人点赞/转推/喜欢了用户的帖子），一律免除
+      if (isNotificationInteractionOnOwnPost(article, currentUrl)) {
+        return true;
+      }
+
       if (!handle) return false;
       const lowerHandle = handle.toLowerCase().replace(/^@/, '');
 
@@ -114,34 +209,20 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
       const selfUsername = (currentUsernameRef.current || '')
         .toLowerCase()
         .replace(/^@/, '');
-      if (selfUsername && lowerHandle === selfUsername) {
-        return true;
-      }
-
-      // 2. 关注列表 (Following)
-      const unfollowBtn = article.querySelector(
-        '[data-testid$="-unfollow"], [data-testid="unfollow"]'
-      );
-      if (unfollowBtn) return true;
-
-      const followBtn = article.querySelector('[data-testid$="-follow"]');
-      if (followBtn) {
-        const text = (followBtn.textContent || '').toLowerCase();
-        const aria = (followBtn.getAttribute('aria-label') || '').toLowerCase();
-        const followingKeywords = [
-          'following',
-          'siguiendo',
-          'フォロー中',
-          '正在关注',
-        ];
-        if (
-          followingKeywords.some((k) => text.includes(k) || aria.includes(k))
-        ) {
+      if (selfUsername) {
+        if (lowerHandle === selfUsername) {
+          return true;
+        }
+        // 1.2 卡片中包含指向自己推文的链接（例如通知中展示了用户自己的推文）
+        const ownStatusLink = article.querySelector(
+          `a[href*="/${selfUsername}/status/"]`
+        );
+        if (ownStatusLink) {
           return true;
         }
       }
 
-      // 3. 用户本地白名单
+      // 2. 用户本地白名单
       const localWhitelist = whitelistRef.current || [];
       if (
         localWhitelist.some(
@@ -151,67 +232,87 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
         return true;
       }
 
-      // 4. 云端全局豁免名单
-      if (cleanerRuleManager.isGlobalExempt(lowerHandle)) {
+     // 3. 云端全局豁免名单
+     if (cleanerRuleManager.isGlobalExempt(lowerHandle)) {
+       return true;
+     }
+
+      // 4. 命中 12 小时 KOL 关注防误杀白名单缓存
+      if (
+        cleanerRuleManager.getKolFollowerConfig().enabled &&
+        kolFollowerCacheManager.isSyncExempt(lowerHandle)
+      ) {
         return true;
       }
 
       return false;
     },
-    []
+    [currentUrl]
   );
 
   // 核心检测与处理单篇推文（完全同步判定，同帧微任务执行，消除视觉闪烁）
   const inspectArticle = useCallback(
     (article: HTMLElement) => {
-      if (!enabledRef.current) return;
+      if (!enabledRef.current || isCleanerIgnoredUrl(window.location.href)) return;
 
-      // 提取作者 handle
+      // 提取作者 handle 与名字
       const userNameEl = article.querySelector(
         "div[data-testid='User-Name'], div[data-testid='UserName']"
       );
-      const handle = extractTweetHandle(article);
+      const { handle, name } = extractTweetAuthor(article);
 
       // 免死白名单校验
       if (isExempt(article, handle)) {
         if (article.dataset.xhuntCleanerHandled === 'true') {
           restoreArticle(article);
         }
+        article.dataset.xhuntCleanerHandled = 'true';
+        article.dataset.xhuntCleanerAuthor = (handle || '').toLowerCase();
+        article.dataset.xhuntCleanerMode = modeRef.current;
         return;
       }
 
-      // 提取正文文本（兼容多段文本、引用推文及不同标签形态）
-      const textEls = article.querySelectorAll<HTMLElement>(
-        "[data-testid='tweetText']"
-      );
-      if (textEls.length === 0) return;
-
-      const texts: string[] = [];
-      textEls.forEach((el) => {
-        const content = el.textContent || '';
-        if (content.trim()) {
-          texts.push(content);
-        }
-      });
-      if (texts.length === 0) return;
-
-      const fullText = texts.join('\n');
-
-      // 执行垃圾推文检测（先检测整篇组合文本，若有多段则再逐段检测以防弱词被长文本保护稀释）
-      let detectResult = cleanerRuleManager.checkSpam(
-        fullText,
+      // 1. 优先检测作者名字/用户名是否命中自定义屏蔽词或后台强词
+      let detectResult = cleanerRuleManager.checkAuthorSpam(
+        { name, handle },
         customKeywordsRef.current
       );
 
-      if (!detectResult.matched && texts.length > 1) {
-        for (const singleText of texts) {
-          const res = cleanerRuleManager.checkSpam(
-            singleText,
-            customKeywordsRef.current
-          );
-          if (res.matched) {
-            detectResult = res;
-            break;
+      // 2. 若作者名字未命中，再检测推文正文内容
+      if (!detectResult.matched) {
+        // 提取正文文本（兼容多段文本、引用推文及不同标签形态）
+        const textEls = article.querySelectorAll<HTMLElement>(
+          "[data-testid='tweetText']"
+        );
+        if (textEls.length === 0) return;
+
+        const texts: string[] = [];
+        textEls.forEach((el) => {
+          const content = el.textContent || '';
+          if (content.trim()) {
+            texts.push(content);
+          }
+        });
+        if (texts.length === 0) return;
+
+        const fullText = texts.join('\n');
+
+        // 执行垃圾推文检测（先检测整篇组合文本，若有多段则再逐段检测以防弱词被长文本保护稀释）
+        detectResult = cleanerRuleManager.checkSpam(
+          fullText,
+          customKeywordsRef.current
+        );
+
+        if (!detectResult.matched && texts.length > 1) {
+          for (const singleText of texts) {
+            const res = cleanerRuleManager.checkSpam(
+              singleText,
+              customKeywordsRef.current
+            );
+            if (res.matched) {
+              detectResult = res;
+              break;
+            }
           }
         }
       }
@@ -223,6 +324,12 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
           for (const ns of namespaces) {
             const cachedRank = RankCacheManager.peekSync(handle, ns);
             if (cachedRank && cachedRank.kolRank && cachedRank.kolRank > 0) {
+              if (article.dataset.xhuntCleanerHandled === 'true') {
+                restoreArticle(article);
+              }
+              article.dataset.xhuntCleanerHandled = 'true';
+              article.dataset.xhuntCleanerAuthor = handle.toLowerCase();
+              article.dataset.xhuntCleanerMode = modeRef.current;
               return;
             }
           }
@@ -232,6 +339,7 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
         applyAction({
           article,
           handle,
+          authorName: name,
           category: detectResult.category,
           mode: modeRef.current,
           warnLabel: getWarnLabel(detectResult.category),
@@ -240,14 +348,7 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
 
         // 记录被拦截的账号信息（加入名单列表供用户查看与手动屏蔽）
         if (handle) {
-          let name = '';
           let avatar = '';
-
-          const firstSpan = userNameEl?.querySelector('span');
-          if (firstSpan?.textContent) {
-            name = firstSpan.textContent.trim();
-          }
-
           const avatarImg = article.querySelector<HTMLImageElement>(
             "div[data-testid='Tweet-User-Avatar'] img, [data-testid='avatar'] img"
           );
@@ -257,7 +358,7 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
 
           recordInterceptedAccount({
             handle,
-            name,
+            name: name || '',
             avatar,
             category: detectResult.category,
             reason: detectResult.reason || '',
@@ -277,7 +378,8 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
                   void removeInterceptedAccount(handle);
                   if (
                     article.isConnected &&
-                    article.dataset.xhuntCleanerHandled === 'true'
+                    article.dataset.xhuntCleanerHandled === 'true' &&
+                    article.dataset.xhuntCleanerAuthor === handle.toLowerCase()
                   ) {
                     restoreArticle(article);
                   }
@@ -287,11 +389,44 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
             } catch {
               // ignore
             }
-          })();
+         })();
+       }
+
+        // KOL 关注关系链异步防误杀复核：
+        // 仅在明确拟拦截（非白名单、非已知大KOL）时额外触发，检查是否有知名 KOL 关注他
+        const kolConfig = cleanerRuleManager.getKolFollowerConfig();
+        if (
+          kolConfig.enabled &&
+          handle &&
+          !kolFollowerCacheManager.isSyncNegative(handle)
+        ) {
+          kolFollowerBatchService.checkExemption(handle, (isExempt) => {
+            if (!isExempt) return;
+
+            // 证实被误杀：移出拦截记录并恢复页面上属于该作者的所有推文
+            void removeInterceptedAccount(handle);
+            const lowerHandle = handle.toLowerCase();
+            const matchedArticles = document.querySelectorAll<HTMLElement>(
+              `article[data-xhunt-cleaner-author="${lowerHandle}"]`
+            );
+            matchedArticles.forEach((art) => {
+              if (
+                art.isConnected &&
+                art.dataset.xhuntCleanerHandled === 'true'
+              ) {
+                restoreArticle(art);
+              }
+            });
+          });
         }
-      } else if (article.dataset.xhuntCleanerHandled === 'true') {
-        // 之前处理过但不再命中
-        restoreArticle(article);
+      } else {
+        if (article.dataset.xhuntCleanerHandled === 'true') {
+          // 之前处理过但不再命中
+          restoreArticle(article);
+        }
+        article.dataset.xhuntCleanerHandled = 'true';
+        article.dataset.xhuntCleanerAuthor = (handle || '').toLowerCase();
+        article.dataset.xhuntCleanerMode = modeRef.current;
       }
     },
     [getWarnLabel, isExempt]
@@ -299,6 +434,7 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
 
   // 方案一：感知当前推特个人主页的真实屏蔽状态，并与插件本地状态双向校正
   const syncCurrentProfileBlockStatus = useCallback(() => {
+    if (isCleanerIgnoredUrl(window.location.href)) return;
     const currentHandle = extractUsernameFromUrl(window.location.href);
     if (!currentHandle) return;
 
@@ -347,7 +483,7 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
 
   // 监听路由变化，即刻触发当前个人主页的屏蔽状态感知与多阶段轮询
   useEffect(() => {
-    if (!enabled || !isProfilePage) return;
+    if (!enabled || !isProfilePage || isCleanerIgnoredUrl(currentUrl)) return;
 
     syncCurrentProfileBlockStatus();
     const timers = [
@@ -386,22 +522,26 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
     };
   }, [enabled, syncCurrentProfileBlockStatus]);
 
-  // 当 mode / whitelist 改变时响应 DOM
+  // 当 mode / whitelist 改变或路由切换时响应 DOM
   useEffect(() => {
+    if (isCleanerIgnoredUrl(currentUrl)) return;
     // 全量扫描当前已渲染的推文
     const tweetArticles = document.querySelectorAll<HTMLElement>(TWEET_SELECTOR);
     tweetArticles.forEach((article) => {
       inspectArticle(article);
     });
-  }, [effectiveMode, whitelist, customKeywords, inspectArticle]);
+  }, [effectiveMode, whitelist, customKeywords, inspectArticle, currentUrl]);
 
   // 订阅 DOM Mutation
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || isCleanerIgnoredUrl(currentUrl)) return;
 
     // 走全局 observer 的即时通道（无防抖节流），在 MutationObserver 微任务中同帧即时执行
     const unsubscribe = subscribeToMutation(
       (mutations) => {
+        // 感知到无需检测的 url 时即刻停止微任务判定
+        if (isCleanerIgnoredUrl(window.location.href)) return;
+
         // 方案一：若当前处于个人主页，任何 DOM 变动均触发防抖检测，不受是否有推文 article 影响
         if (isProfilePageRef.current) {
           debouncedSyncProfile();
@@ -410,28 +550,9 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
         // 增量处理：只收集本次变更涉及的推文，避免全文档扫描
         const affectedArticles = new Set<HTMLElement>();
         for (const mutation of mutations) {
-          if (
-            mutation.type !== 'childList' &&
-            mutation.type !== 'characterData'
-          ) {
+          if (mutation.type !== 'childList') {
             continue;
           }
-          // characterData 过滤：只有影响检测判定的文本变化（正文/用户名/关注按钮）
-          // 才触发重扫，避免点赞数、时间戳等高频文本变动导致整篇推文重复检测
-          if (mutation.type === 'characterData') {
-            const textHost =
-              mutation.target instanceof HTMLElement
-                ? mutation.target
-                : mutation.target.parentElement;
-            if (
-              !textHost?.closest(
-                "[data-testid='tweetText'], div[data-testid='User-Name'], div[data-testid='UserName'], [data-testid$='-follow'], [data-testid$='-unfollow']"
-              )
-            ) {
-              continue;
-            }
-          }
-          // 子节点增删或字符变更都发生在 mutation.target 内
           const targetEl =
             mutation.target instanceof HTMLElement
               ? mutation.target
@@ -442,19 +563,17 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
               affectedArticles.add(host);
             }
           }
-          if (mutation.type === 'childList') {
-            mutation.addedNodes.forEach((node) => {
-              if (!(node instanceof HTMLElement)) return;
-              // 新增节点本身是推文
-              if (node.matches(TWEET_SELECTOR)) {
-                affectedArticles.add(node);
-              }
-              // 新增节点内部包含的推文（如整条推文单元格挂载）
-              node
-                .querySelectorAll<HTMLElement>(TWEET_SELECTOR)
-                .forEach((article) => affectedArticles.add(article));
-            });
-          }
+          mutation.addedNodes.forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+            // 新增节点本身是推文
+            if (node.matches(TWEET_SELECTOR)) {
+              affectedArticles.add(node);
+            }
+            // 新增节点内部包含的推文（如整条推文单元格挂载）
+            node
+              .querySelectorAll<HTMLElement>(TWEET_SELECTOR)
+              .forEach((article) => affectedArticles.add(article));
+          });
         }
 
         if (affectedArticles.size === 0) return;
@@ -464,23 +583,21 @@ function EnabledTweetCleaner({ enabled }: { enabled: boolean }) {
           if (!article.isConnected) return;
           if (article.dataset.xhuntCleanerHandled === 'true') {
             const sameMode = article.dataset.xhuntCleanerMode === modeRef.current;
-            // X 时间线是虚拟化列表，会复用 article 节点渲染新推文；
-            // 作者不一致时说明节点已被回收，必须强制重检防止状态错位
-            const sameAuthor =
-              (article.dataset.xhuntCleanerAuthor || '') ===
-              extractTweetHandle(article);
-            if (sameMode && sameAuthor) return;
+            const currentAuthor = extractTweetHandle(article);
+            const savedAuthor = article.dataset.xhuntCleanerAuthor || '';
+            // 若模式未变且作者一致（包含广告/特殊卡片两者皆为空的场景），直接跳过
+            if (sameMode && savedAuthor === currentAuthor) return;
           }
           inspectArticle(article);
         });
       },
-      { childList: true, subtree: true, characterData: true }
+      { childList: true, subtree: true }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [enabled, inspectArticle, debouncedSyncProfile]);
+  }, [enabled, currentUrl, inspectArticle, debouncedSyncProfile]);
 
   return null;
 }

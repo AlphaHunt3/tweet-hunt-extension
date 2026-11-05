@@ -2,6 +2,7 @@ import React from 'react';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
+import { X } from 'lucide-react';
 import { AiHomeSidebar } from './AiHomeSidebar';
 import { Web3HomeSidebar } from './Web3HomeSidebar';
 
@@ -23,6 +24,32 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
     initialDomain,
   );
 
+  const [clickCount, setClickCount] = useLocalStorage(
+    '@xhunt/domain-capsule-click-count',
+    0,
+  );
+  const [isDomainGuideDismissed, setIsDomainGuideDismissed] = useLocalStorage<boolean>(
+    '@xhunt/domain-switcher-guide-dismissed',
+    false,
+  );
+
+  const hasCompletedDomainGuide = isDomainGuideDismissed || clickCount > 0;
+  const shouldShowDomainGuide = hasBoth && !hasCompletedDomainGuide;
+
+  const markSwitcherClicked = React.useCallback(() => {
+    setIsDomainGuideDismissed(true);
+    if (clickCount < 2) {
+      setClickCount(clickCount + 1);
+    }
+  }, [clickCount, setClickCount, setIsDomainGuideDismissed]);
+
+  const handleDismissDomainGuide = React.useCallback(() => {
+    setIsDomainGuideDismissed(true);
+    if (clickCount < 1) {
+      setClickCount(1);
+    }
+  }, [clickCount, setClickCount, setIsDomainGuideDismissed]);
+
   // 当用户修改首选领域后，同步更新当前激活的面
   // 但如果已有主动切换记录，则保持用户选择，并支持新 tab 水合后恢复
   React.useEffect(() => {
@@ -34,23 +61,21 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
   // 用户主动切换领域
   const handleSwitchDomain = React.useCallback(
     (domain: 'web3' | 'ai') => {
+      markSwitcherClicked();
       if (domain === activeDomain) {
         return;
       }
       setActiveDomain(domain);
       setSavedActiveDomain(domain);
     },
-    [activeDomain, setSavedActiveDomain],
+    [activeDomain, markSwitcherClicked, setSavedActiveDomain],
   );
 
   const [isSwitcherHovering, setIsSwitcherHovering] = React.useState(false);
   const hoverTimerRef = React.useRef<number | null>(null);
 
-  const [clickCount, setClickCount] = useLocalStorage(
-    '@xhunt/domain-capsule-click-count',
-    0,
-  );
-  const isSwitcherExpanded = isSwitcherHovering || clickCount < 1;
+  const isSwitcherExpanded =
+    isSwitcherHovering || shouldShowDomainGuide || clickCount < 1;
 
   const handleSwitcherMouseEnter = React.useCallback(() => {
     if (hoverTimerRef.current) {
@@ -65,12 +90,6 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
       setIsSwitcherHovering(false);
     }, 180);
   }, []);
-
-  const markSwitcherClicked = React.useCallback(() => {
-    if (clickCount < 2) {
-      setClickCount(clickCount + 1);
-    }
-  }, [clickCount, setClickCount]);
 
   React.useEffect(() => {
     return () => {
@@ -97,13 +116,78 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
   const web3Label = t('domainWeb3') || 'Web3';
   const aiLabel = t('domainAi') || 'AI';
 
+  const switcherHideClasses = !shouldShowDomainGuide
+    ? '[&:has([data-hotvote-section]:hover)_.xhunt-domain-switcher]:opacity-0 [&:has([data-hotvote-section]:hover)_.xhunt-domain-switcher]:pointer-events-none [&:has([data-hotvote-section][data-hotvote-guide-active="true"])_.xhunt-domain-switcher]:opacity-0 [&:has([data-hotvote-section][data-hotvote-guide-active="true"])_.xhunt-domain-switcher]:pointer-events-none'
+    : '';
+
   return (
     <div
-      className={`rounded-xl ${className} relative overflow-visible flex flex-col w-[350px]`}
+      className={`rounded-xl ${className} relative overflow-visible flex flex-col w-[350px] ${switcherHideClasses}`}
     >
+      {/* 新手引导第一步：引导用户点击 Web3 / AI 领域切换 */}
+      {shouldShowDomainGuide && (
+        <div
+          className='absolute right-2 top-2 z-40 w-[208px] rounded-2xl theme-bg-secondary px-3 py-2.5 shadow-[0_12px_34px_rgba(0,0,0,0.22)] transition-opacity duration-200'
+          role='status'
+          style={{
+            fontFamily:
+              'TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            border: '1px solid rgba(29, 155, 240, 0.22)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(29,155,240,0.08), rgba(29,155,240,0.015) 42%, transparent)',
+          }}
+        >
+          {/* 气泡右侧小三角，指向右侧切换胶囊 */}
+          <div
+            className='absolute -right-1.5 top-6 h-3 w-3 rotate-45 theme-bg-secondary border-t border-r'
+            style={{
+              borderColor: 'rgba(29, 155, 240, 0.22)',
+              backgroundImage:
+                'linear-gradient(135deg, rgba(29,155,240,0.08), rgba(29,155,240,0.015))',
+            }}
+            aria-hidden='true'
+          />
+          <button
+            type='button'
+            className='absolute right-2 top-2 rounded-full p-0.5 theme-text-secondary hover:theme-bg-tertiary transition-colors cursor-pointer'
+            aria-label={t('close', '关闭')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDismissDomainGuide();
+            }}
+          >
+            <X className='h-3.5 w-3.5 opacity-75' />
+          </button>
+          <div className='pr-4 text-[12px] font-semibold text-[#1D9BF0] leading-none mb-1'>
+            {t('domainSwitcherGuideTitle', '切换关注领域')}
+          </div>
+          <div
+            className='pr-4 text-[11.5px] leading-[17px] theme-text-secondary'
+            style={{ letterSpacing: '0.005em' }}
+          >
+            {t(
+              'domainSwitcherGuideDesc',
+              '点击这里可以在 Web3 和 AI 领域之间快速切换'
+            )}
+          </div>
+          <div className='mt-1.5 flex justify-end'>
+            <button
+              type='button'
+              className='rounded-full px-2 py-0.5 text-[12px] font-semibold leading-[18px] text-[#1D9BF0] hover:bg-[#1D9BF0]/10 transition-colors cursor-pointer'
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDismissDomainGuide();
+              }}
+            >
+              {t('headerControlsGuideGotIt', '知道了')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 右侧外置领域切换器：不覆盖主容器边框，透明热区更大，hover 后向外展开 */}
       <div
-        className='absolute left-full top-3 z-30 ml-0.5 h-[96px] overflow-hidden rounded-2xl transition-[width] duration-200 ease-out'
+        className='xhunt-domain-switcher absolute left-full top-3 z-30 ml-0.5 h-[96px] overflow-hidden rounded-2xl transition-[width,opacity] duration-200 ease-out'
         onMouseEnter={handleSwitcherMouseEnter}
         onMouseLeave={handleSwitcherMouseLeave}
         style={{ width: isSwitcherExpanded ? '78px' : '24px' }}

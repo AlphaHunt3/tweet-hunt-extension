@@ -300,9 +300,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         // { key: 'showAnnualReport', label: 'showAnnualReport' }, // 已替换为推荐位
       ]),
       web3OnlySettings: filterItems([
+        { key: 'showHotVote', label: 'showHotVote' },
         { key: 'showFeatureSlot', label: 'showFeatureSlot' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
-        { key: 'showEngageToEarn', label: 'showEngageToEarn' },
         { key: 'showRealtimeSubscription', label: 'showRealtimeSubscription' },
         { key: 'enableBnbFeeds', label: 'enableBnbFeeds' },
         { key: 'enableGossip', label: 'enableGossip' },
@@ -319,6 +319,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showProjectRank', label: 'showProjectRank' },
       ]),
       aiOnlySettings: filterItems([
+        { key: 'showHotVote', label: 'showHotVote' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
         { key: 'showHotTrendingAi', label: 'showHotTrendingAi' },
         { key: 'showAiKolFollowers', label: 'showAiKolFollowers' },
@@ -334,10 +335,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showSidebarIcon', label: 'showSidebarIcon' },
         { key: 'showTokenAnalysis', label: 'showTokenAnalysis' },
         { key: 'showTweetAIAnalysis', label: 'showTweetAIAnalysis' },
-        {
-          key: 'showArticleBottomRightArea',
-          label: 'showArticleBottomRightArea',
-        },
         { key: 'showAiDetectButton', label: 'showAiDetectButton' },
       ]),
     };

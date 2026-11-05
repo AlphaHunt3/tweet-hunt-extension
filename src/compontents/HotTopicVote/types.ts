@@ -1,0 +1,16 @@
+export type {
+  HotVoteOption,
+  HotVoteTopic,
+  HotVoteUserState,
+  HotVoteOptionDistribution,
+  HotVoteResults,
+  HotVoteComment,
+  HotVoteCommentsPagination,
+  HotVoteLocalizedText,
+  HotVoteActiveTopicItem,
+  HotVoteActiveTopicResponse,
+  HotVoteActionResponse,
+  HotVoteCommentsResponse,
+  HotVoteAllVotesItem,
+  HotVoteAllVotesResponse,
+} from '~types';

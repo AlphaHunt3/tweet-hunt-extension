@@ -1,9 +1,11 @@
+import { useCrossPageSettings } from '~utils/settingsManager';
 import React from 'react';
 import { useRequest } from 'ahooks';
 import { AiHotProjectsKOLs } from '../hotProjects/AiHotProjectsKOLs';
 import { getActiveHunterCampaignsByDomainAsync } from '../HunterCampaign/campaignConfigs';
 import { HunterEarnSection } from '../HunterEarnSection';
 import ErrorBoundary from '../ErrorBoundary';
+import HotTopicVoteSection from '../HotTopicVote';
 
 export interface AiHomeSidebarProps {
   className?: string;
@@ -14,6 +16,7 @@ export function AiHomeSidebar({
   className = '',
   active = true,
 }: AiHomeSidebarProps) {
+  const { isEnabled } = useCrossPageSettings();
   const { data: activeHunterCampaigns = [] } = useRequest(
     () => getActiveHunterCampaignsByDomainAsync('ai'),
     {
@@ -43,6 +46,12 @@ export function AiHomeSidebar({
           domain='ai'
         />
       </ErrorBoundary>
+
+      {isEnabled('showHotVote') && (
+        <ErrorBoundary name='AiHotTopicVoteSection'>
+          <HotTopicVoteSection domain='ai' active={active} />
+        </ErrorBoundary>
+      )}
 
       <ErrorBoundary name='AiHotProjectsKOLs'>
         <AiHotProjectsKOLs />

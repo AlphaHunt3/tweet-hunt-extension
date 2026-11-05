@@ -19,6 +19,7 @@ import { LoginRequired } from '../LoginRequired';
 import { HunterEarnSection } from '../HunterEarnSection';
 import ErrorBoundary from '../ErrorBoundary';
 import FeatureBannerSection from '../FeatureBannerSection';
+import HotTopicVoteSection from '../HotTopicVote';
 
 export interface Web3HomeSidebarProps {
   className?: string;
@@ -177,6 +178,12 @@ export function Web3HomeSidebar({
           key={currentUsername}
         />
       </ErrorBoundary>
+
+      {isEnabled('showHotVote') && (
+        <ErrorBoundary name='HotTopicVoteSection'>
+          <HotTopicVoteSection domain='web3' active={active} />
+        </ErrorBoundary>
+      )}
 
       {topTabs.length > 1 && (
         <TopTabNavigator

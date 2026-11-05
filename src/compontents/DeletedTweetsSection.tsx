@@ -14,8 +14,21 @@ import dayjs from 'dayjs';
 import numeral from 'numeral';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { fetchDeletedStatus } from '~contents/services/api';
-import { sanitizeHtml } from '~utils/sanitizeHtml';
 import { navigateInX } from '~contents/utils/navigateInX';
+import { TweetContent } from '~compontents/TweetContent';
+
+const DELETED_TWEET_UNAVAILABLE_TEXT = '您暂时无法查看详细删帖内容';
+
+function getVisibleDeletedTweets(
+  deletedTweets: DeletedTweet[],
+  isVip: boolean,
+) {
+  if (!isVip) return deletedTweets;
+
+  return deletedTweets.filter(
+    (tweet) => tweet.text?.trim() !== DELETED_TWEET_UNAVAILABLE_TEXT,
+  );
+}
 
 // Quote Tweet Component
 function QuoteTweet({ quote }: { quote: DeletedTweet }) {
@@ -79,7 +92,9 @@ function QuoteTweet({ quote }: { quote: DeletedTweet }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            navigateInX(`https://x.com/${quote.profile?.username || 'unknown'}`);
+            navigateInX(
+              `https://x.com/${quote.profile?.username || 'unknown'}`,
+            );
           }}
         >
           {quote.profile?.name}
@@ -99,21 +114,13 @@ function QuoteTweet({ quote }: { quote: DeletedTweet }) {
       </div>
 
       {/* 引用推文正文 */}
-      <div className='text-[13px] theme-text-primary break-words'>
-        {quote.info?.html ? (
-          <div
-            dangerouslySetInnerHTML={{
-              __html: sanitizeHtml(quote.info.html),
-            }}
-          />
-        ) : (
-          <div>
-            {quote.text || (
-              <span className='italic text-gray-400'>No content</span>
-            )}
-          </div>
-        )}
-      </div>
+      <TweetContent
+        html={quote.info?.html}
+        text={quote.text}
+        className='text-[13px] theme-text-primary'
+        emptyContent={<span className='italic text-gray-400'>No content</span>}
+        limitImageWidth
+      />
     </div>
   );
 }
@@ -122,15 +129,20 @@ interface DeletedTweetsSectionProps {
   deletedTweets: DeletedTweet[];
   loadingDel: boolean;
   isHoverPanel?: boolean;
+  isVip?: boolean;
 }
 
 export function DeletedTweetsSection({
   deletedTweets = [],
   loadingDel,
   isHoverPanel = false,
+  isVip = true,
 }: DeletedTweetsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const { t } = useI18n();
+  const visibleDeletedTweets = getVisibleDeletedTweets(deletedTweets, isVip);
+  const hasUnavailableTweets =
+    isVip && visibleDeletedTweets.length !== deletedTweets.length;
 
   const formatNumber = (num: number | undefined) => {
     if (num === undefined || num === null) return '0';
@@ -166,9 +178,27 @@ export function DeletedTweetsSection({
 
   // 使用公共 sanitizeHtml
 
+  if (isHoverPanel && !isVip) {
+    return (
+      <div className='w-[360px] max-w-full p-3 text-center'>
+        <p className='py-3 text-sm theme-text-secondary'>
+          {t('deletedTweetNoVipDetail')}
+        </p>
+      </div>
+    );
+  }
+
   return (
     Boolean(deletedTweets?.length) && (
-      <div>
+      <div
+        className={
+          isHoverPanel
+            ? visibleDeletedTweets.length
+              ? 'w-[600px] max-w-full'
+              : 'w-[360px] max-w-full'
+            : undefined
+        }
+      >
         {!isHoverPanel && (
           <div
             className='p-3 flex items-center justify-between cursor-pointer theme-border'
@@ -193,22 +223,24 @@ export function DeletedTweetsSection({
             isExpanded ? '' : 'h-0'
           } overflow-hidden transition-[height] duration-200`}
         >
-          <div className='p-3 space-y-4'>
+          <div className='xhunt-post-list p-3 space-y-4'>
             {loadingDel && (
               <span className='block text-center text-xs theme-text-secondary'>
                 {t('loading')}
               </span>
             )}
-            {!deletedTweets?.length && !loadingDel && (
-              <span className='block text-center text-xs theme-text-secondary'>
-                No data
-              </span>
-            )}
-            {!loadingDel && deletedTweets?.length
-              ? deletedTweets.map((tweet) => (
+            {!visibleDeletedTweets.length &&
+              !hasUnavailableTweets &&
+              !loadingDel && (
+                <span className='block text-center text-xs theme-text-secondary'>
+                  No data
+                </span>
+              )}
+            {!loadingDel && visibleDeletedTweets.length
+              ? visibleDeletedTweets.map((tweet) => (
                   <div
                     key={tweet?.id}
-                    className='px-3 py-2 rounded-lg border theme-border hover:bg-white/5 cursor-pointer transition-colors'
+                    className='xhunt-post-card px-3 py-2 rounded-lg border theme-border-soft shadow-sm hover:bg-white/5 cursor-pointer'
                     onClick={() => handleTweetClick(tweet)}
                   >
                     {/* Tweet Header */}
@@ -267,23 +299,15 @@ export function DeletedTweetsSection({
                     </div>
 
                     {/* Tweet Content */}
-                    <div className='text-sm theme-text-primary mb-2 break-words'>
-                      {tweet.info?.html ? (
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: sanitizeHtml(tweet.info.html),
-                          }}
-                        />
-                      ) : (
-                        <div>
-                          {tweet.text || (
-                            <span className='italic text-gray-400'>
-                              No content
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <TweetContent
+                      html={tweet.info?.html}
+                      text={tweet.text}
+                      className='mb-2 text-sm theme-text-primary'
+                      emptyContent={
+                        <span className='italic text-gray-400'>No content</span>
+                      }
+                      limitImageWidth
+                    />
 
                     {/* Quote Tweet */}
                     {tweet.quote_status && (
@@ -322,6 +346,11 @@ export function DeletedTweetsSection({
                   </div>
                 ))
               : null}
+            {hasUnavailableTweets && !loadingDel && (
+              <p className='text-center text-xs theme-text-secondary'>
+                {t('deletedTweets24hOnly')}
+              </p>
+            )}
           </div>
         </div>
       </div>

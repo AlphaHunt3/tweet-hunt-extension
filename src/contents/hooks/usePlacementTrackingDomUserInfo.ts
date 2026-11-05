@@ -143,6 +143,7 @@ export default function usePlacementTrackingDomUserInfo(options?: {
         const info = getPlacementTrackingInfo({
           currentUrl,
           el: placementTrackingEl,
+          noCached: true,
         });
         const shouldUseProfileSchema = !info.twitterId;
         const schemaInfo = shouldUseProfileSchema
@@ -306,24 +307,73 @@ export default function usePlacementTrackingDomUserInfo(options?: {
       ) {
         return;
       }
-      const handleClick = () => {
+      const handleClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement | null;
+        const clickedFollowBtn = target?.closest(
+          'button[data-testid$="-follow"], button[data-testid$="-unfollow"], button[data-testid*="-follow"], button[data-testid*="-unfollow"]'
+        ) as HTMLElement | null;
+
+        const followBtn =
+          clickedFollowBtn ||
+          (placementTrackingEl.querySelector(
+            'button[data-testid$="-follow"], button[data-testid$="-unfollow"], button[data-testid*="-follow"], button[data-testid*="-unfollow"]'
+          ) as HTMLElement | null);
+
+        const testId = followBtn?.getAttribute('data-testid') || '';
+        const isFollowBtn = testId.includes('follow');
+        const isUnfollowBtn = testId.includes('unfollow');
+        let wasFollow = isFollowBtn && !isUnfollowBtn;
+        let wasUnfollow = isUnfollowBtn;
+
+        if (!wasFollow && !wasUnfollow && followBtn) {
+          const btnText = (followBtn.textContent || '').toLowerCase();
+          const btnAria = (followBtn.getAttribute('aria-label') || '').toLowerCase();
+          const followingKeywords = [
+            'following',
+            'siguiendo',
+            'フォロー中',
+            '正在关注',
+            '正在追蹤',
+            '팔로잉',
+            'abonné',
+            'folge ich',
+            'читаю',
+          ];
+          if (followingKeywords.some(k => btnText.includes(k) || btnAria.includes(k))) {
+            wasUnfollow = true;
+          } else {
+            wasFollow = true;
+          }
+        }
+
         // Plan B: invalidate cache for currentUrl before reading fresh DOM
         _placementInfoCache.delete(currentUrl);
         requestAnimationFrame(() => {
           const info = getPlacementTrackingInfo({
             currentUrl,
             el: placementTrackingEl,
+            noCached: true,
           });
-          if (info.twitterId && info.handler) {
+          const targetHandler = info.handler || urlUid || '';
+          if (targetHandler) {
+            let nextFollowState: 'follow' | 'unfollow';
+            if (wasFollow) {
+              nextFollowState = 'follow';
+            } else if (wasUnfollow) {
+              nextFollowState = 'unfollow';
+            } else {
+              nextFollowState =
+                info.followState === 'unfollow' ? 'follow' : 'unfollow';
+            }
+
             const payload: {
               followState: 'follow' | 'unfollow';
               twitterId: string;
               handler: string;
             } = {
-              followState:
-                info.followState === 'unfollow' ? 'follow' : 'unfollow',
-              twitterId: info.twitterId,
-              handler: info.handler,
+              followState: nextFollowState,
+              twitterId: info.twitterId || '',
+              handler: targetHandler,
             };
             options?.onFollowBtnClick?.(payload);
           }
@@ -417,7 +467,7 @@ export function getPlacementTrackingTwitterId(options?: {
   }
 
   const followButton = el?.querySelector(
-    'button[data-testid]'
+    'button[data-testid$="-follow"], button[data-testid$="-unfollow"], button[data-testid*="-follow"], button[data-testid*="-unfollow"]'
   ) as HTMLElement | null;
   const testId = followButton?.getAttribute('data-testid') || '';
   const match = testId.match(/^(\d+)-/);
@@ -439,7 +489,7 @@ export function getFollowButtonHandler(options?: {
       'div[data-testid="primaryColumn"] div[data-testid="placementTracking"]'
     ) as HTMLElement | null);
   const followButton = el?.querySelector(
-    'button[data-testid]'
+    'button[data-testid$="-follow"], button[data-testid$="-unfollow"], button[data-testid*="-follow"], button[data-testid*="-unfollow"]'
   ) as HTMLElement | null;
   const aria = followButton?.getAttribute('aria-label') || '';
   const m = aria.match(/@([A-Za-z0-9_]+)/);
@@ -451,9 +501,12 @@ interface _PlacementInfoCacheItem {
   handler: string;
   displayName: string;
   avatar: string;
-  followState: FollowState;
 }
 const _placementInfoCache = new Map<string, _PlacementInfoCacheItem>();
+
+export const clearPlacementInfoCache = () => {
+  _placementInfoCache.clear();
+};
 const _CACHE_KEY = '@xhunt/placementInfoCacheV2';
 (async () => {
   try {
@@ -464,7 +517,12 @@ const _CACHE_KEY = '@xhunt/placementInfoCacheV2';
       _placementInfoCache.clear();
       for (const [k, v] of entries) {
         if (k && v && v.twitterId && v.handler) {
-          _placementInfoCache.set(k, v);
+          _placementInfoCache.set(k, {
+            twitterId: v.twitterId,
+            handler: v.handler,
+            displayName: v.displayName || '',
+            avatar: v.avatar || '',
+          });
         }
       }
       while (_placementInfoCache.size > 20) {
@@ -497,26 +555,19 @@ export function getPlacementTrackingInfo(options?: {
       followState: null,
     };
   const cached = _placementInfoCache.get(currentUrl);
-  if (
-    cached &&
-    cached.twitterId &&
-    cached.handler &&
-    cached.avatar &&
-    !options?.noCached
-  )
-    return cached;
+
   const el =
     options?.el ||
     (document.querySelector(
       'div[data-testid="primaryColumn"] div[data-testid="placementTracking"]'
     ) as HTMLElement | null);
-  // 从同一 DOM 子树中提取 followButton、twitterId 与 handler，确保同步
+  // 从同一 DOM 子树中精确提取 followButton（过滤掉 userActions、sendDM 等其他按钮）
   const followButton = el?.querySelector(
-    'button[data-testid]'
+    'button[data-testid$="-follow"], button[data-testid$="-unfollow"], button[data-testid*="-follow"], button[data-testid*="-unfollow"]'
   ) as HTMLElement | null;
   const testId = followButton?.getAttribute('data-testid') || '';
   const match = testId.match(/^(\d+)-/);
-  const twitterId = match ? match[1] : '';
+  const twitterId = match ? match[1] : (cached?.twitterId || '');
 
   // 从 followButton 的 aria-label 中提取 handler，例如 "Follow @cz_binance"
   let handler: string = '';
@@ -529,6 +580,11 @@ export function getPlacementTrackingInfo(options?: {
   // Fallback 1: 如果 aria-label 提取失败，尝试从 URL 提取
   if (!handler && urlUid) {
     handler = urlUid;
+  }
+
+  // Fallback 2: 从缓存提取
+  if (!handler && cached?.handler) {
+    handler = cached.handler;
   }
 
   // Fallback 3: 从 UserName DOM 区域提取
@@ -548,19 +604,54 @@ export function getPlacementTrackingInfo(options?: {
     followState = 'unfollow';
   } else if (testId.includes('follow')) {
     followState = 'follow';
-  } else {
+  } else if (followButton) {
     // Fallback：通过按钮文本或 aria-label 判断
     const buttonText = followButton?.textContent?.toLowerCase() || '';
     const ariaLower = aria.toLowerCase();
-    // 多语言 "Following" 关键词
-    const followingKeywords = ['following', 'siguiendo', 'フォロー中', '正在关注'];
-    const followKeywords = ['follow', 'seguir', 'フォロー', '关注'];
+    // 多语言 "Following" 关键词（补充繁体中文、韩语等）
+    const followingKeywords = [
+      'following',
+      'siguiendo',
+      'フォロー中',
+      '正在关注',
+      '正在追蹤',
+      '팔로잉',
+      'abonné',
+      'folge ich',
+      'читаю',
+    ];
+    const followKeywords = [
+      'follow',
+      'seguir',
+      'フォロー',
+      '关注',
+      '追蹤',
+      '팔로우',
+      "s'abonner",
+      'folgen',
+      'читать',
+    ];
 
     if (followingKeywords.some(k => buttonText.includes(k) || ariaLower.includes(k))) {
       followState = 'unfollow';
     } else if (followKeywords.some(k => buttonText.includes(k) || ariaLower.includes(k))) {
       followState = 'follow';
     }
+  }
+
+  // 如果命中了静态信息缓存且没有要求 noCached
+  // 注意：followState 必须始终由当前 DOM 实时计算，禁止从缓存读取，防止跨账号污染
+  if (
+    cached &&
+    cached.twitterId &&
+    cached.handler &&
+    cached.avatar &&
+    !options?.noCached
+  ) {
+    return {
+      ...cached,
+      followState,
+    };
   }
 
   // 提取 displayName 与 avatar（同 domUserExtractor 的优先级）
@@ -591,7 +682,6 @@ export function getPlacementTrackingInfo(options?: {
     handler,
     displayName,
     avatar,
-    followState,
   };
   if (twitterId && handler && avatar) {
     if (_placementInfoCache.has(currentUrl))
@@ -610,5 +700,8 @@ export function getPlacementTrackingInfo(options?: {
       } catch { }
     })();
   }
-  return result;
+  return {
+    ...result,
+    followState,
+  };
 }

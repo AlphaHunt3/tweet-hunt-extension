@@ -1,5 +1,6 @@
 import { localStorageInstance } from '~storage';
 import { chatHistoryManager } from '~storage/chatHistoryManager';
+import { clearPlacementInfoCache } from '~contents/hooks/usePlacementTrackingDomUserInfo';
 
 /**
  * Centralized cleanup for auth-related state when logging out or switching accounts.
@@ -17,6 +18,9 @@ export async function clearAuthState(): Promise<void> {
       if (currentUserId) {
         await localStorageInstance.remove(
           `@xhunt/mantleTasks:${currentUserId}`
+        );
+        await localStorageInstance.remove(
+          `@xhunt/mantle2Tasks:${currentUserId}`
         );
         await localStorageInstance.remove(`ai_chat_history_${currentUserId}`);
       }
@@ -42,6 +46,11 @@ export async function clearAuthState(): Promise<void> {
     } catch {}
     try {
       await localStorageInstance.remove('@xhunt/mantleTasks:guest');
+      await localStorageInstance.remove('@xhunt/mantle2Tasks:guest');
+      await localStorageInstance.remove('@xhunt/customTask:guest');
+      await localStorageInstance.remove('@xhunt/placementInfoCacheV2');
+      await localStorageInstance.remove('@xhunt/placementInfoCacheV1');
+      clearPlacementInfoCache();
     } catch {}
     // Always bump cache-busting timestamp to avoid browser cache after auth reset
     try {

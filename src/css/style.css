@@ -102,6 +102,27 @@ div[data-theme='dark'] {
   background-color: var(--xhunt-accent-soft);
 }
 
+/* 帖子卡片：悬停时当前卡片阴影加深，同组其他卡片变淡（改帖/删帖弹框） */
+.xhunt-post-card {
+  transition:
+    opacity 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.xhunt-post-list:hover .xhunt-post-card {
+  opacity: 0.9;
+}
+
+.xhunt-post-list .xhunt-post-card:hover {
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .xhunt-post-list .xhunt-post-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
 /* Ask 按钮图标在深浅色主题下的可读性优化 */
 .xhunt-ask-icon {
   color: #111827; /* 默认深色 */

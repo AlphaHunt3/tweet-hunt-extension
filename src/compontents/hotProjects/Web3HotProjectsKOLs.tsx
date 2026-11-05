@@ -1002,7 +1002,13 @@ export function Web3HotProjectsKOLs({ className = '' }: Web3HotProjectsKOLsProps
       {/* Content区域 */}
       <div
         ref={contentScrollRef}
-        className={`relative flex-1 overflow-x-hidden max-h-[430px] scrollbar-hide ${activeType === 'tweet' && filterPanelExpanded ? 'overflow-y-hidden' : 'overflow-y-auto'}`}
+        className={`relative flex-1 overflow-x-hidden scrollbar-hide ${
+          activeType === 'person'
+            ? 'overflow-y-hidden'
+            : activeType === 'tweet' && filterPanelExpanded
+              ? 'max-h-[430px] overflow-y-hidden'
+              : 'max-h-[430px] overflow-y-auto'
+        }`}
       >
         {/* KOLs 次级 Tab */}
         {activeType === 'person' && (
