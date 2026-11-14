@@ -1188,5 +1188,17 @@
   "panelGlobalInfluence": "Global influence",
   "panelCnInfluence": "Chinese influence",
   "panelKolFollowers": "KOL followers",
-  "panelBack": "Back"
+  "panelBack": "Back",
+  "panelKolScopeGlobal": "Global",
+  "panelKolScopeCn": "Chinese",
+  "panelKolScopeTop": "TOP100",
+  "panelKolScopeLabel": "KOL scope",
+  "panelShowAll": "Show all {count}",
+  "panelAbilityDomain": "Ability domain",
+  "panelPrevPage": "Previous page",
+  "panelNextPage": "Next page",
+  "panelNoFollowers": "No KOL followers yet",
+  "panelConnectedX": "Connected to X",
+  "panelSignedInAs": "Signed in as {handle}",
+  "panelAccountMenu": "Account menu"
 }
