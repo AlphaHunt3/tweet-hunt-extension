@@ -14,7 +14,8 @@
     "package:store": "timestamp=$(date +%Y%m%d-%H%M) && rm -f build/xhunt-store-upload.zip && cd build/chrome-mv3-prod && zip -r -X ../xhunt-store-upload-${timestamp}.zip . -x '*.DS_Store' -x '__MACOSX/*' && cd ../.. && cp build/xhunt-store-upload-${timestamp}.zip build/xhunt-store-upload.zip && echo \"Store package: build/xhunt-store-upload-${timestamp}.zip\"",
     "test:e2e": "playwright test tests/e2e",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sandbox": "vite --config dev/sandbox/vite.config.ts"
   },
   "manifest": {
     "permissions": [
@@ -87,6 +88,7 @@
     "postcss": "^8.4.29",
     "terser": "^5.42.0",
     "typescript": "^5.2.2",
+    "vite": "^8.3.8",
     "vitest": "^5.1.0",
     "xlsx": "^0.18.5"
   },
