@@ -44,16 +44,16 @@ export function SkinPicker() {
         <label
           key={id}
           data-xhunt-testid={`skin-option-${id}`}
-          className='flex cursor-pointer flex-col gap-1.5 rounded-xl border border-xh-line bg-xh-raised p-1.5 transition-shadow has-[[data-checked]]:border-xh-accent has-[[data-checked]]:ring-2 has-[[data-checked]]:ring-xh-accent-soft'
+          className='flex cursor-pointer flex-col gap-1.5 rounded-xl border border-xh-line bg-xh-raised p-1.5 transition-shadow has-[[data-checked]]:border-xh-accent-fg has-[[data-checked]]:ring-2 has-[[data-checked]]:ring-xh-accent-soft'
         >
           <SkinPreview skin={id} />
           <span className='flex items-center justify-between gap-1 px-0.5'>
             <span className='text-[12px] font-semibold text-xh-fg'>{t(UI_SKIN_META[id].nameKey)}</span>
             <Radio
               value={id}
-              className='flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-xh-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xh-accent data-[checked]:border-xh-accent'
+              className='flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-xh-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xh-accent-fg data-[checked]:border-xh-accent-fg'
             >
-              <RadioIndicator className='h-1.5 w-1.5 rounded-full bg-xh-accent' />
+              <RadioIndicator className='h-1.5 w-1.5 rounded-full bg-xh-accent-fg' />
             </Radio>
           </span>
           <span className='px-0.5 text-[11px] leading-4 text-xh-fg-2'>{t(UI_SKIN_META[id].descKey)}</span>
