@@ -815,6 +815,49 @@
     color: var(--xh-fg-2);
   }
 
+  .xh-collapsible-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 0 6px;
+    border: 0;
+    background: transparent;
+    color: var(--xh-fg);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+  }
+  .xh-collapsible-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .xh-collapsible-chevron {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    color: var(--xh-fg-3);
+    transition: rotate var(--xh-d-sm) var(--xh-ease-out);
+  }
+  .xh-collapsible-trigger[data-open] .xh-collapsible-chevron {
+    rotate: 180deg;
+  }
+  .xh-collapsible-panel {
+    height: var(--collapsible-panel-height);
+    overflow: hidden;
+    transition:
+      height var(--xh-d-sm) var(--xh-ease-out),
+      opacity var(--xh-d-sm) var(--xh-ease-out);
+  }
+  .xh-collapsible-panel[data-starting-style],
+  .xh-collapsible-panel[data-ending-style] {
+    height: 0;
+    opacity: 0;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .xh-seg-indicator,
     .xh-tabs-indicator,
