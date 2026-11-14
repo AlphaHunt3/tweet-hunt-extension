@@ -66,6 +66,7 @@ function App() {
           // 外层布局用行内样式：Tailwind 只扫描 src，沙盒自己的类名不会被生成
           <div
             data-theme={host.theme}
+            data-skin={skin}
             style={{
               display: 'flex',
               flexDirection: 'column',

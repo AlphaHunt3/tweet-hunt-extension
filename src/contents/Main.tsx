@@ -136,7 +136,7 @@ function MainContent({
   usePresencePort();
   useSystemInitialization();
   useThemeWatcher();
-  useDocumentSkin(theme);
+  const skin = useDocumentSkin(theme);
   useVerifyLoginStatus();
   useTwitterAuthCallback();
   const { isSetupCompleted, isSetupLoading } = useUserDomainHook();
@@ -146,6 +146,7 @@ function MainContent({
   return (
     <div
       data-theme={theme}
+      data-skin={skin}
       data-xhunt-avatar-rank-mode={avatarRankMode}
       data-xhunt-exclude={'true'}
       translate='no'

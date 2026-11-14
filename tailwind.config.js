@@ -1,3 +1,5 @@
+const plugin = require('tailwindcss/plugin');
+
 const twitterBlue = {
   50: '#E8F5FD',
   100: '#D7EDFF',
@@ -61,7 +63,14 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // <html> 上的 data-xh-skin 进不了 Shadow Root，所以每个界面根节点也挂 data-skin
+    plugin(({ addVariant }) => {
+      for (const skin of ['soft', 'obsidian', 'native']) {
+        addVariant(skin, [`&[data-skin="${skin}"]`, `[data-skin="${skin}"] &`]);
+      }
+    }),
+  ],
   // 生产环境优化
   ...(process.env.NODE_ENV === 'production' &&
     {
