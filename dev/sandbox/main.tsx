@@ -8,6 +8,7 @@ import { SkinIntroNotice } from '~/ui/skin/SkinIntroNotice';
 import { SkinPicker } from '~/ui/skin/SkinPicker';
 import { useUiSkin } from '~/ui/skin/useUiSkin';
 import type { XPalette } from '~/ui/skin/xPalette';
+import { Gallery } from './Gallery';
 
 const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' }> = {
   default: { bg: '#ffffff', fg: '#0f1419', theme: 'light' },
@@ -71,7 +72,7 @@ function App() {
               display: 'flex',
               flexDirection: 'column',
               gap: 12,
-              maxWidth: 360,
+              maxWidth: 380,
               padding: 12,
               background: 'var(--xh-canvas)',
               borderRadius: 'var(--xh-radius-panel)',
@@ -92,6 +93,7 @@ function App() {
                 </div>
               ))}
             </div>
+            <Gallery />
             <div className="theme-bg-secondary theme-text-primary" style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 8, fontSize: 12 }}>
               旧组件（theme-*）跟随当前风格
             </div>

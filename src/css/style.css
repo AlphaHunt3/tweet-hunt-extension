@@ -1,4 +1,4 @@
-@layer ui-sdk, xh-primitives;
+@layer ui-sdk, tw-base, xh-primitives;
 @import './primitives.css';
 
 @layer ui-sdk {
@@ -7,7 +7,10 @@
   }
 }
 
-@tailwind base;
+/* 不在图层里的样式总会压过图层里的样式；preflight 放进 tw-base，基础组件才盖得过它的按钮和边框重置 */
+@layer tw-base {
+  @tailwind base;
+}
 @tailwind components;
 @tailwind utilities;
 

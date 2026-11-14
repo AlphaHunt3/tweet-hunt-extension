@@ -2803,6 +2803,19 @@ git commit -m "chore(sandbox): add primitives gallery"
 
 ---
 
+### 执行中的调整（已在代码里落实，以代码为准）
+
+1. **Tailwind preflight 放进图层**：不在图层里的样式总会压过图层里的样式，preflight 的 `button { background-color: transparent }` 和 `* { border-width: 0 }` 因此盖掉了基础组件的背景和边框。`style.css` 改为 `@layer ui-sdk, tw-base, xh-primitives;`，并把 `@tailwind base;` 包进 `@layer tw-base { … }`。已用 PostCSS 验证：preflight 进了图层，工具类仍在图层外。
+2. **测试读文件改用 `process.cwd()`**：jsdom 环境下 `import.meta.url` 不是 `file:` 地址。
+3. **浏览器实测后的对比度调整**：
+   - 搜索框占位文字改用 `--xh-fg-2`（原 `--xh-fg-3` 在柔光和黑曜浅色只有 3.45–4.1:1）。
+   - 黑曜浅色和原生浅色的开关打开态轨道改用 `--xh-accent-fg`（原强调色只有 2.47 和 2.84:1）。
+   - 原生的中性徽标文字改用 `--xh-fg`（昏暗、纯黑下原来只有 4.0–4.2:1）。
+   - 原生浅色的 `--xh-accent-fg` 从 `#1373bb` 压暗到 `#106bae`，强调色徽标从 4.27 提到 4.79:1。
+4. 调整后 9 种组合实测：按钮文字 ≥ 4.97、徽标 ≥ 4.54、标签 ≥ 5.47、占位文字 ≥ 5.6、开关轨道关 ≥ 3.17 / 开 ≥ 3.71；键盘焦点环 2px `--xh-accent-fg` 可见。
+
+---
+
 ### Task 13: 阶段 1a 验收
 
 - [ ] Run: `pnpm test`，Expected: 全部通过。
