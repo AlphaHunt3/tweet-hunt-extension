@@ -1159,5 +1159,18 @@
   "hunterCampaignView": "查看",
   "unfollowRecentVipOnlyTitle": "近 3 天的取关动态仅对 VIP 用户开放",
   "unfollowRecentVipOnlyDesc": "近 3 天取关记录已隐藏，申请 VIP 解锁查看",
-  "unfollowApplyVip": "免费申请 VIP"
+  "unfollowApplyVip": "免费申请 VIP",
+  "uiSkinLabel": "界面风格",
+  "uiSkinSoftName": "柔光",
+  "uiSkinSoftDesc": "浅色卡片，清爽亲和",
+  "uiSkinObsidianName": "黑曜",
+  "uiSkinObsidianDesc": "深色高密度，数据优先",
+  "uiSkinNativeName": "原生",
+  "uiSkinNativeDesc": "融进 X，跟随 X 主题",
+  "uiSkinStepTitle": "选择界面风格",
+  "uiSkinStepSubtitle": "随时可以在设置里更换",
+  "uiSkinIntroTitle": "界面已更新",
+  "uiSkinIntroBody": "现在有三种界面风格，可以在设置里切换。",
+  "uiSkinIntroAction": "去切换",
+  "uiSkinIntroDismiss": "知道了"
 }

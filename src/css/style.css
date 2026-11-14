@@ -1,3 +1,11 @@
+@layer ui-sdk;
+
+@layer ui-sdk {
+  :where([data-slot][hidden]:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

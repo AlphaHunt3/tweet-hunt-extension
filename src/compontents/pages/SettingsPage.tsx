@@ -44,6 +44,7 @@ import { PortalTooltip } from '~/compontents/PortalTooltip';
 // import { getTwitterAuthUrl } from '~contents/services/api.ts';
 // import { openNewTab } from '~contents/utils';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
+import { SkinPicker } from '~/ui/skin/SkinPicker';
 
 // Chrome 类型声明
 declare const chrome: any;
@@ -745,6 +746,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             {/* 基础设置专属：语言和音频选择 */}
             {groupKey === 'others' && (
               <>
+                <div
+                  key={'uiSkin'}
+                  data-xhunt-testid='settings-ui-skin'
+                  className='px-3 pt-2 pb-3'
+                >
+                  <div className='text-[13px] theme-text-primary leading-tight mb-2'>
+                    {t('uiSkinLabel')}
+                  </div>
+                  <SkinPicker />
+                </div>
                 <div
                   key={'language'}
                   className='flex items-center justify-between py-2 px-3'

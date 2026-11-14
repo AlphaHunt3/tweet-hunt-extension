@@ -1158,5 +1158,18 @@
   "hunterCampaignView": "View",
   "unfollowRecentVipOnlyTitle": "Unfollow activity from the last 3 days is VIP only",
   "unfollowRecentVipOnlyDesc": "Recent 3-day records are hidden",
-  "unfollowApplyVip": "Apply VIP"
+  "unfollowApplyVip": "Apply VIP",
+  "uiSkinLabel": "Interface style",
+  "uiSkinSoftName": "Soft",
+  "uiSkinSoftDesc": "Light cards, calm and friendly",
+  "uiSkinObsidianName": "Obsidian",
+  "uiSkinObsidianDesc": "Dark and dense, data first",
+  "uiSkinNativeName": "Native",
+  "uiSkinNativeDesc": "Blends into X and follows its theme",
+  "uiSkinStepTitle": "Choose an interface style",
+  "uiSkinStepSubtitle": "You can change it anytime in Settings",
+  "uiSkinIntroTitle": "XHunt has a new look",
+  "uiSkinIntroBody": "There are now three interface styles. Switch anytime in Settings.",
+  "uiSkinIntroAction": "Choose a style",
+  "uiSkinIntroDismiss": "Got it"
 }
