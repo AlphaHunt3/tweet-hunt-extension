@@ -1845,6 +1845,16 @@ git commit -m "feat(shell): mount the panel inside the skin shells"
 
 ---
 
+### 执行中的调整（已在代码里落实，以代码为准）
+
+1. **沙盒**：Plasmo 把 `~/assets/…` 解析到仓库根目录的 `assets/`，沙盒的导入解析补了这条规则；Vite 不注入 `process.env`，在 `define` 里补上；Plasmo 存储把值再序列化一层 JSON，`seedStorage` 写入时照这个格式。
+2. **文案**：多加了 `panelBack`（返回 / Back），原来没有通用的返回文案。
+3. **首页**：`HomeChrome` 的内容区去掉了柔光的负边距；`formatCount` 对 `null` 显示「—」。
+4. **View Transitions**：面板导航已不再调用。`src/compontents/Tabs.tsx` 和 `TopTabNavigator.tsx` 仍在用（资料页、右栏），阶段 2、3 换成 ui-sdk Tabs 时一起去掉。
+5. **沙盒核对结果**：三套外壳、首页顶部、身份区排名和涨跌、消息 / 设置页头和返回、未读点、常驻模式下黑曜收起成图标栏、柔光收起成 48px 方块，均已实测。
+
+---
+
 ### Task 11: 阶段 1b 验收
 
 - [ ] `pnpm test` 全部通过。
