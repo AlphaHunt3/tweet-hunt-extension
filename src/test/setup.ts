@@ -1,6 +1,8 @@
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import { resetMemoryStorage } from './memoryStorage';
+
+configure({ testIdAttribute: 'data-xhunt-testid' });
 
 HTMLElement.prototype.showPopover = function () {};
 HTMLElement.prototype.hidePopover = function () {};
