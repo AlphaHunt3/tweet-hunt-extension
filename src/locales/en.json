@@ -1171,5 +1171,21 @@
   "uiSkinIntroTitle": "XHunt has a new look",
   "uiSkinIntroBody": "There are now three interface styles. Switch anytime in Settings.",
   "uiSkinIntroAction": "Choose a style",
-  "uiSkinIntroDismiss": "Got it"
+  "uiSkinIntroDismiss": "Got it",
+  "homeViewOverview": "Overview",
+  "homeViewFollowers": "Followers",
+  "homeViewPortrait": "Profile",
+  "homeViewReviews": "Reviews",
+  "panelSectionsLabel": "Panel sections",
+  "panelNavLabel": "Panel navigation",
+  "panelSearchLabel": "Search on X",
+  "panelSearchPlaceholder": "Search accounts, tokens or contracts",
+  "panelCollapse": "Collapse to icon bar",
+  "panelExpand": "Expand panel",
+  "panelRestore": "Open XHunt panel",
+  "panelDrag": "Drag panel",
+  "messagesUnread": "Messages, unread",
+  "panelGlobalInfluence": "Global influence",
+  "panelCnInfluence": "Chinese influence",
+  "panelKolFollowers": "KOL followers"
 }

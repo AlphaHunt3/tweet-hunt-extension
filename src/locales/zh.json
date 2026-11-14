@@ -1172,5 +1172,21 @@
   "uiSkinIntroTitle": "界面已更新",
   "uiSkinIntroBody": "现在有三种界面风格，可以在设置里切换。",
   "uiSkinIntroAction": "去切换",
-  "uiSkinIntroDismiss": "知道了"
+  "uiSkinIntroDismiss": "知道了",
+  "homeViewOverview": "概览",
+  "homeViewFollowers": "关注者",
+  "homeViewPortrait": "画像",
+  "homeViewReviews": "点评",
+  "panelSectionsLabel": "面板分区",
+  "panelNavLabel": "面板导航",
+  "panelSearchLabel": "在 X 上搜索",
+  "panelSearchPlaceholder": "搜索账户、代币或合约",
+  "panelCollapse": "收起为图标栏",
+  "panelExpand": "展开面板",
+  "panelRestore": "展开 XHunt 面板",
+  "panelDrag": "拖动面板",
+  "messagesUnread": "消息，有未读",
+  "panelGlobalInfluence": "全球影响力",
+  "panelCnInfluence": "华语影响力",
+  "panelKolFollowers": "KOL 粉丝"
 }
