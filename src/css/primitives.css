@@ -858,6 +858,181 @@
     opacity: 0;
   }
 
+  .xh-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 6px;
+    background: var(--xh-sunken);
+    color: var(--xh-fg-2);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .xh-badge[data-tone='accent'] {
+    background: var(--xh-accent-soft);
+    color: var(--xh-accent-fg);
+  }
+  .xh-badge[data-tone='up'] {
+    background: var(--xh-up-bg);
+    color: var(--xh-up);
+  }
+  .xh-badge[data-tone='down'] {
+    background: var(--xh-down-bg);
+    color: var(--xh-down);
+  }
+  .xh-badge[data-tone='warn'] {
+    background: var(--xh-warn-bg);
+    color: var(--xh-warn);
+  }
+  .xh-badge[data-tone='inverse'] {
+    background: var(--xh-fg);
+    color: var(--xh-surface);
+  }
+  [data-skin='obsidian'] .xh-badge {
+    border-radius: 9999px;
+    font-weight: 500;
+  }
+  [data-skin='obsidian'] .xh-badge[data-tone='neutral'] {
+    background: var(--xh-hover);
+  }
+  [data-skin='native'] .xh-badge {
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .xh-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    background: var(--xh-sunken);
+    color: var(--xh-fg-2);
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  [data-skin='obsidian'] .xh-tag {
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 6px;
+    background: var(--xh-hover);
+    font-size: 11px;
+  }
+  [data-skin='native'] .xh-tag {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--xh-line-2);
+    background: transparent;
+    color: var(--xh-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .xh-avatar {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--xh-av, #5b6b82);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+  }
+  .xh-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .xh-avatar-fallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  .xh-avatar[data-size='md'] {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  .xh-avatar[data-size='sm'] {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+  .xh-avatar[data-size='xs'] {
+    width: 20px;
+    height: 20px;
+    font-size: 9px;
+  }
+  [data-skin='obsidian'] .xh-avatar {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+  [data-skin='obsidian'] .xh-avatar[data-size='md'] {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+  [data-skin='obsidian'] .xh-avatar[data-size='sm'] {
+    width: 22px;
+    height: 22px;
+    font-size: 9.5px;
+  }
+  [data-skin='native'] .xh-avatar {
+    font-weight: 700;
+  }
+
+  .xh-meter {
+    display: block;
+    width: 100%;
+  }
+  .xh-meter-track {
+    position: relative;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--xh-sunken);
+  }
+  .xh-meter-indicator {
+    height: 100%;
+    border-radius: 9999px;
+    background: var(--xh-accent);
+    transform-origin: left;
+    animation: xh-grow-x var(--xh-d-xl) var(--xh-ease-out) both;
+  }
+  .xh-meter[data-tone='up'] .xh-meter-indicator {
+    background: var(--xh-up);
+  }
+  .xh-meter[data-tone='warn'] .xh-meter-indicator {
+    background: #f2b01e;
+  }
+  [data-skin='obsidian'] .xh-meter-track {
+    height: 4px;
+    background: color-mix(in oklab, var(--xh-fg) 10%, transparent);
+  }
+  [data-skin='obsidian'] .xh-meter[data-tone='warn'] .xh-meter-indicator {
+    background: var(--xh-warn);
+  }
+  [data-skin='native'] .xh-meter-track {
+    height: 4px;
+  }
+  [data-skin='native'] .xh-meter[data-tone='warn'] .xh-meter-indicator {
+    background: #f5b301;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .xh-seg-indicator,
     .xh-tabs-indicator,

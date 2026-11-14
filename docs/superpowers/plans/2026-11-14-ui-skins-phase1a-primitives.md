@@ -2207,7 +2207,7 @@ describe('Avatar', () => {
   test('picks a stable colour that keeps white initials readable', () => {
     expect(avatarColor('Mira Chen')).toBe(avatarColor('Mira Chen'));
     for (const colour of AVATAR_COLORS) {
-      expect((1.05 / (luminance(colour) + 0.05)).toFixed(2) >= '4.50').toBe(true);
+      expect(1.05 / (luminance(colour) + 0.05)).toBeGreaterThanOrEqual(4.5);
     }
   });
 });
