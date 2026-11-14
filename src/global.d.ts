@@ -17,6 +17,11 @@ declare module 'url:~/assets/*' {
   export default content;
 }
 
+declare module 'url:*' {
+  const content: string;
+  export default content;
+}
+
 declare interface Window {
   _xhunt_language: string;
 }
