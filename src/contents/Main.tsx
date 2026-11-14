@@ -54,6 +54,7 @@ import {
 } from './hooks/useUserDomain.ts';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
 import SocialCircleFeature from '~compontents/SocialCircle/SocialCircleFeature.tsx';
+import { useDocumentSkin } from '~/ui/skin/useDocumentSkin';
 
 export const config = {
   matches: ['https://x.com/*'],
@@ -135,6 +136,7 @@ function MainContent({
   usePresencePort();
   useSystemInitialization();
   useThemeWatcher();
+  useDocumentSkin(theme);
   useVerifyLoginStatus();
   useTwitterAuthCallback();
   const { isSetupCompleted, isSetupLoading } = useUserDomainHook();
