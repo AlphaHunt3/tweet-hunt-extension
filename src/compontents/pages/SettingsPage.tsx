@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  PanelHeader,
-  useNavigation,
-} from '~/compontents/navigation/PanelNavigator';
+import { useNavigation } from '~/compontents/navigation/PanelNavigator';
+import { PanelPageHeader } from '~/ui/shells/PanelPageHeader';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { settingsConfig, useAllSettings } from '~/utils/settingsManager.ts';
 import { useCrossPageSettings } from '~utils/settingsManager.ts';
@@ -17,7 +15,6 @@ import {
   Bot,
   Settings as SettingsIcon,
 } from 'lucide-react';
-import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
 import {
   useLocalStorage,
   useSessionStorage,
@@ -1110,17 +1107,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       data-xhunt-testid='settings-page'
       className='flex flex-col h-full min-h-0 relative'
     >
-      <PanelHeader
-        title={<span>{t('settingsTitle')}</span>}
-        showBackButton={showBackButton}
-        rightContent={
-          <HeaderRightControls
-            onOpenMessages={() => navigateTo('/messages')}
-            onClose={onClose}
-            onOpenSettings={() => {}}
-          />
-        }
-      />
+      <PanelPageHeader title={t('settingsTitle')} showBack={showBackButton} onClose={onClose} />
       {isLoading ? (
         <div className='flex-1 flex items-center justify-center'>
           <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-xhunt-accent mx-auto mb-2'></div>
