@@ -1,3 +1,4 @@
+import { seedStorage } from './chromeShim';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
@@ -9,6 +10,8 @@ import { SkinPicker } from '~/ui/skin/SkinPicker';
 import { useUiSkin } from '~/ui/skin/useUiSkin';
 import type { XPalette } from '~/ui/skin/xPalette';
 import { Gallery } from './Gallery';
+import { MOCK_USER } from './mocks/fixtures';
+import { PanelDemo } from './PanelDemo';
 
 const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' }> = {
   default: { bg: '#ffffff', fg: '#0f1419', theme: 'light' },
@@ -17,6 +20,8 @@ const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' 
 };
 
 const SWATCHES = ['canvas', 'raised', 'surface', 'sunken', 'line', 'fg', 'fg-2', 'fg-3', 'accent', 'accent-soft', 'up', 'down', 'warn'];
+
+type View = 'panel' | 'gallery';
 
 function useShadowMount() {
   const [mount, setMount] = useState<HTMLElement | null>(null);
@@ -34,8 +39,9 @@ function useShadowMount() {
 }
 
 function App() {
-  const { skin } = useUiSkin();
+  const { skin, setSkin } = useUiSkin();
   const [palette, setPalette] = useState<XPalette>('dim');
+  const [view, setView] = useState<View>('panel');
   const mount = useShadowMount();
   const host = HOSTS[palette];
 
@@ -53,6 +59,16 @@ function App() {
   return (
     <>
       <div className="bar">
+        {(['panel', 'gallery'] as View[]).map((v) => (
+          <button key={v} type="button" aria-pressed={v === view} onClick={() => setView(v)}>
+            {v === 'panel' ? '面板' : '组件'}
+          </button>
+        ))}
+        {(['soft', 'obsidian', 'native'] as const).map((s) => (
+          <button key={s} type="button" aria-pressed={s === skin} onClick={() => setSkin(s)}>
+            风格：{s}
+          </button>
+        ))}
         {(Object.keys(HOSTS) as XPalette[]).map((p) => (
           <button key={p} type="button" aria-pressed={p === palette} onClick={() => setPalette(p)}>
             X 背景：{p}
@@ -64,44 +80,57 @@ function App() {
       </div>
       {mount &&
         createPortal(
-          // 外层布局用行内样式：Tailwind 只扫描 src，沙盒自己的类名不会被生成
-          <div
-            data-theme={host.theme}
-            data-skin={skin}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              maxWidth: 380,
-              padding: 12,
-              background: 'var(--xh-canvas)',
-              borderRadius: 'var(--xh-radius-panel)',
-              boxShadow: 'var(--xh-shadow-panel)',
-              fontFamily: 'var(--xh-font-ui)',
-            }}
-          >
-            <SkinIntroNotice />
-            <div style={{ background: 'var(--xh-raised)', borderRadius: 'var(--xh-radius-card)', padding: 12 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--xh-fg)' }}>界面风格</p>
-              <SkinPicker />
+          view === 'panel' ? (
+            <div data-theme={host.theme} data-skin={skin}>
+              <PanelDemo />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-              {SWATCHES.map((name) => (
-                <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--xh-fg-2)' }}>
-                  <span style={{ display: 'block', width: '100%', height: 32, borderRadius: 8, border: '1px solid var(--xh-line)', background: `var(--xh-${name})` }} />
-                  {name}
-                </div>
-              ))}
+          ) : (
+            // 外层布局用行内样式：Tailwind 只扫描 src，沙盒自己的类名不会被生成
+            <div
+              data-theme={host.theme}
+              data-skin={skin}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                maxWidth: 380,
+                padding: 12,
+                background: 'var(--xh-canvas)',
+                borderRadius: 'var(--xh-radius-panel)',
+                boxShadow: 'var(--xh-shadow-panel)',
+                fontFamily: 'var(--xh-font-ui)',
+              }}
+            >
+              <SkinIntroNotice />
+              <div style={{ background: 'var(--xh-raised)', borderRadius: 'var(--xh-radius-card)', padding: 12 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--xh-fg)' }}>界面风格</p>
+                <SkinPicker />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+                {SWATCHES.map((name) => (
+                  <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--xh-fg-2)' }}>
+                    <span style={{ display: 'block', width: '100%', height: 32, borderRadius: 8, border: '1px solid var(--xh-line)', background: `var(--xh-${name})` }} />
+                    {name}
+                  </div>
+                ))}
+              </div>
+              <Gallery />
+              <div className="theme-bg-secondary theme-text-primary" style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 8, fontSize: 12 }}>
+                旧组件（theme-*）跟随当前风格
+              </div>
             </div>
-            <Gallery />
-            <div className="theme-bg-secondary theme-text-primary" style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 8, fontSize: 12 }}>
-              旧组件（theme-*）跟随当前风格
-            </div>
-          </div>,
+          ),
           mount,
         )}
     </>
   );
 }
 
+await seedStorage({
+  '@xhunt/user': MOCK_USER,
+  '@xhunt/token': 'sandbox',
+  '@xhunt/header-controls-guide-dismissed-map': { settings: true, messages: true, drag: true, panel: true },
+  '@xhunt/uiSkinIntroSeen': true,
+  '@settings/language1': 'zh',
+});
 createRoot(document.getElementById('app')!).render(<App />);
