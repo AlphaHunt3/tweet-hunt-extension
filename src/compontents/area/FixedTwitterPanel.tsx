@@ -11,9 +11,10 @@ import SettingsPage from '~/compontents/pages/SettingsPage';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { PanelContextProvider } from '~/compontents/navigation/PanelContext';
 import { useDebounce } from 'ahooks';
-import iconUrl from 'url:~/assets/icon-min.png';
 import avatarCssText from 'data-text:~/css/avatar-rank.css';
 import { SkinIntroNotice } from '~/ui/skin/SkinIntroNotice';
+import { PanelShell, PanelTile } from '~/ui/shells/PanelShell';
+import { useUiSkin } from '~/ui/skin/useUiSkin';
 
 type FixedTwitterPanelProps = Pick<
   MainData,
@@ -46,6 +47,7 @@ function _FixedTwitterPanel({
   loadingProjectMember,
 }: FixedTwitterPanelProps) {
   const currentUrl = useCurrentUrl();
+  const { skin } = useUiSkin();
   const [showPanel, setShowPanel] = useLocalStorage(
     '@settings/showPanel',
     true,
@@ -71,6 +73,11 @@ function _FixedTwitterPanel({
       '@xhunt/floatingPanelMode',
       'default',
     );
+
+  // 黑曜收起后保留图标栏；柔光和原生收起成一个方块
+  const railCollapse = skin === 'obsidian';
+  const hideContent = isMinimized && !railCollapse;
+  const contentWidth = safeWidth + (railCollapse ? 48 : 0);
 
   // 使用 useDebounce 延迟显示，但需要特殊处理：只对 true 值延迟，false 值立即生效
   const debouncedMinimized = useDebounce(isMinimized, { wait: 200 });
@@ -183,12 +190,12 @@ function _FixedTwitterPanel({
 
   return (
     <DraggablePanel
-      width={isMinimized ? 40 : safeWidth}
+      width={isMinimized ? 48 : contentWidth}
       dragHandleClassName={
-        isMinimized ? 'tw-hunt-drag-handle-minimized' : 'tw-hunt-drag-handle'
+        hideContent ? 'tw-hunt-drag-handle-minimized' : 'tw-hunt-drag-handle'
       }
       storageKey='fixed-twitter-panel'
-      disabled={isMinimized}
+      disabled={hideContent}
     >
       <div
         className='relative'
@@ -196,62 +203,41 @@ function _FixedTwitterPanel({
         data-xhunt-exclude={'true'}
         data-xhunt-testid='fixed-twitter-panel'
       >
-        {/* 缩小状态：显示图标（延迟 100ms 显示，立即隐藏） */}
-        {isMinimized && showIcon && (
-          <div
-            className='tw-hunt-drag-handle-minimized w-11 h-11 theme-bg-secondary rounded-2xl theme-text-primary overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)] cursor-pointer transition-all opacity-90 hover:opacity-100'
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              borderColor: 'var(--text-primary)',
-            }}
-            onClick={() => {
-              setIsMinimized(false);
-            }}
-            title='XHunt'
-          >
-            <img
-              src={iconUrl}
-              alt='XHunt'
-              className='w-full h-full object-contain pointer-events-none user-select-none'
-            />
-          </div>
-        )}
+        {/* 缩小状态：显示方块（延迟 200ms 显示，立即隐藏） */}
+        {hideContent && showIcon && <PanelTile onRestore={() => setIsMinimized(false)} />}
 
         {/* 展开状态：显示完整内容，但保持 PanelNavigator 始终挂载以保留状态 */}
         <div
           className='relative'
           style={{
-            opacity: isMinimized ? 0 : isFocused ? 0 : 1,
-            pointerEvents: isMinimized ? 'none' : isFocused ? 'none' : 'auto',
+            opacity: hideContent ? 0 : isFocused ? 0 : 1,
+            pointerEvents: hideContent ? 'none' : isFocused ? 'none' : 'auto',
             transition: 'opacity 0.3s ease-in-out',
-            width: `${Math.min(
-              500,
-              Math.max(300, Number(panelWidth) || 340),
-            )}px`,
-            position: isMinimized ? 'absolute' : 'relative',
-            visibility: isMinimized ? 'hidden' : 'visible',
-            height: isMinimized ? 0 : 'auto',
-            overflow: isMinimized ? 'hidden' : 'visible',
+            width: `${isMinimized && railCollapse ? 48 : contentWidth}px`,
+            position: hideContent ? 'absolute' : 'relative',
+            visibility: hideContent ? 'hidden' : 'visible',
+            height: hideContent ? 0 : 'auto',
+            overflow: hideContent ? 'hidden' : 'visible',
           }}
         >
-          {/* Panel Content */}
-          <div
-            className={`absolute top-0 right-0 w-full theme-bg-secondary rounded-2xl theme-text-primary overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]`}
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              maxHeight: 'calc(90vh - 32px)',
-            }}
-          >
-            <SkinIntroNotice />
-            {/* Navigation System with Panel Context - 始终保持挂载以保留状态 */}
+          <div className='absolute top-0 right-0 w-full'>
             <PanelContextProvider onMinimize={() => setIsMinimized(true)}>
               <PanelNavigator
                 routes={routes}
                 initialRoute={userId ? '/home' : '/messages'}
+                layout={(content) => (
+                  <PanelShell
+                    collapsed={isMinimized && railCollapse}
+                    onRestore={() => setIsMinimized(false)}
+                    onClose={handleClosePanel}
+                    notice={<SkinIntroNotice />}
+                    footer={<UserAuthPanel userInfo={userInfo} />}
+                  >
+                    {content}
+                  </PanelShell>
+                )}
               />
             </PanelContextProvider>
-
-            <UserAuthPanel userInfo={userInfo} />
           </div>
         </div>
         <style dangerouslySetInnerHTML={{ __html: avatarCssText }} />
