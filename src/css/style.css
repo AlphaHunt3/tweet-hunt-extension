@@ -2,39 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme variables */
+/* Theme variables：迁移期别名，原值作为变量缺失时的兜底 */
 div[data-theme='light'] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f3f4f6;
-  --xhunt-accent: #1d9bf0;
-  --xhunt-accent-hover: #1a8cd8;
-  --xhunt-accent-soft: rgba(29, 155, 240, 0.1);
-  --text-primary: #000000;
-  --text-secondary: #4a5568;
-  --text-tertiary: #9ca3af;
-  --border-color: #eff3f4;
-  --border-color-soft: rgba(107, 114, 128, 0.2);
-  --hover-bg: #f3f4f6;
-  --icon-color: #6b7280;
-  --icon-hover-color: #374151;
+  --bg-primary: var(--xh-surface, #ffffff);
+  --bg-secondary: var(--xh-canvas, #ffffff);
+  --bg-tertiary: var(--xh-sunken, #f3f4f6);
+  --xhunt-accent: var(--xh-accent, #1d9bf0);
+  --xhunt-accent-hover: color-mix(in oklab, var(--xh-accent, #1d9bf0) 88%, black);
+  --xhunt-accent-soft: var(--xh-accent-soft, rgba(29, 155, 240, 0.1));
+  --text-primary: var(--xh-fg, #000000);
+  --text-secondary: var(--xh-fg-2, #4a5568);
+  --text-tertiary: var(--xh-fg-3, #9ca3af);
+  --border-color: var(--xh-line, #eff3f4);
+  --border-color-soft: var(--xh-line, rgba(107, 114, 128, 0.2));
+  --hover-bg: var(--xh-sunken, #f3f4f6);
+  --icon-color: var(--xh-fg-2, #6b7280);
+  --icon-hover-color: var(--xh-fg, #374151);
 }
 
 div[data-theme='dark'] {
-  --bg-primary: #15202b;
-  --bg-secondary: #1a2634;
-  --bg-tertiary: #1e2732;
-  --xhunt-accent: #1d9bf0;
-  --xhunt-accent-hover: #1a8cd8;
-  --xhunt-accent-soft: rgba(29, 155, 240, 0.14);
-  --text-primary: #ffffff;
-  --text-secondary: #a0aec0;
-  --text-tertiary: #64748b;
-  --border-color: #374151;
-  --border-color-soft: rgba(163, 172, 184, 0.4);
-  --hover-bg: #283340;
-  --icon-color: #d1d5db;
-  --icon-hover-color: #f3f4f6;
+  --bg-primary: var(--xh-surface, #15202b);
+  --bg-secondary: var(--xh-canvas, #1a2634);
+  --bg-tertiary: var(--xh-sunken, #1e2732);
+  --xhunt-accent: var(--xh-accent, #1d9bf0);
+  --xhunt-accent-hover: color-mix(in oklab, var(--xh-accent, #1d9bf0) 88%, black);
+  --xhunt-accent-soft: var(--xh-accent-soft, rgba(29, 155, 240, 0.14));
+  --text-primary: var(--xh-fg, #ffffff);
+  --text-secondary: var(--xh-fg-2, #a0aec0);
+  --text-tertiary: var(--xh-fg-3, #64748b);
+  --border-color: var(--xh-line, #374151);
+  --border-color-soft: var(--xh-line, rgba(163, 172, 184, 0.4));
+  --hover-bg: var(--xh-sunken, #283340);
+  --icon-color: var(--xh-fg-2, #d1d5db);
+  --icon-hover-color: var(--xh-fg, #f3f4f6);
 }
 
 /* Common styles */
