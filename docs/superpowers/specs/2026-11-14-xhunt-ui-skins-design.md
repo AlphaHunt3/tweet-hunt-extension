@@ -70,7 +70,7 @@
 ```
 src/ui/
   tokens/        base.css：动效、间距、字号阶；skins/soft.css、obsidian.css、native.css：各风格的变量
-  skin/          SkinProvider、useSkin、SkinRoot、skinVariants、共享样式表、字体注入
+  skin/          风格定义、useUiSkin、useXPalette、主文档属性与变量注入、字体注入、skinVariants、SkinPicker
   primitives/    对 ui-sdk 组件的薄封装：Button、IconButton、Tabs、SegmentedControl、Popover、
                  HoverCard、Tooltip、Dialog、AlertDialog、Drawer、Switch、Select、Menu、Toast、
                  Rating、Meter、Progress、Avatar、Badge、Skeleton、ScrollArea、Command 等
@@ -82,8 +82,8 @@ src/compontents/ 功能组件在原位置改写为「数据 + 只写一次的界
 
 ### 4.2 风格怎么生效
 
-- **统一的根节点。** 每个挂载点的最外层都包一个 `SkinRoot`：Plasmo 内容脚本根、`useShadowContainer` 创建的各个 Shadow Root、各类 portal 宿主。`SkinRoot` 输出 `data-xh-root`、`data-skin`、`data-theme`、`data-x-palette` 四个属性。所有变量定义在 `[data-xh-root][data-skin=…][data-theme=…]` 上，组件只用语义变量（第 5 节）。
-- **共享样式表。** base 和三套风格合成一份 CSS，做成一个 Constructable Stylesheet，通过 `adoptedStyleSheets` 让所有 Shadow Root 共用同一个实例。切换风格只改属性，不重新注入 CSS。现在的做法是每个 Shadow Root 各塞一份完整的 `style.css` 文本，这一步同时减少重复和内存。
+- **变量挂在主文档上。** 设计变量只往主文档注入一次，挂在 `<html>` 的 `data-xh-skin`、`data-xh-theme`、`data-xh-palette` 三个属性上。CSS 自定义属性会穿过 Shadow 边界向下继承（扩展现在的 `--xhunt-web-bg` 就是这么用的），所以 Plasmo 内容脚本根、`useShadowContainer` 创建的 Shadow Root、各类 portal 宿主都不需要各自处理。切换风格只改这三个属性。组件只用语义变量（第 5 节），React 代码通过 `useUiSkin()` 读取当前风格。
+- **组件样式表暂不改。** 现在每个 Shadow Root 各塞一份完整的 `style.css` 文本，阶段 0 不动；阶段 5 清理时再评估是否改成共享的 Constructable Stylesheet。
 - **Tailwind 改用语义名。** 配置里的颜色、圆角、阴影改为映射到 CSS 变量，例如 `bg-surface`、`text-fg-2`、`border-line`、`rounded-card`。删除写死的十六进制颜色和不生效的 `theme-*` 变体写法。
 - **少量结构差异走映射表。** 三种面板外壳，加上三处写法不同的组件（资料页洞察条、右栏热门模块、面板导航），通过 `skinVariants` 按当前风格选择实现。其余组件只靠变量区分颜色、字体、圆角、阴影、密度和动效参数。
 - **迁移期兼容层。** 阶段 0 里把旧的 `--bg-primary`、`--text-secondary` 等变量重新定义为新变量的别名，还没改写的旧组件也能大致跟随当前风格，不会在迁移过程中显得割裂。最后一个阶段删除这层别名。
@@ -136,6 +136,7 @@ src/compontents/ 功能组件在原位置改写为「数据 + 只写一次的界
 | `--xh-line` 分隔线 | `#ebebeb` | `#2a2a2a` | `rgba(255,255,255,.075)` | `rgba(0,0,0,.085)` | `#eff3f4` | `#38444d` | `#2f3336` |
 | `--xh-fg` 正文 | `#0a0a0a` | `#f3f3f3` | `rgba(255,255,255,.93)` | `rgba(0,0,0,.9)` | `#0f1419` | `#f7f9f9` | `#e7e9ea` |
 | `--xh-fg-2` 次要文字 | `#5c5c5c` | `#a8a8a8` | `rgba(255,255,255,.6)` | `rgba(0,0,0,.6)` | `#536471` | `#8b98a5` | `#71767b` |
+| `--xh-fg-3` 辅助文字（只用于非关键信息） | `#8a8a8a` | `#7d7d7d` | `rgba(255,255,255,.47)` | `rgba(0,0,0,.5)` | `#536471` | `#8b98a5` | `#71767b` |
 | `--xh-accent` 强调色 | `#5a5cf0` | `#5a5cf0` | `#8b9cff` | `#8b9cff` | `#1d9bf0` | `#1d9bf0` | `#1d9bf0` |
 | `--xh-up` 上涨、正面 | `#3a5a0c` | `#c3ef7a` | `#3ddc7a` | `#0d8a4c` | `#00875a` | `#00ba7c` | `#00ba7c` |
 | `--xh-down` 下跌、风险 | `#a51f18` | `#fca5a5` | `#ff6b6b` | `#d4343b` | `#c8102a` | `#ff5c6b` | `#ff5c6b` |
@@ -196,7 +197,7 @@ src/compontents/ 功能组件在原位置改写为「数据 + 只写一次的界
 ## 8. 测试与验证
 
 - **基础组件**：按 ui-sdk 的测试指南写测试，覆盖键盘操作、焦点移动、ARIA 和状态属性。新增开发依赖 Vitest、jsdom 和 Testing Library（`@testing-library/react`、`@testing-library/dom`、`@testing-library/user-event`），并按指南补上 jsdom 缺的接口。Vitest 独立运行，不影响 Plasmo 的构建链路。jsdom 看不到的部分（顶层弹层的位置、布局、Tab 键遍历所有控件）在真实浏览器里检查。
-- **风格切换**：单测覆盖 `SkinRoot` 属性输出、共享样式表注入、字体按风格注入、`@settings/uiSkin` 跨标签页同步。
+- **风格切换**：单测覆盖主文档属性与变量注入、字体按风格注入、`@settings/uiSkin` 的读取与非法值兜底。
 - **真实页面目测**：每套风格的每个主题（柔光浅/深、黑曜深/浅、原生浅色/昏暗/纯黑）在真实 x.com 上核对资料页、首页时间线、推文详情、设置页，并用浏览器取色实测对比度。
 - **现有端到端测试**：仓库里基于真实 x.com 的 Playwright 测试继续使用，保留 `data-xhunt-testid`，更新受影响的选择器，新增「三种风格各走一遍主要路径」的用例。
 - **构建检查**：类型检查和 `plasmo build` 通过；记录字体和三套 CSS 带来的包体积增量。
@@ -208,7 +209,7 @@ src/compontents/ 功能组件在原位置改写为「数据 + 只写一次的界
 
 | 阶段 | 内容 | 完成标准 |
 |---|---|---|
-| 0 地基 | React 19 和依赖升级；接入 ui-sdk；设计变量、`SkinRoot`、共享样式表、字体注入；兼容层；`@settings/uiSkin`、设置入口、首次引导步骤、老用户提示；基础组件库 | 三种风格可以切换；还没改写的旧界面不出现回退 |
+| 0 地基 | React 19 和依赖升级；接入 ui-sdk；设计变量与主文档注入、字体注入；兼容层；`@settings/uiSkin`、设置入口、首次引导步骤、老用户提示；测试环境和本地 UI 沙盒；首个基础组件（风格选择），其余基础组件在第一次用到它的阶段补 | 三种风格可以切换；还没改写的旧界面不出现回退 |
 | 1 面板 | 三种面板外壳；首页内容、消息、设置、登录栏 | 三种风格下面板全部功能可用 |
 | 2 资料页 | 标签与备注、洞察、叙事、KOL 粉丝与排名、点评卡、AI 分身和社交圈按钮；全部悬停卡片 | 所有资料页设置项在三种风格下表现正确 |
 | 3 右栏 | 首页右栏（领域切换、贡献榜、投票、实时热门、实时订阅）；资料页账户动态；原生风格的嵌入、改悬浮和窄窗口回退 | 右栏全部标签和筛选可用 |
