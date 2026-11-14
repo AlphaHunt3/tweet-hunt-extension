@@ -55,7 +55,7 @@ export function SkinPicker() {
             >
               <RadioIndicator className='h-1.5 w-1.5 rounded-full bg-xh-accent-fg' />
             </Radio>
-          </span>
+          </span>{' '}
           <span className='px-0.5 text-[11px] leading-4 text-xh-fg-2'>{t(UI_SKIN_META[id].descKey)}</span>
         </label>
       ))}

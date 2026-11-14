@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createAgent } from '@ui-sdk/react/agent';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { getMemoryValue, setMemoryValue } from '../../test/memoryStorage';
 import { navigationService } from '~/compontents/navigation/NavigationService';
@@ -10,6 +11,8 @@ vi.mock('~storage/useLocalStorage', () => import('../../test/memoryStorage'));
 vi.mock('~contents/hooks/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key, lang: 'zh', setLang: () => {} }),
 }));
+
+const agent = createAgent();
 
 describe('SkinIntroNotice', () => {
   beforeEach(() => {
@@ -42,5 +45,27 @@ describe('SkinIntroNotice', () => {
     await user.click(screen.getByRole('button', { name: 'uiSkinIntroAction' }));
     expect(navigationService.navigateTo).toHaveBeenCalledWith('main-panel', '/settings');
     expect(getMemoryValue(UI_SKIN_INTRO_SEEN_KEY)).toBe(true);
+  });
+
+  test('an agent can find both actions and dismiss the notice', async () => {
+    render(<SkinIntroNotice />);
+
+    const components = agent
+      .snapshot()
+      .filter((entry) => !entry.offPage && entry.component !== 'more');
+    for (const entry of components) {
+      expect(entry.label, `${entry.component} ${entry.ref} has no name`).toBeTruthy();
+    }
+    const labels = components.map((entry) => entry.label);
+    for (const label of ['uiSkinIntroAction', 'uiSkinIntroDismiss']) {
+      expect(labels, `${label} is missing from the snapshot`).toContain(label);
+    }
+
+    const result = await agent.act({
+      steps: [{ ref: 'uiSkinIntroDismiss', action: 'press' }],
+    });
+    expect(result.ok, result.error?.message).toBe(true);
+    expect(getMemoryValue(UI_SKIN_INTRO_SEEN_KEY)).toBe(true);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

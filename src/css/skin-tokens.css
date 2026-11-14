@@ -13,7 +13,6 @@ html[data-xh-skin] {
   --xh-stagger: 40ms;
 }
 
-/* 柔光 */
 html[data-xh-skin='soft'] {
   --xh-rise: 10px;
   --xh-radius-panel: 24px;
@@ -66,7 +65,6 @@ html[data-xh-skin='soft'][data-xh-theme='dark'] {
   --xh-shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.7);
 }
 
-/* 黑曜 */
 html[data-xh-skin='obsidian'] {
   --xh-d-sm: 200ms;
   --xh-d-md: 280ms;
