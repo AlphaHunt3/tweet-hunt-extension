@@ -11,7 +11,6 @@ import { MBTISection } from '~/compontents/MBTISection.tsx';
 import { DiscussionSection } from '~/compontents/DiscussionSection.tsx';
 import {
   MBTIData,
-  MultiFieldData,
   MultiFieldItem,
   SoulDensityData,
 } from '~types';
@@ -41,9 +40,13 @@ import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { EditedTweetsSection } from '~compontents/EditedTweetsSection';
 import { useEditedTweets } from '~contents/hooks/useEditedTweets';
+import {
+  AI_ABILITY_MIN_SCORE,
+  getAbilityModelData,
+  type AbilityModelData,
+} from '~/utils/abilityModel';
 
 type DomainType = 'web3' | 'ai';
-const AI_ABILITY_MIN_SCORE = 70;
 const ABILITY_MODEL_MIN_DISPLAY_COUNT = 1;
 const ABILITY_MODEL_MIN_RADAR_COUNT = 3;
 
@@ -66,50 +69,6 @@ type NameRightDataProps = Pick<
   | 'projectMemberData'
   | 'loadingProjectMember'
 >;
-
-interface AbilityModelData {
-  abilities: MultiFieldItem[];
-  summary: string;
-  updateTime?: string | number | null;
-}
-
-function getAbilityModelData(
-  multiField: MultiFieldData | null | undefined,
-  lang: string,
-  minScore?: number,
-): AbilityModelData {
-  try {
-    if (!multiField) return { abilities: [], summary: '', updateTime: null };
-
-    const languageFields = lang === 'zh' ? multiField.cn : multiField.en;
-    if (!languageFields?.fields || !Array.isArray(languageFields.fields)) {
-      return {
-        abilities: [],
-        summary: '',
-        updateTime:
-          multiField.update ?? multiField.updateDate ?? multiField.updatedAt ?? null,
-      };
-    }
-
-    const abilities =
-      typeof minScore === 'number'
-        ? languageFields.fields.filter((item) => {
-          const key = Object.keys(item)[0];
-          const score = Number(item?.[key]);
-          return Number.isFinite(score) && score >= minScore;
-        })
-        : languageFields.fields;
-
-    return {
-      abilities,
-      summary: languageFields.summary || '',
-      updateTime:
-        multiField.update ?? multiField.updateDate ?? multiField.updatedAt ?? null,
-    };
-  } catch {
-    return { abilities: [], summary: '', updateTime: null };
-  }
-}
 
 function hasDisplayableAbilityData(data: AbilityModelData) {
   return data.abilities.length >= ABILITY_MODEL_MIN_DISPLAY_COUNT;
