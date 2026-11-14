@@ -640,6 +640,101 @@
     background: var(--xh-accent);
   }
 
+  .xh-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--xh-line);
+    border-radius: 9px;
+    background: var(--xh-surface);
+    color: var(--xh-fg);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-select:hover,
+  .xh-select[data-open] {
+    border-color: var(--xh-line-2);
+  }
+  .xh-select-chevron {
+    color: var(--xh-fg-3);
+    transition: rotate var(--xh-d-sm) var(--xh-ease-out);
+  }
+  .xh-select[data-open] .xh-select-chevron {
+    rotate: 180deg;
+  }
+  .xh-select-content {
+    min-width: var(--anchor-width);
+    max-height: min(280px, var(--available-height));
+    overflow-y: auto;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--xh-surface);
+    box-shadow: var(--xh-shadow-pop);
+    color: var(--xh-fg);
+    font-family: var(--xh-font-ui);
+    font-size: 12.5px;
+    transition:
+      opacity var(--xh-d-xs) var(--xh-ease-out),
+      translate var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-select-content[data-starting-style],
+  .xh-select-content[data-ending-style] {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+  .xh-select-item {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .xh-select-item[data-highlighted] {
+    background: var(--xh-hover);
+  }
+  .xh-select-item[data-selected] {
+    color: var(--xh-accent-fg);
+    font-weight: 600;
+  }
+  [data-skin='obsidian'] .xh-select {
+    height: 26px;
+    padding: 0 6px 0 9px;
+    border-color: transparent;
+    border-radius: 7px;
+    background: var(--xh-raised);
+    box-shadow: inset 0 0 0 1px var(--xh-line);
+    font-size: 11.5px;
+  }
+  [data-skin='obsidian'] .xh-select-content {
+    border-radius: 10px;
+  }
+  [data-skin='native'] .xh-select {
+    height: 32px;
+    padding: 0 10px 0 14px;
+    border-color: var(--xh-line-2);
+    border-radius: 9999px;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  [data-skin='native'] .xh-select-content {
+    padding: 0;
+    border-radius: 12px;
+  }
+  [data-skin='native'] .xh-select-item {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 0;
+    font-size: 15px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .xh-seg-indicator,
     .xh-tabs-indicator,
