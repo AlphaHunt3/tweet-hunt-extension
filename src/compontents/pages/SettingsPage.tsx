@@ -74,7 +74,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const web3SettingsRef = useRef<HTMLDivElement>(null);
   const aiSettingsRef = useRef<HTMLDivElement>(null);
 
-  const scrollToSettings = (ref: React.RefObject<HTMLDivElement>) => {
+  const scrollToSettings = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (ref.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

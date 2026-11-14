@@ -65,7 +65,7 @@ export default function SocialCircleDialog({
   data: KolInteractionsData;
   t: Translate;
   lang: string;
-  triggerRef: React.RefObject<HTMLButtonElement>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
   const [theme] = useLocalStorage<'light' | 'dark'>('@xhunt/theme', 'dark');

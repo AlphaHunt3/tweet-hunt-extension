@@ -13,7 +13,7 @@ const BLOCKED_SHORTCUTS = new Set([
  * @param isComposingRef - 是否处于输入法状态的 ref
  */
 export function useInterceptShortcuts(
-  inputRef: React.RefObject<HTMLElement | HTMLTextAreaElement | HTMLInputElement>,
+  inputRef: React.RefObject<HTMLElement | HTMLTextAreaElement | HTMLInputElement | null>,
   isComposingRef: React.RefObject<boolean>
 ) {
   useEffect(() => {

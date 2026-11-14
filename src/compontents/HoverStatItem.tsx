@@ -163,10 +163,12 @@ export function HoverStatItem({
   const [isHovered, setIsHovered] = useState(false);
   const [isPanelMounted, setIsPanelMounted] = useState(false);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-  const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
-  const showTimer = useRef<ReturnType<typeof setTimeout>>();
-  const panelUnmountTimer = useRef<ReturnType<typeof setTimeout>>();
-  const panelOpenFrame = useRef<number>();
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const panelUnmountTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const panelOpenFrame = useRef<number | undefined>(undefined);
   const isOpeningPanelRef = useRef(false);
   const hasAutoScrolledDownRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);

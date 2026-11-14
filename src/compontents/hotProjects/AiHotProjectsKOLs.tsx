@@ -140,7 +140,7 @@ export function AiHotProjectsKOLs({ className = '' }: AiHotProjectsKOLsProps) {
 
     const isPointInside = (
       event: PointerEvent,
-      refs: React.RefObject<HTMLDivElement>[],
+      refs: React.RefObject<HTMLDivElement | null>[],
     ) => refs.some((ref) => {
       const rect = ref.current?.getBoundingClientRect();
       if (!rect) return false;

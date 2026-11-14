@@ -60,7 +60,7 @@ function _FixedTwitterPanel({
     Math.max(300, Number(isPanelWidthLoading ? 340 : panelWidth) || 340),
   );
   const [isFocused, setIsFocused] = useState(false);
-  const blurTimer = useRef<ReturnType<typeof setTimeout>>();
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isMinimized, setIsMinimized] = useLocalStorage<boolean>(
     '@xhunt/panelMinimized',
     false,

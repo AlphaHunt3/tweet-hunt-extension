@@ -247,7 +247,8 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
 
     return (
       <Draggable
-        nodeRef={nodeRef}
+        // react-draggable 4.4 的类型还不接受 React 19 的 RefObject<T | null>
+        nodeRef={nodeRef as React.RefObject<HTMLElement>}
         position={position}
         onDrag={handleDrag}
         onStop={handleDragStop}
