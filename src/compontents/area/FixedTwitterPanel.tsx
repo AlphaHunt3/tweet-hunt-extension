@@ -13,6 +13,7 @@ import { PanelContextProvider } from '~/compontents/navigation/PanelContext';
 import { useDebounce } from 'ahooks';
 import iconUrl from 'url:~/assets/icon-min.png';
 import avatarCssText from 'data-text:~/css/avatar-rank.css';
+import { SkinIntroNotice } from '~/ui/skin/SkinIntroNotice';
 
 type FixedTwitterPanelProps = Pick<
   MainData,
@@ -241,6 +242,7 @@ function _FixedTwitterPanel({
               maxHeight: 'calc(90vh - 32px)',
             }}
           >
+            <SkinIntroNotice />
             {/* Navigation System with Panel Context - 始终保持挂载以保留状态 */}
             <PanelContextProvider onMinimize={() => setIsMinimized(true)}>
               <PanelNavigator
