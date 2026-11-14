@@ -1,0 +1,64 @@
+/* 基础组件：按 xh-* 类名和 ui-sdk 状态属性写；包在图层里，组件上另加的 Tailwind 类总能覆盖 */
+@layer xh-primitives {
+  .xh-btn:focus-visible,
+  .xh-iconbtn:focus-visible,
+  .xh-switch:focus-visible,
+  .xh-select:focus-visible,
+  .xh-collapsible-trigger:focus-visible {
+    outline: 2px solid var(--xh-accent-fg);
+    outline-offset: 2px;
+  }
+
+  .xh-seg-item:focus-visible,
+  .xh-tabs-tab:focus-visible {
+    outline: 2px solid var(--xh-accent-fg);
+    outline-offset: -2px;
+  }
+
+  .xh-rise {
+    animation: xh-rise var(--xh-d-lg) var(--xh-ease-out) both;
+    animation-delay: calc(var(--xh-i, 0) * 40ms);
+  }
+
+  @keyframes xh-rise {
+    from {
+      opacity: 0;
+      transform: translateY(var(--xh-rise));
+      filter: blur(var(--xh-blur-in));
+    }
+  }
+
+  @keyframes xh-badge {
+    0% {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.12);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes xh-grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  @keyframes xh-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .xh-seg-indicator,
+    .xh-tabs-indicator,
+    .xh-switch-thumb {
+      transition-duration: 1ms;
+    }
+  }
+}

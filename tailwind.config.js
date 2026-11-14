@@ -45,6 +45,8 @@ module.exports = {
           'down-bg': 'var(--xh-down-bg)',
           warn: 'var(--xh-warn)',
           'warn-bg': 'var(--xh-warn-bg)',
+          hover: 'var(--xh-hover)',
+          'line-2': 'var(--xh-line-2)',
         },
       },
       borderRadius: {
@@ -55,6 +57,7 @@ module.exports = {
       boxShadow: {
         'xh-panel': 'var(--xh-shadow-panel)',
         'xh-pop': 'var(--xh-shadow-pop)',
+        'xh-card': 'var(--xh-shadow-card)',
       },
       fontFamily: {
         'xh-ui': 'var(--xh-font-ui)',

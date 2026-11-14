@@ -60,10 +60,10 @@
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
-const css = readFileSync(fileURLToPath(new URL('../../css/skin-tokens.css', import.meta.url)), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/css/skin-tokens.css'), 'utf8');
 
 const BLOCKS = [
   "html[data-xh-skin='soft'][data-xh-theme='light']",

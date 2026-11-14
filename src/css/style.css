@@ -1,4 +1,5 @@
-@layer ui-sdk;
+@layer ui-sdk, xh-primitives;
+@import './primitives.css';
 
 @layer ui-sdk {
   :where([data-slot][hidden]:not([hidden='until-found'])) {
