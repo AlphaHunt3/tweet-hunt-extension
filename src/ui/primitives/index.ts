@@ -1,6 +1,6 @@
 export { Avatar, avatarColor, initials } from './Avatar';
 export { Badge, Tag, type BadgeTone } from './Badge';
-export { Button, IconButton, type ButtonVariant } from './Button';
+export { Button, IconButton, RowButton, type ButtonVariant } from './Button';
 export { CollapsibleSection } from './CollapsibleSection';
 export { cx } from './cx';
 export { Meter } from './Meter';

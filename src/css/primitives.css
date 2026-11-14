@@ -4,13 +4,15 @@
   .xh-iconbtn:focus-visible,
   .xh-switch:focus-visible,
   .xh-select:focus-visible,
-  .xh-collapsible-trigger:focus-visible {
+  .xh-collapsible-trigger:focus-visible,
+  .xh-link:focus-visible {
     outline: 2px solid var(--xh-accent-fg);
     outline-offset: 2px;
   }
 
   .xh-seg-item:focus-visible,
-  .xh-tabs-tab:focus-visible {
+  .xh-tabs-tab:focus-visible,
+  .xh-rowbtn:focus-visible {
     outline: 2px solid var(--xh-accent-fg);
     outline-offset: -2px;
   }
@@ -52,6 +54,13 @@
     50% {
       opacity: 0.55;
     }
+  }
+
+  .xh-skeleton {
+    display: block;
+    border-radius: 10px;
+    background: var(--xh-sunken);
+    animation: xh-pulse 1s var(--xh-ease-std) infinite;
   }
 
   .xh-btn {
@@ -235,6 +244,36 @@
     box-shadow: 0 0 0 2px var(--xh-canvas);
     animation: xh-badge var(--xh-d-xl) var(--xh-ease-pop) both;
   }
+  .xh-rowbtn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-rowbtn:hover {
+    background: var(--xh-hover);
+  }
+
+  .xh-link {
+    border-radius: 4px;
+    color: inherit;
+    text-decoration: none;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  .xh-link:hover {
+    text-decoration: underline;
+  }
+
   [data-skin='obsidian'] .xh-iconbtn {
     border-radius: 9px;
   }
@@ -473,6 +512,48 @@
     height: 28px;
   }
 
+  .xh-seg[data-variant='tiles'] {
+    gap: 6px;
+    padding: 0;
+    background: transparent;
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-indicator {
+    display: none;
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    height: auto;
+    padding: 7px 9px;
+    border-radius: 12px;
+    background: var(--xh-canvas);
+    font-size: 11px;
+    font-weight: 400;
+    text-align: start;
+    transition:
+      background-color var(--xh-d-xs) var(--xh-ease-out),
+      box-shadow var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-item:hover {
+    background: var(--xh-hover);
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-item b {
+    color: var(--xh-fg);
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-item[data-checked] {
+    background: var(--xh-accent-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--xh-accent) 40%, transparent);
+    color: var(--xh-accent-fg);
+  }
+  .xh-seg[data-variant='tiles'] .xh-seg-item[data-checked] b {
+    color: var(--xh-accent-fg);
+  }
+
   .xh-tabs-list {
     position: relative;
     display: flex;
@@ -706,6 +787,9 @@
   .xh-select-item[data-selected] {
     color: var(--xh-accent-fg);
     font-weight: 600;
+  }
+  .xh-select-item[data-destructive] {
+    color: var(--xh-down);
   }
   [data-skin='obsidian'] .xh-select {
     height: 26px;
@@ -1042,6 +1126,9 @@
     .xh-tabs-indicator,
     .xh-switch-thumb {
       transition-duration: 1ms;
+    }
+    .xh-skeleton {
+      animation: none;
     }
   }
 }

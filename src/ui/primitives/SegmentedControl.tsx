@@ -19,6 +19,7 @@ export interface SegmentedControlProps<T extends string> {
   options: readonly SegmentedOption<T>[];
   'aria-label': string;
   size?: 'md' | 'sm';
+  variant?: 'default' | 'tiles';
   block?: boolean;
   disabled?: boolean;
   className?: string;
@@ -29,6 +30,7 @@ export function SegmentedControl<T extends string>({
   onValueChange,
   options,
   size = 'md',
+  variant = 'default',
   block = false,
   disabled,
   className,
@@ -44,6 +46,7 @@ export function SegmentedControl<T extends string>({
       aria-label={rest['aria-label']}
       className={cx('xh-seg', className)}
       data-size={size}
+      data-variant={variant}
       data-block={block ? '' : undefined}
     >
       <SegmentedControlIndicator className='xh-seg-indicator' />

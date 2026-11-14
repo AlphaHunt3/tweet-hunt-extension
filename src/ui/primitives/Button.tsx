@@ -31,6 +31,14 @@ export function Button({
   );
 }
 
+export interface RowButtonProps extends UiButtonProps {
+  className?: string;
+}
+
+export function RowButton({ className, ...props }: RowButtonProps) {
+  return <UiButton {...props} className={cx('xh-rowbtn', className)} />;
+}
+
 export interface IconButtonProps extends Omit<UiButtonProps, 'children' | 'aria-label'> {
   label: string;
   children: ReactNode;
