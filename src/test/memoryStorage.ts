@@ -31,6 +31,12 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     };
   }, [key]);
 
-  const set = useCallback((next: T) => setMemoryValue(key, next), [key]);
+  const set = useCallback(
+    (next: T | ((previous: T) => T)) => {
+      const previous = (store.has(key) ? store.get(key) : initialValue) as T;
+      setMemoryValue(key, typeof next === 'function' ? (next as (previous: T) => T)(previous) : next);
+    },
+    [key, initialValue],
+  );
   return [value, set, { isLoading: false }] as const;
 }
