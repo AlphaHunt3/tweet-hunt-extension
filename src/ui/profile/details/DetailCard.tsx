@@ -3,7 +3,8 @@ import { useI18n } from '~contents/hooks/i18n';
 import { cx } from '~/ui/primitives/cx';
 
 export interface DetailCardProps {
-  title: ReactNode;
+  title?: ReactNode;
+  header?: ReactNode;
   subtitle?: ReactNode;
   icon?: ReactNode;
   avatar?: ReactNode;
@@ -18,6 +19,7 @@ export interface DetailCardProps {
 
 export function DetailCard({
   title,
+  header,
   subtitle,
   icon,
   avatar,
@@ -30,32 +32,50 @@ export function DetailCard({
   children,
 }: DetailCardProps) {
   return (
-    <div className={cx('xh-dcard', className)} data-size={size} data-xhunt-testid={testId}>
+    <div
+      className={cx('xh-dcard', className)}
+      data-size={size}
+      data-xhunt-testid={testId}
+    >
       <div className='xh-dcard-head'>
-        {avatar}
-        {icon ? (
-          <span className='xh-dcard-icon' aria-hidden='true'>
-            {icon}
-          </span>
-        ) : null}
-        <div className='xh-dcard-titles'>
-          <p className='xh-dcard-title'>{title}</p>
-          {subtitle ? <p className='xh-dcard-sub'>{subtitle}</p> : null}
-        </div>
-        {aside ? <div className='xh-dcard-aside'>{aside}</div> : null}
+        {header ?? (
+          <>
+            {avatar}
+            {icon ? (
+              <span className='xh-dcard-icon' aria-hidden='true'>
+                {icon}
+              </span>
+            ) : null}
+            <div className='xh-dcard-titles'>
+              <p className='xh-dcard-title'>{title}</p>
+              {subtitle ? <p className='xh-dcard-sub'>{subtitle}</p> : null}
+            </div>
+            {aside ? <div className='xh-dcard-aside'>{aside}</div> : null}
+          </>
+        )}
       </div>
       {children ? <div className='xh-dcard-body'>{children}</div> : null}
       {footer || footerEnd ? (
         <div className='xh-dcard-foot'>
           {footer ? <span>{footer}</span> : null}
-          {footerEnd ? <span className='xh-dcard-foot-end'>{footerEnd}</span> : null}
+          {footerEnd ? (
+            <span className='xh-dcard-foot-end'>{footerEnd}</span>
+          ) : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-export function DetailSection({ title, className, children }: { title?: ReactNode; className?: string; children: ReactNode }) {
+export function DetailSection({
+  title,
+  className,
+  children,
+}: {
+  title?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <section className={cx('xh-dsec', className)}>
       {title ? <p className='xh-dsec-title'>{title}</p> : null}
@@ -64,7 +84,13 @@ export function DetailSection({ title, className, children }: { title?: ReactNod
   );
 }
 
-export function DetailNote({ label, children }: { label?: ReactNode; children: ReactNode }) {
+export function DetailNote({
+  label,
+  children,
+}: {
+  label?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <p className='xh-dnote'>
       {label ? <b className='xh-dnote-label'>{label}</b> : null}

@@ -137,6 +137,7 @@
 
   .xh-dsplit {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 10px;
   }
@@ -231,6 +232,43 @@
     font-weight: 500;
     letter-spacing: 0;
   }
+  .xh-dscore-label,
+  .xh-dscore {
+    margin: 0;
+  }
+  .xh-dscore-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .xh-dpill {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 6px;
+    background: var(--xh-sunken);
+    color: var(--xh-fg-2);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .xh-dpill[data-tone='up'] {
+    background: var(--xh-up-bg);
+    color: var(--xh-up);
+  }
+  .xh-dpill[data-tone='warn'] {
+    background: var(--xh-warn-bg);
+    color: var(--xh-warn);
+  }
+  .xh-dpill[data-tone='down'] {
+    background: var(--xh-down-bg);
+    color: var(--xh-down);
+  }
+  [data-skin='native'] .xh-soul .xh-dcard-head {
+    align-items: flex-start;
+    padding-top: 16px;
+  }
 
   .xh-kv {
     display: flex;
@@ -316,8 +354,6 @@
     box-shadow: inset 0 0 0 1px var(--xh-line);
   }
   [data-skin='obsidian'] .xh-dcard-foot {
-    color: var(--xh-fg-3);
-    font-family: var(--xh-font-mono);
     font-size: 10.5px;
   }
   [data-skin='obsidian'] .xh-dnote {
@@ -344,7 +380,6 @@
     fill: var(--xh-canvas);
   }
   [data-skin='obsidian'] .xh-radar-label {
-    fill: var(--xh-fg-3);
     font-weight: 500;
   }
   [data-skin='obsidian'] .xh-dscore {

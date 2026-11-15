@@ -3,21 +3,9 @@ import { useEffect, useState } from 'react';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import { useI18n } from '~contents/hooks/i18n';
 import { getUserNote, saveUserNote } from '~contents/services/notes.ts';
+import { readProfileIdentity } from './profileIdentity';
 
 export const NOTE_MAX_LENGTH = 30;
-
-function readProfileIdentity() {
-  const avatarImg = document.querySelector(
-    'main [data-testid*="UserAvatar-Container"] img',
-  ) as HTMLImageElement | null;
-  const nameText = document.querySelector("main [data-testid='UserName']")?.textContent || '@';
-  const [displayName] = nameText.split('@');
-  return {
-    avatar: avatarImg?.src || '',
-    displayName: displayName.trim(),
-    xLink: window.location.origin + window.location.pathname,
-  };
-}
 
 export function useProfileNote({
   handle,

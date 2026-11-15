@@ -1242,5 +1242,20 @@
   "rankDomainLabel": "Ranking domain",
   "reviewMoreTags": "+{count}",
   "detailUpdated": "Updated {date}",
-  "forReferenceOnly": "For reference only"
+  "forReferenceOnly": "For reference only",
+  "soulLevelExcellent": "Excellent",
+  "soulLevelGood": "Good",
+  "soulLevelLow": "Low",
+  "soulAxisAccount": "Account",
+  "soulAxisContent": "Content",
+  "soulAxisEngagement": "Engage",
+  "soulAxisRank": "Rank",
+  "soulAxisKol": "KOL",
+  "soulRadarAccount": "Account",
+  "soulRadarContent": "Content",
+  "soulRadarEngagement": "Engage",
+  "soulRadarRank": "Rank",
+  "soulRadarKol": "KOL",
+  "soulRadarLabel": "Soul index radar",
+  "soulCardBasis": "90 days · up to 100 original posts"
 }

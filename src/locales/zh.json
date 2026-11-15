@@ -1245,5 +1245,20 @@
   "kolCnRankTotal": "10000",
   "kolProjectRankTotal": "10000",
   "detailUpdated": "{date} 更新",
-  "forReferenceOnly": "仅供参考"
+  "forReferenceOnly": "仅供参考",
+  "soulLevelExcellent": "优秀",
+  "soulLevelGood": "良好",
+  "soulLevelLow": "偏低",
+  "soulAxisAccount": "账户",
+  "soulAxisContent": "内容",
+  "soulAxisEngagement": "互动数据",
+  "soulAxisRank": "XHunt 排名",
+  "soulAxisKol": "KOL 互动",
+  "soulRadarAccount": "账户",
+  "soulRadarContent": "内容",
+  "soulRadarEngagement": "互动",
+  "soulRadarRank": "排名",
+  "soulRadarKol": "KOL",
+  "soulRadarLabel": "灵魂指数五维雷达",
+  "soulCardBasis": "近 90 天 · 最多 100 条原创"
 }

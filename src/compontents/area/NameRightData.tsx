@@ -26,8 +26,8 @@ import { NarrativeLine } from '~/ui/profile/NarrativeLine';
 import { ProfileInsights } from '~/ui/profile/ProfileInsights';
 import { ProfileTagline } from '~/ui/profile/ProfileTagline';
 import { SkinScope } from '~/ui/skin/SkinScope';
-import SoulDensity from '~/compontents/SoulDensity.tsx';
 import { getSoulInfo } from '~contents/services/api.ts';
+import { SoulCard } from '~/ui/profile/details/SoulCard';
 import { useRequest } from 'ahooks';
 import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
@@ -629,14 +629,7 @@ function _NameRightData({
   const renderDetail = (key: InsightKey): React.ReactNode => {
     switch (key) {
       case 'soul':
-        return (
-          <SoulDensity
-            data={soulData}
-            userId={userId}
-            newTwitterData={newTwitterData}
-            loadingTwInfo={loadingTwInfo}
-          />
-        );
+        return soulData ? <SoulCard data={soulData} handle={userId} /> : null;
       case 'mbti':
         return <MBTISection data={mbti!} isHoverPanel={true} />;
       case 'ability':
