@@ -41,7 +41,9 @@ export function Avatar({ name, src, size = 'lg', className }: AvatarProps) {
       style={{ '--xh-av': avatarColor(name) } as CSSProperties}
     >
       {src ? <AvatarImage src={src} alt='' className='xh-avatar-img' /> : null}
-      <AvatarFallback className='xh-avatar-fallback'>{initials(name)}</AvatarFallback>
+      <AvatarFallback aria-hidden className='xh-avatar-fallback'>
+        {initials(name)}
+      </AvatarFallback>
     </UiAvatar>
   );
 }
