@@ -123,3 +123,20 @@ export const InfoIcon = makeIcon(
     <path d='M12 11v5M12 8h.01' />
   </>,
 );
+export const TagIcon = makeIcon(
+  <>
+    <path d='M4 4h7l9 9-7 7-9-9V4Z' />
+    <circle cx='8.5' cy='8.5' r='1.2' />
+  </>,
+);
+export const PlusIcon = makeIcon(<path d='M12 5v14M5 12h14' />);
+export const NoteIcon = makeIcon(
+  <>
+    <path d='M5 4h14v11l-5 5H5V4Z' />
+    <path d='M14 20v-5h5' />
+  </>,
+);
+export const XLogoIcon = makeIcon(
+  <path d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' />,
+  true,
+);

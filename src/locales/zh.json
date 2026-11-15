@@ -1214,5 +1214,11 @@
   "settingsReloadOnOff": "关闭后会刷新页面",
   "settingsReloadOnChange": "切换后会刷新页面",
   "settingsRemoveItem": "移除 {item}",
-  "settingsAddTo": "添加到{list}"
+  "settingsAddTo": "添加到{list}",
+  "profileNoteAdd": "添加备注",
+  "profileNoteEditLabel": "编辑备注",
+  "profileNoteEditorTitle": "备注 · 仅自己可见",
+  "profileLoginWithX": "用 X 登录",
+  "profileTagsLabel": "XHunt 标签",
+  "aiNarrative": "AI 叙事"
 }

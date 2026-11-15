@@ -1213,5 +1213,11 @@
   "settingsReloadOnOff": "Turning it off reloads the page",
   "settingsReloadOnChange": "Changing it reloads the page",
   "settingsRemoveItem": "Remove {item}",
-  "settingsAddTo": "Add to {list}"
+  "settingsAddTo": "Add to {list}",
+  "profileNoteAdd": "Add note",
+  "profileNoteEditLabel": "Edit note",
+  "profileNoteEditorTitle": "Note · only visible to you",
+  "profileLoginWithX": "Log in with X",
+  "profileTagsLabel": "XHunt tags",
+  "aiNarrative": "AI narrative"
 }
