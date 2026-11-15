@@ -57,6 +57,10 @@ export const MOCK_TW_INFO = {
       explanation: 'Rational and independent, prefers long-term frameworks over short-term noise.',
     },
   },
+  narrative: {
+    cn: '长期跟踪再质押与链上收益策略，近 30 天重点讨论 Solana 生态 DEX 与 AI Agent 结合的机会。',
+    en: 'Tracks restaking and on-chain yield strategies; lately focused on Solana DEXs and AI agents.',
+  },
 };
 
 export const MOCK_ROOT_DATA = null;

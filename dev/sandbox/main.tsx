@@ -12,6 +12,7 @@ import type { XPalette } from '~/ui/skin/xPalette';
 import { Gallery } from './Gallery';
 import { MOCK_USER } from './mocks/fixtures';
 import { PanelDemo } from './PanelDemo';
+import { ProfileDemo } from './ProfileDemo';
 
 const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' }> = {
   default: { bg: '#ffffff', fg: '#0f1419', theme: 'light' },
@@ -21,7 +22,7 @@ const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' 
 
 const SWATCHES = ['canvas', 'raised', 'surface', 'sunken', 'line', 'fg', 'fg-2', 'fg-3', 'accent', 'accent-soft', 'up', 'down', 'warn'];
 
-type View = 'panel' | 'gallery';
+type View = 'panel' | 'gallery' | 'profile';
 
 function useShadowMount() {
   const [mount, setMount] = useState<HTMLElement | null>(null);
@@ -59,9 +60,9 @@ function App() {
   return (
     <>
       <div className="bar">
-        {(['panel', 'gallery'] as View[]).map((v) => (
+        {(['panel', 'profile', 'gallery'] as View[]).map((v) => (
           <button key={v} type="button" aria-pressed={v === view} onClick={() => setView(v)}>
-            {v === 'panel' ? '面板' : '组件'}
+            {v === 'panel' ? '面板' : v === 'profile' ? '资料页' : '组件'}
           </button>
         ))}
         {(['soft', 'obsidian', 'native'] as const).map((s) => (
@@ -76,11 +77,13 @@ function App() {
         ))}
       </div>
       <div id="stage">
+        {/* 资料页组件要在主文档里找 X 的节点，不能放进沙盒自己的 Shadow Root */}
+        {view === 'profile' && <ProfileDemo palette={palette} />}
         <div id="shadow-host" />
       </div>
       {mount &&
         createPortal(
-          view === 'panel' ? (
+          view === 'profile' ? null : view === 'panel' ? (
             <div data-theme={host.theme} data-skin={skin}>
               <PanelDemo />
             </div>

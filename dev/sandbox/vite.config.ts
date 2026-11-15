@@ -31,12 +31,13 @@ export default defineConfig({
       enforce: 'pre',
       async resolveId(id, importer) {
         if (!importer || importer.includes('/dev/sandbox/mocks/')) return null;
-        if (!/services\/(api|review)|nacosCacheManager/.test(id)) return null;
+        if (!/services\/(api|review|notes)|nacosCacheManager/.test(id)) return null;
         const resolved = await this.resolve(id, importer, { skipSelf: true });
         if (!resolved) return null;
         const mocks: Record<string, string> = {
           'src/contents/services/api.ts': 'mocks/api.ts',
           'src/contents/services/review.ts': 'mocks/review.ts',
+          'src/contents/services/notes.ts': 'mocks/notes.ts',
           'src/utils/nacosCacheManager.ts': 'mocks/nacos.ts',
         };
         const hit = Object.keys(mocks).find((real) => resolved.id.endsWith(real));
