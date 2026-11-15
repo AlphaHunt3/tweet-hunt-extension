@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
-import { TokenPerformanceSection } from '~/compontents/TokenPerformanceSection.tsx';
+import { TokenMentionsCard, TokenReturnCard } from '~/ui/profile/details/TokenCards';
 import { renderInvestorList } from '~/compontents/InvestmentPanel.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { DiscussionCard, MbtiCard, RenameCard } from '~/ui/profile/details/TextCards';
@@ -287,23 +287,9 @@ function _NameRightData({
           />
         );
       case 'return90':
-        return (
-          <TokenPerformanceSection
-            isHoverPanel={true}
-            kolData={twInfo}
-            defaultPeriod={'day90'}
-            mode={'Metrics'}
-          />
-        );
+        return <TokenReturnCard period={twInfo?.kolTokenMention?.day90} />;
       case 'mentions90':
-        return (
-          <TokenPerformanceSection
-            isHoverPanel={true}
-            kolData={twInfo}
-            defaultPeriod={'day90'}
-            mode={'WordCloud'}
-          />
-        );
+        return <TokenMentionsCard period={twInfo?.kolTokenMention?.day90} />;
       case 'deleted':
         return (
           <ProRequired enableAnimation={false} showExtraTitle={true}>

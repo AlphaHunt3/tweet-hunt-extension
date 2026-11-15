@@ -70,6 +70,11 @@ export const MOCK_TW_INFO = {
         (symbol, index) => ({ symbol, mentionCount: 30 - index }),
       ),
       maxProfitAvg: 0.352,
+      maxProfitAvgPct: 0.12,
+      winRate: 0.62,
+      winRatePct: 0.05,
+      nowProfitAvg: -0.041,
+      nowProfitAvgPct: 0.31,
     },
   },
   narrative: {

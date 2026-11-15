@@ -1270,5 +1270,11 @@
   "rankChange7d": "7-day change",
   "rankChange30d": "30-day change",
   "renameTimes": "Renamed {count} times",
-  "currentName": "Current"
+  "currentName": "Current",
+  "tokenWinRate": "Win rate",
+  "tokenAvgMaxProfit": "Avg max profit",
+  "tokenAvgNowProfit": "Avg current profit",
+  "tokenTopPct": "Top {pct}",
+  "tokenReturnBasis": "Based on tokens mentioned in the last 90 days",
+  "tokenCount": "{count} tokens"
 }

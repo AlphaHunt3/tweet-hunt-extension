@@ -708,3 +708,15 @@
     line-height: 1.4;
   }
 }
+
+@layer xh-primitives {
+  .xh-dscore[data-tone='up'] {
+    color: var(--xh-up);
+  }
+  .xh-dscore[data-tone='down'] {
+    color: var(--xh-down);
+  }
+  .xh-dcard.xh-token-return {
+    width: 320px;
+  }
+}
