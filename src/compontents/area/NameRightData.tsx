@@ -4,9 +4,7 @@ import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
 import { TokenPerformanceSection } from '~/compontents/TokenPerformanceSection.tsx';
 import { renderInvestorList } from '~/compontents/InvestmentPanel.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import { NameHistorySection } from '~/compontents/NameHistorySection.tsx';
-import { MBTISection } from '~/compontents/MBTISection.tsx';
-import { DiscussionPanel } from '~/compontents/DiscussionPanel.tsx';
+import { DiscussionCard, MbtiCard, RenameCard } from '~/ui/profile/details/TextCards';
 import {
   MBTIData,
   SoulDensityData,
@@ -277,7 +275,7 @@ function _NameRightData({
       case 'soul':
         return soulData ? <SoulCard data={soulData} handle={userId} /> : null;
       case 'mbti':
-        return <MBTISection data={mbti!} isHoverPanel={true} />;
+        return <MbtiCard data={mbti} />;
       case 'ability':
         return (
           <AbilityCard
@@ -332,9 +330,7 @@ function _NameRightData({
           />
         );
       case 'renamed':
-        return renameInfo?.accounts?.[0] ? (
-          <NameHistorySection data={renameInfo.accounts[0]} />
-        ) : null;
+        return <RenameCard data={renameInfo?.accounts?.[0]} handle={userId} />;
       case 'members':
         return (
           <ProjectMembersSection data={projectMemberData} isHoverPanel={true} />
@@ -357,7 +353,7 @@ function _NameRightData({
         );
       case 'discussion1d':
         return (
-          <DiscussionPanel
+          <DiscussionCard
             data={discussionData}
             period='1d'
             loading={loadingDiscussionInfo}
@@ -365,7 +361,7 @@ function _NameRightData({
         );
       case 'discussion7d':
         return (
-          <DiscussionPanel
+          <DiscussionCard
             data={discussionData}
             period='7d'
             loading={loadingDiscussionInfo}

@@ -1268,5 +1268,7 @@
   "rankUnranked": "Not ranked",
   "rankChange1d": "1-day change",
   "rankChange7d": "7-day change",
-  "rankChange30d": "30-day change"
+  "rankChange30d": "30-day change",
+  "renameTimes": "Renamed {count} times",
+  "currentName": "Current"
 }

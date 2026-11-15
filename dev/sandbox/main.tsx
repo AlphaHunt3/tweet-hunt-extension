@@ -44,7 +44,8 @@ function useShadowMount() {
 function App() {
   const { skin, setSkin } = useUiSkin();
   const [palette, setPalette] = useState<XPalette>('dim');
-  const [view, setView] = useState<View>('panel');
+  const params = new URLSearchParams(location.search);
+  const [view, setView] = useState<View>((params.get('view') as View) || 'panel');
   const mount = useShadowMount();
   const host = HOSTS[palette];
   // 扩展里由 useThemeWatcher 跟随 X 的明暗写入，沙盒跟随所选背景
@@ -73,6 +74,17 @@ function App() {
             {v === 'panel' ? '面板' : v === 'profile' ? '资料页' : '组件'}
           </button>
         ))}
+        {view === 'profile' && (
+          <button
+            type="button"
+            aria-pressed={params.get('kind') === 'project'}
+            onClick={() => {
+              location.search = params.get('kind') === 'project' ? '?view=profile' : '?view=profile&kind=project';
+            }}
+          >
+            项目资料
+          </button>
+        )}
         {(['soft', 'obsidian', 'native'] as const).map((s) => (
           <button key={s} type="button" aria-pressed={s === skin} onClick={() => setSkin(s)}>
             风格：{s}

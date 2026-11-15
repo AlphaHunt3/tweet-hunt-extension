@@ -5,7 +5,18 @@ import { KolAiChatButton } from '~compontents/area/KolAiChatButton';
 import { NameRightData } from '~compontents/area/NameRightData';
 import SocialCircleFeature from '~compontents/SocialCircle/SocialCircleFeature';
 import type { XPalette } from '~/ui/skin/xPalette';
-import { MOCK_DELETED_TWEETS, MOCK_RENAME_INFO, MOCK_REVIEW_INFO, MOCK_TW_INFO } from './mocks/fixtures';
+import {
+  MOCK_DELETED_TWEETS,
+  MOCK_DISCUSSION,
+  MOCK_PROJECT_TW_INFO,
+  MOCK_RENAME_INFO,
+  MOCK_REVIEW_INFO,
+  MOCK_TW_INFO,
+} from './mocks/fixtures';
+
+// ?kind=project 换成项目账号，讨论、关联人物、投资这些卡片只有项目才有
+const PROJECT = new URLSearchParams(location.search).get('kind') === 'project';
+const TW_INFO = PROJECT ? MOCK_PROJECT_TW_INFO : MOCK_TW_INFO;
 
 // 按 X 资料页真实的 data-testid 和文案搭；资料页组件按选择器找节点、挂自己的 Shadow Root
 const X_CSS = `
@@ -75,7 +86,7 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
       <ErrorBoundary name='NameRightData'>
       <NameRightData
         newTwitterData={null}
-        twInfo={MOCK_TW_INFO}
+        twInfo={TW_INFO}
         deletedTweets={MOCK_DELETED_TWEETS}
         deletedTweetsIsVip={false}
         loadingTwInfo={false}
@@ -86,7 +97,7 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
         renameInfo={MOCK_RENAME_INFO}
         reviewInfo={MOCK_REVIEW_INFO}
         loadingRenameInfo={false}
-        discussionInfo={null}
+        discussionInfo={PROJECT ? MOCK_DISCUSSION : null}
         loadingDiscussionInfo={false}
         projectMemberData={null}
         loadingProjectMember={false}
@@ -94,7 +105,7 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
       </ErrorBoundary>
       <ErrorBoundary name='FollowedRightData'>
       <FollowedRightData
-        twInfo={MOCK_TW_INFO}
+        twInfo={TW_INFO}
         error={null}
         userId='mira_onchain'
         loadingTwInfo={false}

@@ -189,3 +189,34 @@ export const MOCK_SOUL = {
   reason_en: 'Mostly original research posts over a long period, with frequent interaction with top KOLs.',
   last_updated: '2026-11-10',
 };
+
+export const MOCK_PROJECT_TW_INFO = {
+  ...MOCK_TW_INFO,
+  basicInfo: { isKol: true, classification: 'project' },
+  kolFollow: {
+    ...MOCK_TW_INFO.kolFollow,
+    isProject: true,
+    kolProjectRank: 321,
+    kolProjectRankChange: { day1: -2, day7: 5, day30: 9 },
+  },
+};
+
+const sentiment = (positive: number, negative: number, good: string[], bad: string[]) => ({
+  positivePercentage: positive,
+  negativePercentage: negative,
+  positiveBulletPoints: good,
+  negativeBulletPoints: bad,
+});
+
+export const MOCK_DISCUSSION = {
+  ca: '',
+  symbol: 'MIRA',
+  name: 'Mira',
+  twitter: 'mira_onchain',
+  popularity1d: 82,
+  popularity7d: 76,
+  discussion1dCn: sentiment(63.25, 21.5, ['主网上线后流动性明显改善', '多位头部 KOL 转发了路线图'], ['代币解锁时间表仍不透明']),
+  discussion1dEn: sentiment(63.25, 21.5, ['Liquidity improved after mainnet', 'Roadmap shared by several top KOLs'], ['Unlock schedule still unclear']),
+  discussion7dCn: sentiment(58, 27.4, ['生态合作数量增长'], ['近期价格波动较大', '社区对空投规则有争议']),
+  discussion7dEn: sentiment(58, 27.4, ['More ecosystem partners'], ['Volatile price lately', 'Airdrop rules disputed']),
+};

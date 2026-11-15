@@ -1271,5 +1271,7 @@
   "rankUnranked": "未上榜",
   "rankChange1d": "1 天变化",
   "rankChange7d": "7 天变化",
-  "rankChange30d": "30 天变化"
+  "rankChange30d": "30 天变化",
+  "renameTimes": "改名 {count} 次",
+  "currentName": "当前"
 }
