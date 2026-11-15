@@ -38,9 +38,9 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
       <PanelPageHeader title={`XHunt ${t('messages')}`} showBack={showBackButton} onClose={onClose} />
 
       {loading ? (
-        <div className='flex-1 flex flex-col items-center justify-center min-h-[300px]'>
-          <Loader2 className='w-8 h-8 text-blue-400 animate-spin mb-2' />
-          <p className='text-sm text-blue-400'>{t('loading')}</p>
+        <div className='flex min-h-[300px] flex-1 flex-col items-center justify-center gap-2 text-xh-fg-2'>
+          <Loader2 className='h-6 w-6 animate-spin' />
+          <p className='text-sm'>{t('loading')}</p>
         </div>
       ) : (
         <div
