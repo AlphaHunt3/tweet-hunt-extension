@@ -9,3 +9,4 @@ export { SegmentedControl, type SegmentedOption } from './SegmentedControl';
 export { Select, type SelectOption } from './Select';
 export { Switch } from './Switch';
 export { TabList, TabPanel, Tabs, type TabItem, type TabsVariant } from './Tabs';
+export { TextField } from './TextField';

@@ -854,6 +854,9 @@
     color: var(--xh-fg);
     font: inherit;
   }
+  .xh-search[data-invalid] {
+    box-shadow: 0 0 0 1px var(--xh-down);
+  }
   .xh-search-input::placeholder {
     color: var(--xh-fg-2);
   }
