@@ -1,7 +1,8 @@
+// 假数据不引用真实 X 账号的头像（截图会公开），头像留空时组件显示首字母
 const kol = (handle: string, name: string) => ({
   username: handle,
   name,
-  avatar: `https://unavatar.io/x/${handle}`,
+  avatar: '',
 });
 
 export const MOCK_USER_ID = 'mira_onchain';
@@ -65,8 +66,8 @@ export const MOCK_REVIEW_INFO = {
   totalReviews: 96,
   realTotalReviews: 128,
   topReviewers: [
-    { avatar: 'https://unavatar.io/x/echolin', username: 'echolin', displayName: 'Echo Lin' },
-    { avatar: 'https://unavatar.io/x/theopark', username: 'theopark', displayName: 'Theo Park' },
+    { avatar: '', username: 'echolin', displayName: 'Echo Lin' },
+    { avatar: '', username: 'theopark', displayName: 'Theo Park' },
   ],
   tagCloud: [
     { text: '投研', value: 12 },
@@ -80,7 +81,7 @@ export const MOCK_COMMENTS = {
   comments: [
     {
       id: 'c1',
-      reviewer: { avatar: 'https://unavatar.io/x/echolin', displayName: 'Echo Lin', username: 'echolin' },
+      reviewer: { avatar: '', displayName: 'Echo Lin', username: 'echolin' },
       updatedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
       rating: 5,
       tags: ['投研', '宏观'],
@@ -88,7 +89,7 @@ export const MOCK_COMMENTS = {
     },
     {
       id: 'c2',
-      reviewer: { avatar: 'https://unavatar.io/x/theopark', displayName: 'Theo Park', username: 'theopark' },
+      reviewer: { avatar: '', displayName: 'Theo Park', username: 'theopark' },
       updatedAt: new Date(Date.now() - 6 * 86400000).toISOString(),
       rating: 4,
       tags: ['二级'],
@@ -126,7 +127,7 @@ export const MOCK_MESSAGES = [
 ];
 
 export const MOCK_USER = {
-  avatar: 'https://unavatar.io/x/alice_web3',
+  avatar: '',
   displayName: 'Alice Chen',
   username: 'alice_web3',
   id: 'u1',
