@@ -1,7 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Star } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { ReviewStats, UserInfo } from '~types/review.ts';
-import { Avatar } from '~/compontents/UserAuthPanel.tsx';
 import { ReviewSection } from '~/compontents/ReviewSection.tsx';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
@@ -10,8 +8,8 @@ import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
-import { FloatingContainer, FloatingContainerRef } from './FloatingContainer';
 import { navigationService } from '~/compontents/navigation/NavigationService';
+import { ProfileReviewCard } from '~/ui/profile/ProfileReviewCard';
 
 interface ReviewHeaderProps {
   stats: ReviewStats | undefined | null;
@@ -38,15 +36,9 @@ function _ReviewHeader({
 }: ReviewHeaderProps) {
   const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const [token] = useLocalStorage('@xhunt/token', '');
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t } = useI18n();
   const isLoggedIn = !!token;
-  const targetRef = useRef<HTMLButtonElement>(null);
-  const containerRef = useRef<FloatingContainerRef>(null);
   const [preHandler, setPreHandler] = useState('');
-  const maxTgaShow = 5;
-  const moreTagCount = (stats?.tagCloud?.length || 0) - maxTgaShow;
-  const isShowMoreTag = moreTagCount > 0;
 
   const [user] = useLocalStorage<
     | {
@@ -94,217 +86,57 @@ function _ReviewHeader({
     );
   }
 
+  const openComments = () => {
+    try {
+      window.dispatchEvent(new CustomEvent('xhunt:open-panel'));
+    } catch {}
+    try {
+      const navigate = () =>
+        navigationService.navigateTo('main-panel', '/home', {
+          scrollToId: 'panel-scroll-comments',
+        });
+      navigate();
+      window.addEventListener(
+        'xhunt:panel-registered',
+        () => {
+          try {
+            navigate();
+          } catch {}
+        },
+        { once: true },
+      );
+    } catch {}
+  };
+
   return (
     <div
-      style={{
-        display: 'contents',
-      }}
+      className='xh-review-slot'
       key={`${handler}-review`}
       data-user-handler={handler}
     >
-      {!stats || !stats.realTotalReviews ? (
-        <div
-          data-theme={theme}
-          className='min-w-full mt-3 mb-1 p-2.5 rounded-xl border theme-border'
-        >
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-3'>
-              <div className='flex items-center gap-1.5 flex-shrink-0'>
-                <Star className='w-4 h-4 theme-text-secondary flex-shrink-0' />
-                <span className='text-sm font-semibold theme-text-secondary flex-shrink-0'>
-                  {reviewOnlyKol ? t('noSelectedReviews') : t('noReviews')}
-                </span>
-              </div>
-              {/*<span className={`theme-text-secondary pr-2 ${stats?.currentUserReview?.note ? 'text-xs' : 'text-sm'}`}>*/}
-              {/*  {isLoggedIn && stats?.currentUserReview?.note ? `(备注：${stats.currentUserReview.note})` : ''}*/}
-              {/*</span>*/}
-            </div>
-            {!isCurrentUser && (
-              <div className='ml-auto flex-shrink-0'>
-                <button
-                  data-xhunt-testid='review-open-button'
-                  ref={targetRef}
-                  onClick={() => {
-                    containerRef.current?.toggle();
-                  }}
-                  className='text-sm text-[#1d9bf0] hover:text-[#1a8cd8] transition-colors'
-                >
-                  {stats?.currentUserReview && isLoggedIn
-                    ? t('modifyReview')
-                    : t('submitReview')}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          <div
-            data-theme={theme}
-            className='min-w-full mt-3 mb-1 p-2.5 rounded-xl border theme-border'
-          >
-            <div className='flex items-center gap-3'>
-              {Boolean(stats.averageRating) && (
-                <div className='flex items-center gap-1.5'>
-                  <Star
-                    className={`w-4 h-4 ${getRatingColor(stats.averageRating)}`}
-                  />
-                  <span
-                    className={`text-base font-semibold ${getRatingColor(
-                      stats.averageRating
-                    )}`}
-                  >
-                    {Number(stats.averageRating).toFixed(1)}
-                  </span>
-                </div>
-              )}
-              <div className='flex items-center gap-2'>
-                <span
-                  className={`text-sm theme-text-secondary ${
-                    (reviewOnlyKol
-                      ? stats.realTotalReviews || 0
-                      : stats.totalReviews || 0) > 0
-                      ? 'cursor-pointer hover:underline hover:decoration-dashed'
-                      : ''
-                  }`}
-                  onClick={() => {
-                    const hasData = reviewOnlyKol
-                      ? (stats.realTotalReviews || 0) > 0
-                      : (stats.totalReviews || 0) > 0;
-                    if (!hasData) return;
-                    try {
-                      const event = new CustomEvent('xhunt:open-panel');
-                      window.dispatchEvent(event);
-                    } catch {}
-                    try {
-                      const navigate = () =>
-                        navigationService.navigateTo('main-panel', '/home', {
-                          scrollToId: 'panel-scroll-comments',
-                        });
-                      const onRegistered = () => {
-                        try {
-                          navigate();
-                        } catch {}
-                      };
-                      navigate();
-                      window.addEventListener(
-                        'xhunt:panel-registered',
-                        onRegistered as any,
-                        { once: true } as any
-                      );
-                    } catch {}
-                  }}
-                >
-                  (
-                  {reviewOnlyKol
-                    ? `${stats.realTotalReviews || 0} ${t('reviews')} ${
-                        stats.realTotalReviews > stats.totalReviews
-                          ? `, ${stats.totalReviews || 0} ${t('reviews2')}`
-                          : ''
-                      }`
-                    : `${stats.totalReviews || 0} ${t('reviews')}`}
-                  )
-                </span>
-                <div className='flex -space-x-2'>
-                  {stats.topReviewers.map((reviewer, index) => (
-                    <div
-                      key={`${reviewer.name}${index}`}
-                      className='relative group'
-                    >
-                      <ErrorBoundary>
-                        <Avatar
-                          src={reviewer.avatar}
-                          alt={reviewer.name}
-                          size={24}
-                          className='border-2 theme-border transition-transform group-hover:scale-110 group-hover:z-10'
-                        />
-                      </ErrorBoundary>
-                      <div className='theme-text-primary absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 theme-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20'>
-                        {reviewer.name}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {!isCurrentUser && (
-                <div className='ml-auto'>
-                  <button
-                    data-xhunt-testid='review-open-button'
-                    ref={targetRef}
-                    onClick={() => {
-                      containerRef.current?.toggle();
-                    }}
-                    className={`text-sm transition-colors font-medium ${
-                      stats.currentUserReview
-                        ? 'theme-text-secondary hover:theme-text-primary'
-                        : 'text-[#1d9bf0] hover:text-[#1a8cd8]'
-                    }`}
-                  >
-                    {stats.currentUserReview && isLoggedIn
-                      ? t('modifyReview')
-                      : t('submitReview')}
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className='flex flex-wrap gap-1.5 mt-2'>
-              {stats.tagCloud.slice(0, maxTgaShow).map((tag, index) => (
-                <span
-                  key={`${tag.text}${index}`}
-                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/5 text-xs theme-text-secondary hover:bg-[#1d9bf0]/10 transition-colors'
-                >
-                  {tag.text}{' '}
-                  <span
-                    style={{
-                      opacity: 0.9,
-                      fontWeight: 800,
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    x{tag.value}
-                  </span>
-                </span>
-              ))}
-              {isShowMoreTag && (
-                <span
-                  key={`more-tag`}
-                  style={{
-                    opacity: 0.8,
-                  }}
-                  className='cursor-default px-2 py-0.5 rounded-full bg-[#1d9bf0]/5 text-xs theme-text-secondary transition-colors'
-                >
-                  +{moreTagCount}个标签
-                </span>
-              )}
-              {/*{isLoggedIn && stats.currentUserReview?.note && (*/}
-              {/*  <span key={'__my-note'} className="mt-0.5 ml-0.5 text-xs theme-text-secondary inline-block overflow-ellipsis">*/}
-              {/*    备注：{stats.currentUserReview.note}*/}
-              {/*  </span>*/}
-              {/*)}*/}
-            </div>
-          </div>
-        </>
-      )}
-      <ErrorBoundary>
-        <FloatingContainer
-          ref={containerRef}
-          targetRef={targetRef}
-          offsetX={-220}
-          // offsetY={isLoggedIn ? -300 : -200}
-          offsetY={isLoggedIn ? -200 : -200}
-          maxWidth='380px'
-          maxHeight='500px'
-        >
-          <ReviewTooltip
-            stats={stats}
-            isLoggedIn={isLoggedIn}
-            toggle={() => containerRef.current?.hide()}
-            handler={handler}
-            refreshAsyncReviewInfo={refreshAsyncReviewInfo}
-            refreshAsyncUserInfo={refreshAsyncUserInfo}
-          />
-        </FloatingContainer>
-      </ErrorBoundary>
+      <ProfileReviewCard
+        stats={stats || {}}
+        reviewOnlyKol={Boolean(reviewOnlyKol)}
+        canWrite={!isCurrentUser}
+        writeLabel={
+          stats?.currentUserReview && isLoggedIn
+            ? t('modifyReview')
+            : t('submitReview')
+        }
+        onOpenComments={openComments}
+        renderWriteForm={(close) => (
+          <ErrorBoundary>
+            <ReviewTooltip
+              stats={stats}
+              isLoggedIn={isLoggedIn}
+              toggle={close}
+              handler={handler}
+              refreshAsyncReviewInfo={refreshAsyncReviewInfo}
+              refreshAsyncUserInfo={refreshAsyncUserInfo}
+            />
+          </ErrorBoundary>
+        )}
+      />
     </div>
   );
 }
