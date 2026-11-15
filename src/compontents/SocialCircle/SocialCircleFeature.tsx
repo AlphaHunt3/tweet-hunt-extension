@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import ReactDOM from 'react-dom';
-import { LockKeyhole, Network, X } from 'lucide-react';
+import { LockKeyhole, X } from 'lucide-react';
 import cssText from 'data-text:~/css/style.css';
 import useShadowContainer from '~contents/hooks/useShadowContainer';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
@@ -16,6 +16,7 @@ import { openNewTab } from '~contents/utils';
 import { useCrossPageSettings } from '~utils/settingsManager';
 import { configManager } from '~utils/configManager';
 import { SkinScope } from '~/ui/skin/SkinScope';
+import { SocialCircleButton } from '~/ui/profile/ProfileActions';
 import {
   FloatingContainer,
   type FloatingContainerRef,
@@ -205,38 +206,15 @@ export default function SocialCircleFeature() {
     <>
       {ReactDOM.createPortal(
         <SkinScope>
-          <div
-            data-xhunt-testid='kol-social-circle-button'
-            className='theme-bg-primary'
-            style={{
-              width: 36,
-              height: 36,
-              marginRight: 8,
-              marginBottom: 12,
-              position: 'relative',
-            }}
-          >
-            <button
+          <div data-xhunt-testid='kol-social-circle-button' className='xh-action-slot'>
+            <SocialCircleButton
               ref={triggerRef}
-              type='button'
-              aria-label={buttonLabel}
-              aria-haspopup='dialog'
-              aria-expanded={isOpen}
-              title={buttonLabel}
-              onClick={openDialog}
+              label={buttonLabel}
+              badge={t('newBadge', 'NEW')}
+              expanded={isOpen}
               disabled={isLoading}
-              className='group absolute -inset-1 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full outline-none'
-            >
-              <span className='flex h-9 w-9 items-center justify-center rounded-full border xhunt-ask-border xhunt-ask-bg shadow-sm transition-colors group-hover:border-[#1D9BF0] group-focus-visible:ring-4 group-focus-visible:ring-[#1D9BF0]/30'>
-                <Network
-                  className='h-[17px] w-[17px] xhunt-ask-icon'
-                  aria-hidden='true'
-                />
-              </span>
-              <span className='pointer-events-none absolute -right-1 -top-0.5 rounded-[4px] bg-gradient-to-r from-[#1D9BF0] to-[#7C3AED] px-1 py-[2px] text-[7px] font-extrabold leading-none text-white shadow-sm'>
-                {t('newBadge', 'NEW')}
-              </span>
-            </button>
+              onClick={openDialog}
+            />
           </div>
         </SkinScope>,
         portalHost,
