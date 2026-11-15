@@ -34,6 +34,16 @@ export const MOCK_TW_INFO = {
     cnKolFollowers: [kol('echolin', 'Echo Lin'), kol('mika', 'Mika'), kol('xiaoyu', '小鱼')],
     topKolFollowers: [kol('lumenlabs', 'Lumen Labs'), kol('nova_vc', 'Nova VC')],
   },
+  multiField: {
+    cn: { fields: [{ DeFi: 86 }, { 二级交易: 78 }, { 宏观: 71 }, { Meme: 64 }, { NFT: 52 }], summary: '偏 DeFi 与二级交易' },
+    en: { fields: [{ DeFi: 86 }, { Trading: 78 }, { Macro: 71 }, { Meme: 64 }, { NFT: 52 }], summary: 'DeFi and trading first' },
+    update: '2026-11-01',
+  },
+  multiFieldAi: {
+    cn: { fields: [{ 'AI Agent': 91 }, { 模型评测: 82 }, { 基础设施: 74 }, { 应用: 60 }] },
+    en: { fields: [{ 'AI Agent': 91 }, { 'Model evals': 82 }, { Infra: 74 }, { Apps: 60 }] },
+    update: '2026-11-01',
+  },
   mbti: {
     cn: {
       mbti: 'INTJ',
@@ -52,8 +62,8 @@ export const MOCK_ROOT_DATA = null;
 
 export const MOCK_REVIEW_INFO = {
   averageRating: 4.6,
-  totalReviews: 128,
-  realTotalReviews: 96,
+  totalReviews: 96,
+  realTotalReviews: 128,
   topReviewers: [
     { avatar: 'https://unavatar.io/x/echolin', username: 'echolin', displayName: 'Echo Lin' },
     { avatar: 'https://unavatar.io/x/theopark', username: 'theopark', displayName: 'Theo Park' },
@@ -84,6 +94,16 @@ export const MOCK_COMMENTS = {
       tags: ['二级'],
       comment: '观点清晰，偶尔偏激进。',
     },
+    {
+      id: 'c3',
+      reviewer: { avatar: '', displayName: 'Nova VC', username: 'nova_vc' },
+      updatedAt: new Date(Date.now() - 9 * 86400000).toISOString(),
+      rating: 4,
+      tags: [],
+      comment:
+        '跟踪了一年多，宏观判断和链上数据的结合是她最强的地方。每次大的叙事切换前都会提前写长文，把资金流、交易所储备和稳定币增发放在一起看，' +
+        '结论不一定都对，但推理过程很透明，能学到东西。缺点是更新频率不稳定，有时候一周没有动静。',
+    },
   ],
   pagination: { page: 1, totalPages: 5, totalComments: 23, hasPrevPage: false, hasNextPage: true },
 };
@@ -112,4 +132,16 @@ export const MOCK_USER = {
   id: 'u1',
   twitterId: '1',
   xPoints: 120,
+};
+
+export const MOCK_SOUL = {
+  score: 87,
+  profile_analysis: 90,
+  content_analysis: 82,
+  engagement_analysis: 76,
+  xhunt_analysis: 88,
+  kol_interaction: 84,
+  reason: '原创内容占比高，长期稳定输出投研观点，与头部 KOL 互动频繁。',
+  reason_en: 'Mostly original research posts over a long period, with frequent interaction with top KOLs.',
+  last_updated: '2026-11-10',
 };

@@ -47,6 +47,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^~contents\/hooks\/i18n(\.ts)?$/, replacement: path.join(__dirname, 'i18n.ts') },
+      { find: /^~contents\/hooks\/usePlacementTracking(\.ts)?$/, replacement: path.join(__dirname, 'mocks/placement.ts') },
       { find: /^~\/?/, replacement: `${src}/` },
     ],
   },
