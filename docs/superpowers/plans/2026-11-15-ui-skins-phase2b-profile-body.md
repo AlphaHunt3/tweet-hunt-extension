@@ -1281,3 +1281,18 @@ const rankValue = (rank: unknown, total: number) => {
 **Task 12：沙盒和验收**
 - 沙盒假数据：`kolFollow` 补 `kolRank20W`、`isCn`、AI 字段；`topReviewers` 补 `name`；KOL 对话列表里加 `mira_onchain`（官方，`perspective_name_zh: 'Mira 思维'`）；社交圈可用。
 - 验收：全量测试、类型检查、打包；三套风格 × 三种背景截图；对比度；键盘操作；关闭对应设置项后相应部分消失。
+
+### 第二部分：执行中的调整
+
+1. **图标**：现有的 `StarIcon` 本来就是实心的，没有新增 `StarFilledIcon`。`betaBadge` 已有（值为 Beta），直接复用，样式里转大写。
+2. **写点评按钮沿用原文案**：仍是「提交点评」/「修改点评」（`submitReview`/`modifyReview`），e2e 的文字兜底依赖它们；计划里新增的 `reviewWrite` 没用上，已删除。
+3. **按钮和列表逻辑拆成可测的部分**：AI 分身和社交圈直接挂进 X 页面不好单测，列表筛选、匹配、文案拆成纯函数，按钮拆成展示组件 `AiPill`、`SocialCircleButton`（`src/ui/profile/ProfileActions.tsx`）。
+4. **原生风格的 NEW 角标改成深色字**：画布是白字配 X 蓝，对比度约 3:1，改成 `#0f1419` 后约 6.2:1。
+5. **沙盒加载远程配置**：AI 分身按钮受 `showAiAvatarButton_official/_unofficial` 远程开关控制，沙盒原来没有加载远程配置；现在 `main.tsx` 调用 `configManager.init()`，假配置补齐了校验需要的字段。
+
+### 第二部分：验收结果
+
+- `pnpm test`：60 个测试文件、192 个测试全部通过；类型检查 68 个错误（阶段开始时 75 个，删掉旧代码时去掉了 7 个原有错误），没有新增；`plasmo build` 成功，`Main.js` 4,351,968 字节，比 2a 结束时小约 84KB。
+- `FollowedRightData` 从 907 行减到 439 行，`ReviewHeader` 从 380 行减到约 210 行。
+- 沙盒三套风格 × X 三种背景截图核对：KOL 行（柔光胶囊、黑曜数据标签、原生接在关注数后面）、排名涨跌、领域切换、点评卡、AI 分身胶囊和社交圈按钮都和画布一致；中文界面的华语排名不再显示 `56/0`。
+- 浏览器实测对比度：KOL 行文字不低于 5.6:1，点评数量不低于 5.6:1，涨跌不低于 5.28:1，AI 分身文字不低于 5.51:1，BETA 不低于 4.97:1，NEW 不低于 4.97:1，写点评按钮不低于 5.62:1。
