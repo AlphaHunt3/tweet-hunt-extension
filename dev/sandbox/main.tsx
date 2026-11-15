@@ -13,6 +13,7 @@ import { Gallery } from './Gallery';
 import { MOCK_USER } from './mocks/fixtures';
 import { PanelDemo } from './PanelDemo';
 import { ProfileDemo } from './ProfileDemo';
+import { configManager } from '~/utils/configManager';
 
 const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' }> = {
   default: { bg: '#ffffff', fg: '#0f1419', theme: 'light' },
@@ -135,5 +136,8 @@ await seedStorage({
   '@xhunt/header-controls-guide-dismissed-map': { settings: true, messages: true, drag: true, panel: true },
   '@xhunt/uiSkinIntroSeen': true,
   '@settings/language1': 'zh',
+  '@xhunt/user-domain-preference': { domains: ['web3', 'ai'], primaryDomain: 'web3' },
 });
+// 扩展里由 useSystemInitialization 加载远程配置；沙盒没有那条链路，在这里加载
+await configManager.init();
 createRoot(document.getElementById('app')!).render(<App />);
