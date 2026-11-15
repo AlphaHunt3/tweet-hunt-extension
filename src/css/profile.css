@@ -372,7 +372,7 @@
     height: 14px;
   }
 
-  .xh-detail-pop {
+  .xh-popover.xh-detail-pop {
     padding: 0;
     max-width: min(400px, calc(100vw - 24px));
     max-height: min(400px, var(--available-height));

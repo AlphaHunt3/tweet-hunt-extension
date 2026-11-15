@@ -1243,5 +1243,7 @@
   "rankDomainLabel": "排名领域",
   "reviewMoreTags": "+{count}",
   "kolCnRankTotal": "10000",
-  "kolProjectRankTotal": "10000"
+  "kolProjectRankTotal": "10000",
+  "detailUpdated": "{date} 更新",
+  "forReferenceOnly": "仅供参考"
 }

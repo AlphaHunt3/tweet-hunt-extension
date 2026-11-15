@@ -1240,5 +1240,7 @@
   "rankStatEn": "English",
   "rankStatProject": "Project",
   "rankDomainLabel": "Ranking domain",
-  "reviewMoreTags": "+{count}"
+  "reviewMoreTags": "+{count}",
+  "detailUpdated": "Updated {date}",
+  "forReferenceOnly": "For reference only"
 }

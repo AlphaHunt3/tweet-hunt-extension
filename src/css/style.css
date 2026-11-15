@@ -1,6 +1,7 @@
 @layer ui-sdk, tw-base, xh-primitives;
 @import './primitives.css';
 @import './profile.css';
+@import './details.css';
 
 @layer ui-sdk {
   :where([data-slot][hidden]:not([hidden='until-found'])) {
