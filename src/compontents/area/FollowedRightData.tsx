@@ -1,29 +1,14 @@
 import cssText from 'data-text:~/css/style.css';
-import React, {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-} from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import ReactDOM from 'react-dom';
-import { HoverStatItem } from '~/compontents/HoverStatItem.tsx';
-import { formatNumber } from '~contents/utils';
 import { KolFollowersSection } from '~/compontents/KolFollowersSection.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import numeral from 'numeral';
 import { ReviewHeader } from '~/compontents/ReviewHeader.tsx';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
-import {
-  ArrowUp,
-  ArrowDown,
-  Ghost,
-  ChevronRight,
-  ArrowRightLeft,
-} from 'lucide-react';
-import { SimpleTooltip } from '~/compontents/SimpleTooltip';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import {
   GhostFollowingPanelEventDetail,
   GHOST_FOLLOWING_PANEL_EVENT,
@@ -33,7 +18,15 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { SkinScope } from '~/ui/skin/SkinScope';
-import { getTwitterAuthUrl } from '~contents/services/api.ts';
+import { buildKolStats, buildRankStats, type RankStatKey, type RankType } from '~/ui/profile/kolRankItems';
+import { ProfileKolRow } from '~/ui/profile/ProfileKolRow';
+
+const RANK_TYPES: Record<RankStatKey, RankType> = {
+  rankGlobal: 'followers',
+  rankCn: 'chinese',
+  rankEn: 'english',
+  rankProject: 'project',
+};
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 
 type FollowedRightDataProps = Pick<
@@ -289,7 +282,6 @@ function _FollowedRightData({
   loadingReviewInfo,
 }: FollowedRightDataProps) {
   const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const { t, lang } = useI18n();
   const { hasWeb3, hasAi, primaryDomain } = useUserDomain();
 
@@ -361,506 +353,44 @@ function _FollowedRightData({
     return <></>;
   }
 
+  const domainAvailable = activeDomain === 'web3' ? hasWeb3 : hasAi;
+
   return ReactDOM.createPortal(
     <SkinScope data-xhunt-testid='followed-right-data'>
       {loadingTwInfo ? (
         <FollowStatsSkeleton />
       ) : twInfo && (
         <>
-          <div className={'mr-6'} />
-          {(() => {
-            const web3Items: React.ReactNode[] = [];
-            const aiItems: React.ReactNode[] = [];
-
-            if (
-              hasWeb3 &&
-              isEnabled('showWeb3KolFollowers') &&
-              (twInfo?.kolFollow?.globalKolFollowersCount || 0) > 0
-            ) {
-              web3Items.push(
-                <HoverStatItem
-                  key='web3-kol-followers'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.globalKolFollowersCount || 0,
-                  )}
-                  value={t('KOL_Followers')}
-                  hoverContent={
-                    twInfo?.kolFollow?.globalKolFollowersCount ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'global'}
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
+          <ProfileKolRow
+            kolStats={
+              domainAvailable
+                ? buildKolStats({ t, isEnabled, domain: activeDomain, kolFollow: twInfo?.kolFollow })
+                : []
             }
-            if (
-              hasWeb3 &&
-              isEnabled('showTop100KolsWeb3') &&
-              (twInfo?.kolFollow?.topKolFollowersCount || 0) > 0
-            ) {
-              web3Items.push(
-                <HoverStatItem
-                  key='web3-top100-kols'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.topKolFollowersCount || 0,
-                  )}
-                  value={t('TOP100_KOLs')}
-                  hoverContent={
-                    twInfo?.kolFollow?.topKolFollowersCount ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'top100'}
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
+            rankStats={
+              domainAvailable
+                ? buildRankStats({ t, lang, isEnabled, domain: activeDomain, kolFollow: twInfo?.kolFollow })
+                : []
             }
-            if (
-              hasWeb3 &&
-              isEnabled('showCnKolsWeb3') &&
-              (twInfo?.kolFollow?.cnKolFollowersCount || 0) > 0
-            ) {
-              web3Items.push(
-                <HoverStatItem
-                  key='web3-cn-kols'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.cnKolFollowersCount || 0,
-                  )}
-                  value={t('CN_KOLs')}
-                  hoverContent={
-                    twInfo?.kolFollow?.cnKolFollowersCount ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'cn'}
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (hasWeb3 && isEnabled('showFqRank')) {
-              web3Items.push(
-                <HoverStatItem
-                  key='web3-fq-rank'
-                  label={
-                    <>
-                      {(() => {
-                        const rank = twInfo?.kolFollow?.kolRank20W;
-                        if (!rank || rank <= 0) return '>200K';
-                        return numeral(rank || 0).format('0,0') + '/200K';
-                      })()}
-                      {renderRankChange(twInfo?.kolFollow?.kolRankChange?.day1)}
-                    </>
-                  }
-                  value={t('FQRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='followers' />
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (lang === 'zh') {
-              if (
-                hasWeb3 &&
-                isEnabled('showCnRank') &&
-                twInfo?.kolFollow?.isCn
-              ) {
-                web3Items.push(
-                  <HoverStatItem
-                    key='web3-region-rank'
-                    label={
-                      <>
-                        {!twInfo?.kolFollow?.kolCnRank ||
-                          twInfo?.kolFollow?.kolCnRank <= 0 ||
-                          Number(twInfo?.kolFollow?.kolCnRank) >
-                          Number(t('kolCnRankTotal') || 10000)
-                          ? `>${formatUpperCase(Number(t('kolCnRankTotal')))}`
-                          : numeral(twInfo?.kolFollow?.kolCnRank || 0).format(
-                            '0,0',
-                          ) +
-                          `/${formatUpperCase(Number(t('kolCnRankTotal')))}`}
-                        {renderRankChange(
-                          twInfo?.kolFollow?.kolCnRankChange?.day1,
-                        )}
-                      </>
-                    }
-                    value={t('cnRank')}
-                    hoverContent={
-                      <RankTooltip twInfo={twInfo} rankType='chinese' />
-                    }
-                    labelClassName={'font-bold'}
-                    valueClassName={'theme-text-secondary'}
-                  />,
+            domain={activeDomain}
+            canSwitch={hasWeb3 && hasAi}
+            onDomainChange={handleSwitchDomain}
+            renderDetail={(key) => {
+              if (key === 'kolGlobal' || key === 'kolTop100' || key === 'kolCn') {
+                const tab = key === 'kolGlobal' ? 'global' : key === 'kolTop100' ? 'top100' : 'cn';
+                return (
+                  <KolFollowersSection
+                    kolData={twInfo}
+                    isHoverPanel={true}
+                    defaultTab={tab}
+                    domain={activeDomain}
+                  />
                 );
               }
-            } else {
-              if (
-                hasWeb3 &&
-                isEnabled('showEnInfluenceRank') &&
-                !!twInfo?.kolFollow?.kolGlobalRank
-              ) {
-                web3Items.push(
-                  <HoverStatItem
-                    key='web3-region-rank'
-                    label={
-                      <>
-                        {(() => {
-                          const total = Number(t('kolEnRankTotal')) || 10000;
-                          const rank = Number(
-                            twInfo?.kolFollow?.kolGlobalRank || 0,
-                          );
-                          if (!rank || rank <= 0)
-                            return `>${formatUpperCase(total)}`;
-                          if (rank > total) return `>${formatUpperCase(total)}`;
-                          return (
-                            numeral(rank).format('0,0') +
-                            `/${formatUpperCase(total)}`
-                          );
-                        })()}
-                        {renderRankChange(
-                          twInfo?.kolFollow?.kolGlobalRankChange?.day1,
-                        )}
-                      </>
-                    }
-                    value={t('enInfluenceRank')}
-                    hoverContent={
-                      <RankTooltip twInfo={twInfo} rankType='english' />
-                    }
-                    labelClassName={'font-bold'}
-                    valueClassName={'theme-text-secondary'}
-                  />,
-                );
-              }
-            }
-            if (
-              hasWeb3 &&
-              isEnabled('showProjectRank') &&
-              twInfo?.kolFollow?.isProject
-            ) {
-              web3Items.push(
-                <HoverStatItem
-                  key='web3-project-rank'
-                  label={
-                    <>
-                      {!twInfo?.kolFollow?.kolProjectRank ||
-                        twInfo?.kolFollow?.kolProjectRank <= 0 ||
-                        Number(twInfo?.kolFollow?.kolProjectRank) >
-                        Number(t('kolProjectRankTotal') || 10000)
-                        ? `>${formatUpperCase(Number(t('kolProjectRankTotal')))}`
-                        : numeral(
-                          twInfo?.kolFollow?.kolProjectRank || 0,
-                        ).format('0,0') +
-                        `/${formatUpperCase(Number(t('kolProjectRankTotal')))}`}
-                      {renderRankChange(
-                        twInfo?.kolFollow?.kolProjectRankChange?.day1,
-                      )}
-                    </>
-                  }
-                  value={t('projectRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='project' />
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-
-            if (
-              hasAi &&
-              isEnabled('showAiKolFollowers') &&
-              (twInfo?.kolFollow?.globalKolFollowersCountAi || 0) > 0
-            ) {
-              aiItems.push(
-                <HoverStatItem
-                  key='ai-kol-followers'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.globalKolFollowersCountAi || 0,
-                  )}
-                  value={t('KOL_Followers')}
-                  hoverContent={
-                    twInfo?.kolFollow?.globalKolFollowersCountAi ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'global'}
-                        domain='ai'
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (
-              hasAi &&
-              isEnabled('showTop100KolsAi') &&
-              (twInfo?.kolFollow?.topKolFollowersCountAi || 0) > 0
-            ) {
-              aiItems.push(
-                <HoverStatItem
-                  key='ai-top100-kols'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.topKolFollowersCountAi || 0,
-                  )}
-                  value={t('TOP100_KOLs')}
-                  hoverContent={
-                    twInfo?.kolFollow?.topKolFollowersCountAi ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'top100'}
-                        domain='ai'
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (
-              hasAi &&
-              isEnabled('showCnKolsAi') &&
-              (twInfo?.kolFollow?.cnKolFollowersCountAi || 0) > 0
-            ) {
-              aiItems.push(
-                <HoverStatItem
-                  key='ai-cn-kols'
-                  label={formatNumber(
-                    twInfo?.kolFollow?.cnKolFollowersCountAi || 0,
-                  )}
-                  value={t('CN_KOLs')}
-                  hoverContent={
-                    twInfo?.kolFollow?.cnKolFollowersCountAi ? (
-                      <KolFollowersSection
-                        kolData={twInfo}
-                        isHoverPanel={true}
-                        defaultTab={'cn'}
-                        domain='ai'
-                      />
-                    ) : null
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (hasAi && isEnabled('showFqRankAi')) {
-              aiItems.push(
-                <HoverStatItem
-                  key='ai-fq-rank'
-                  label={
-                    <>
-                      {(() => {
-                        const rank = twInfo?.kolFollow?.kolRank20WAi;
-                        if (!rank || rank <= 0) return '>50K';
-                        return numeral(rank || 0).format('0,0') + '/50K';
-                      })()}
-                      {renderRankChange(
-                        twInfo?.kolFollow?.kolRankChangeAi?.day1,
-                      )}
-                    </>
-                  }
-                  value={t('FQRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='followers' isAi />
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-            if (lang === 'zh') {
-              if (
-                hasAi &&
-                isEnabled('showCnRankAi') &&
-                twInfo?.kolFollow?.isCn
-              ) {
-                aiItems.push(
-                  <HoverStatItem
-                    key='ai-region-rank'
-                    label={
-                      <>
-                        {!twInfo?.kolFollow?.kolCnRankAi ||
-                          twInfo?.kolFollow?.kolCnRankAi <= 0 ||
-                          Number(twInfo?.kolFollow?.kolCnRankAi) > 3000
-                          ? '>3K'
-                          : numeral(twInfo?.kolFollow?.kolCnRankAi || 0).format(
-                            '0,0',
-                          ) + '/3K'}
-                        {renderRankChange(
-                          twInfo?.kolFollow?.kolCnRankChangeAi?.day1,
-                        )}
-                      </>
-                    }
-                    value={t('cnRank')}
-                    hoverContent={
-                      <RankTooltip twInfo={twInfo} rankType='chinese' isAi />
-                    }
-                    labelClassName={'font-bold'}
-                    valueClassName={'theme-text-secondary'}
-                  />,
-                );
-              }
-            } else {
-              if (
-                hasAi &&
-                isEnabled('showEnInfluenceRankAi') &&
-                !!twInfo?.kolFollow?.kolGlobalRankAi
-              ) {
-                aiItems.push(
-                  <HoverStatItem
-                    key='ai-region-rank'
-                    label={
-                      <>
-                        {(() => {
-                          const total = Number(t('kolEnRankTotal')) || 10000;
-                          const rank = Number(
-                            twInfo?.kolFollow?.kolGlobalRankAi || 0,
-                          );
-                          if (!rank || rank <= 0)
-                            return `>${formatUpperCase(total)}`;
-                          if (rank > total) return `>${formatUpperCase(total)}`;
-                          return (
-                            numeral(rank).format('0,0') +
-                            `/${formatUpperCase(total)}`
-                          );
-                        })()}
-                        {renderRankChange(
-                          twInfo?.kolFollow?.kolGlobalRankChangeAi?.day1,
-                        )}
-                      </>
-                    }
-                    value={t('enInfluenceRank')}
-                    hoverContent={
-                      <RankTooltip twInfo={twInfo} rankType='english' isAi />
-                    }
-                    labelClassName={'font-bold'}
-                    valueClassName={'theme-text-secondary'}
-                  />,
-                );
-              }
-            }
-            if (
-              hasAi &&
-              isEnabled('showProjectRankAi') &&
-              twInfo?.kolFollow?.isProject
-            ) {
-              aiItems.push(
-                <HoverStatItem
-                  key='ai-project-rank'
-                  label={
-                    <>
-                      {!twInfo?.kolFollow?.kolProjectRankAi ||
-                        twInfo?.kolFollow?.kolProjectRankAi <= 0 ||
-                        Number(twInfo?.kolFollow?.kolProjectRankAi) >
-                        Number(t('kolProjectRankTotal') || 10000)
-                        ? `>${formatUpperCase(Number(t('kolProjectRankTotal')))}`
-                        : numeral(
-                          twInfo?.kolFollow?.kolProjectRankAi || 0,
-                        ).format('0,0') +
-                        `/${formatUpperCase(Number(t('kolProjectRankTotal')))}`}
-                      {renderRankChange(
-                        twInfo?.kolFollow?.kolProjectRankChangeAi?.day1,
-                      )}
-                    </>
-                  }
-                  value={t('projectRank')}
-                  hoverContent={
-                    <RankTooltip twInfo={twInfo} rankType='project' isAi />
-                  }
-                  labelClassName={'font-bold'}
-                  valueClassName={'theme-text-secondary'}
-                />,
-              );
-            }
-
-            const currentItems = activeDomain === 'web3' ? web3Items : aiItems;
-
-            return (
-              <>
-                {currentItems.map((node) => (
-                  <React.Fragment key={(node as React.ReactElement<any>).key}>
-                    {node}
-                  </React.Fragment>
-                ))}
-                {/* 领域指示器（放在数据末尾，双选时可切换） */}
-                {(hasWeb3 || hasAi) && (
-                  <div data-theme={theme} className='contents'>
-                    <button
-                      type='button'
-                      onClick={
-                        hasWeb3 && hasAi
-                          ? () => {
-                            const next =
-                              activeDomain === 'web3' ? 'ai' : 'web3';
-                            handleSwitchDomain(next);
-                          }
-                          : undefined
-                      }
-                      className={`mr-4 inline-flex items-center gap-1.5 text-xs group ${hasWeb3 && hasAi ? 'cursor-pointer' : 'cursor-default'
-                        }`}
-                    >
-                      {/* 状态圆点 */}
-                      <span
-                        className='w-1 h-1 rounded-full transition-all duration-300 ease-out'
-                        style={{
-                          background:
-                            activeDomain === 'web3' ? '#1D9BF0' : '#10b981',
-                          boxShadow:
-                            activeDomain === 'web3'
-                              ? '0 0 4px rgba(29,155,240,0.4)'
-                              : '0 0 4px rgba(16,185,129,0.4)',
-                        }}
-                      />
-                      <SimpleTooltip
-                        content={t('currentDomainRankData').replace(
-                          '{domain}',
-                          activeDomain === 'web3' ? 'Web3' : 'AI',
-                        )}
-                      >
-                        <span
-                          className='font-semibold transition-all duration-300 ease-out'
-                          style={{
-                            color:
-                              activeDomain === 'web3' ? '#1D9BF0' : '#10b981',
-                          }}
-                        >
-                          {activeDomain === 'web3' ? 'Web3' : 'AI'}
-                        </span>
-                      </SimpleTooltip>
-                      {hasWeb3 && hasAi && (
-                        <SimpleTooltip
-                          content={t('switchToDomainRank').replace(
-                            '{domain}',
-                            activeDomain === 'web3' ? 'AI' : 'Web3',
-                          )}
-                        >
-                          <ArrowRightLeft className='w-3 h-3 theme-text-secondary opacity-40 group-hover:opacity-70 transition-opacity' />
-                        </SimpleTooltip>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </>
-            );
-          })()}
+              const rankType = RANK_TYPES[key];
+              return <RankTooltip twInfo={twInfo} rankType={rankType} isAi={activeDomain === 'ai'} />;
+            }}
+          />
         </>
       )}
 
