@@ -38,12 +38,12 @@ async function setSettingChecked(page: Page, key: string, checked: boolean, opti
   if (currentChecked === checked && !options.forceWrite) return;
 
   if (currentChecked === checked && options.forceWrite) {
-    await item.locator('label').first().click();
+    await toggle.click();
     await expect(toggle).toBeChecked({ checked: !checked, timeout: 30_000 });
     await page.waitForTimeout(300);
   }
 
-  await item.locator('label').first().click();
+  await toggle.click();
   await expect(toggle).toBeChecked({ checked, timeout: 30_000 });
   await page.waitForTimeout(300);
 }

@@ -49,12 +49,12 @@ export async function setSettingChecked(
   if (currentChecked === checked && !options.forceWrite) return;
 
   if (currentChecked === checked && options.forceWrite) {
-    await item.locator('label').first().click();
+    await toggle.click();
     await expect(toggle).toBeChecked({ checked: !checked, timeout: 30_000 });
     await page.waitForTimeout(300);
   }
 
-  await item.locator('label').first().click();
+  await toggle.click();
   await expect(toggle).toBeChecked({ checked, timeout: 30_000 });
   await page.waitForTimeout(500);
 }
@@ -62,17 +62,17 @@ export async function setSettingChecked(
 export async function expandSettingsGroup(page: Page, key: string) {
   const group = page.locator(xhuntSelectors.settingsGroup(key)).first();
   const header = page.locator(xhuntSelectors.settingsGroupHeader(key)).first();
+  const body = group.locator('[data-settings-body]').first();
+
+  // 柔光的分组可以折叠，「更多」里的分组是二级页：内容区不可见时点一下分组头
+  if ((await group.count()) > 0 && (await body.isVisible().catch(() => false))) return;
 
   await expect(header, `设置分组 ${key} 应该可见`).toBeVisible({ timeout: 30_000 });
   await header.scrollIntoViewIfNeeded();
-
-  const inputCount = await group.locator('input, button, select').count();
-  if (inputCount > 0) return;
-
   await header.click();
-  await expect(group.locator('input, button, select').first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(
+    page.locator(xhuntSelectors.settingsGroup(key)).locator('[data-settings-body]').first(),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 export async function openComposeModal(page: Page) {
