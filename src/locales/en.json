@@ -1199,5 +1199,19 @@
   "panelNoFollowers": "No KOL followers yet",
   "panelConnectedX": "Connected to X",
   "panelSignedInAs": "Signed in as {handle}",
-  "panelAccountMenu": "Account menu"
+  "panelAccountMenu": "Account menu",
+  "settingsGroupGeneral": "General",
+  "settingsGroupMore": "More",
+  "settingsSearchLabel": "Search settings",
+  "settingsSearchPlaceholder": "Search settings, e.g. avatar rank",
+  "settingsNoResults": "No matching settings",
+  "settingsItemCount": "{count} items",
+  "settingsOn": "On",
+  "settingsOff": "Off",
+  "settingsNotBound": "Not bound",
+  "settingsDomainDisabled": "Turn this domain on in Interests first for these settings to apply.",
+  "settingsReloadOnOff": "Turning it off reloads the page",
+  "settingsReloadOnChange": "Changing it reloads the page",
+  "settingsRemoveItem": "Remove {item}",
+  "settingsAddTo": "Add to {list}"
 }

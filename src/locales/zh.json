@@ -1200,5 +1200,19 @@
   "panelNoFollowers": "还没有 KOL 关注",
   "panelConnectedX": "已连接 X",
   "panelSignedInAs": "已登录 {handle}",
-  "panelAccountMenu": "账户菜单"
+  "panelAccountMenu": "账户菜单",
+  "settingsGroupGeneral": "通用",
+  "settingsGroupMore": "更多",
+  "settingsSearchLabel": "搜索设置",
+  "settingsSearchPlaceholder": "搜索设置，例如「头像排名」",
+  "settingsNoResults": "没有匹配的设置",
+  "settingsItemCount": "{count} 项",
+  "settingsOn": "已开启",
+  "settingsOff": "已关闭",
+  "settingsNotBound": "未绑定",
+  "settingsDomainDisabled": "先在「感兴趣领域」里选上这个领域，下面的设置才会生效。",
+  "settingsReloadOnOff": "关闭后会刷新页面",
+  "settingsReloadOnChange": "切换后会刷新页面",
+  "settingsRemoveItem": "移除 {item}",
+  "settingsAddTo": "添加到{list}"
 }
