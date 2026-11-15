@@ -1260,5 +1260,8 @@
   "soulRadarRank": "排名",
   "soulRadarKol": "KOL",
   "soulRadarLabel": "灵魂指数五维雷达",
-  "soulCardBasis": "近 90 天 · 最多 100 条原创"
+  "soulCardBasis": "近 90 天 · 最多 100 条原创",
+  "abilityCardBasis": "近 90 天 · 最多 200 条原创",
+  "abilityRadarLabel": "能力雷达",
+  "abilityDomainLabel": "能力领域"
 }

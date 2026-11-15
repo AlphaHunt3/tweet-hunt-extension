@@ -1257,5 +1257,8 @@
   "soulRadarRank": "Rank",
   "soulRadarKol": "KOL",
   "soulRadarLabel": "Soul index radar",
-  "soulCardBasis": "90 days · up to 100 original posts"
+  "soulCardBasis": "90 days · up to 100 original posts",
+  "abilityCardBasis": "90 days · up to 200 original posts",
+  "abilityRadarLabel": "Ability radar",
+  "abilityDomainLabel": "Ability domain"
 }

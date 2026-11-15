@@ -14,6 +14,7 @@ import { MOCK_USER } from './mocks/fixtures';
 import { PanelDemo } from './PanelDemo';
 import { ProfileDemo } from './ProfileDemo';
 import { configManager } from '~/utils/configManager';
+import { useLocalStorage } from '~storage/useLocalStorage';
 
 const HOSTS: Record<XPalette, { bg: string; fg: string; theme: 'light' | 'dark' }> = {
   default: { bg: '#ffffff', fg: '#0f1419', theme: 'light' },
@@ -46,6 +47,12 @@ function App() {
   const [view, setView] = useState<View>('panel');
   const mount = useShadowMount();
   const host = HOSTS[palette];
+  // 扩展里由 useThemeWatcher 跟随 X 的明暗写入，沙盒跟随所选背景
+  const [, setXhuntTheme] = useLocalStorage<string>('@xhunt/theme', 'dark');
+
+  useEffect(() => {
+    setXhuntTheme(host.theme);
+  }, [host.theme, setXhuntTheme]);
 
   useEffect(() => {
     ensureSkinTokens();
