@@ -547,7 +547,7 @@
   }
   .xh-seg[data-variant='tiles'] .xh-seg-item[data-checked] {
     background: var(--xh-accent-soft);
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--xh-accent) 40%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--xh-accent-fg);
     color: var(--xh-accent-fg);
   }
   .xh-seg[data-variant='tiles'] .xh-seg-item[data-checked] b {

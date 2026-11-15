@@ -121,7 +121,7 @@ html[data-xh-skin='obsidian'][data-xh-theme='light'] {
   --xh-fg-3: rgba(0, 0, 0, 0.5);
   --xh-accent-soft: color-mix(in oklab, #8b9cff 15%, transparent);
   --xh-accent-fg: color-mix(in oklab, #8b9cff 62%, black);
-  --xh-up: #087a43;
+  --xh-up: #06723f;
   --xh-up-bg: rgba(13, 138, 76, 0.1);
   --xh-down: #c42a31;
   --xh-down-bg: rgba(212, 52, 59, 0.09);
