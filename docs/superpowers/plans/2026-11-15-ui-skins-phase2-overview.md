@@ -45,6 +45,7 @@
 
 - 2b：中文下华语排名、项目排名的分母缺文案（`kolCnRankTotal`、`kolProjectRankTotal` 只有英文），会显示成 `1,234/0`。
 - 2b：领域切换在三个地方各实现一遍，合成一个。
+- 2b：`KolAiChatButton` 在列表接口返回 `null` 时报错（`useRequest` 的默认值只在 `undefined` 时生效）。
 - 2c：`ProjectMembersSection` 在提前返回之后调用 Hook，数据变化时会报错。
 - 2c：`MBTISection` 只给 16 种类型里的 8 种配了颜色。
 - 2c：90 天收益、投资面板写死了深色专用的颜色，浅色下对比度不够。
