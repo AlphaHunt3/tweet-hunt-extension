@@ -1584,3 +1584,23 @@ git commit -m "feat(panel): restyle the account bar and use a ui-sdk menu"
 8. **消息列表**：保留原来的预览规则（第一条 600 字 / 6 行，其余 80 字 / 3 行）；列表按 `message.id`，没有时按 `created + title` 做 key；消息页的加载图标去掉写死的蓝色。
 9. **`NameRightData` 还在用 `AbilityModelData` 类型**，一并导入；`~types` 里的 `MultiFieldData`、`MultiFieldItem` 没别处用就删掉。资料页自己的灵魂指数请求这一阶段不动。
 10. **沙盒**：`usePlacementTracking` 在沙盒里换成固定 `twitterId` 的假实现（Vite 别名），`mocks/api.ts` 补 `getSoulInfo`，假数据补 `multiField`、`multiFieldAi`。
+
+## 执行中的调整
+
+1. **关注者链接和原来一样在新标签页打开**（`target='_blank'`），不用 `navigateInX`；展开按钮沿用「显示更多 / 收起」，`panelShowAll` 删掉了。
+2. **关注者列表跟随主领域**：主领域是 AI 时显示 `*Ai` 列表和数量，和卡片上的 Web3 / AI 标记、身份卡的排名一致（原来的面板固定显示 Web3 列表）。画像页能力模型默认也选主领域。
+3. **原生没有画像页**，所以原生的概览多一行能力模型摘要，项目账号的投资面板也放在概览底部，原来的信息都还在。
+4. **灵魂指数的五个维度改成和能力模型一样的「名称 + 进度条 + 分数」行**，五列小格在英文下放不下。
+5. **评论卡片没有评论时不显示**（和原来一样），`panel-scroll-comments` 外层容器一直在，外部跳转不受影响。
+6. **评论时间跟随界面语言**（原来中文界面也显示「3 days ago」），做法同 `VoteCommentSection`。
+7. **头像默认对读屏和 agent 隐藏**（`aria-hidden`），因为每个头像旁边都有名字；单独出现时传 `label` 变成 `role="img"`。这是 agent 测试发现的：头像在快照里是没有名字的组件。
+8. **对比度修正**（浏览器里实测）：黑曜浅色卡片上的绿色徽标 4.42:1，`--xh-up` 改为 `#06723f` 后 4.91:1（设计文档同步）；柔光关注者「指标格」选中态的描边改用 `accent-fg`，对卡片和格子本身都在 5.5:1 以上。
+9. **沙盒**：`mocks/placement.ts` 固定 `twitterId`；`getSoulInfo` 延迟 600ms 返回，能看到骨架屏；评论按页返回；点评统计改成 `realTotalReviews 128 / totalReviews 96`，能看到「128 条点评 · 96 条精评」。
+
+## 验收结果
+
+- `pnpm vitest run`：38 个测试文件、116 个测试全部通过（含 `src/ui/panel/panel.agent.test.tsx`）。
+- 类型检查：76 个错误，都是原有的（阶段 1b 结束时 77 个，提取 `getAbilityModelData` 时顺手消掉一个），没有新增。
+- `pnpm exec plasmo build` 成功；15 个测试标记都在包里。`Main.js` 4,374,026 字节，阶段 1b 结束时 4,175,184 字节，增加约 199KB，主要是样式表在包里嵌了约 5 份，加上新的风格变体工具类和 ui-sdk 的 Menu / Field；阶段 5 改成共享样式表。
+- 沙盒 3 种风格 × 3 种 X 背景逐一检查了概览、关注者、画像、点评、消息页和登录栏（登录 / 未登录）：范围切换、Web3 / AI 切换、仅看精选、翻页（2 / 5）、账户菜单（在 Shadow DOM 内渲染、样式生效）都正常。所有可见文字对比度 ≥ 4.5:1，最低 4.57:1（原生 dim 概览的 ↑12 徽标）。
+- 没能验证的：焦点环只核对了编译后的样式规则（浏览器面板在后台，页面拿不到焦点，`:focus-visible` 不触发）；真实 x.com 上的效果（缺私有模块，扩展在 x.com 上跑不起来）。
