@@ -7,6 +7,7 @@ import { waitForXHomeTimelineReady, waitForXhuntPanelSettled } from './xcomReady
 export async function normalizeXhuntState(context: BrowserContext) {
   await seedCompletedDomainSetup(context);
   await setExtensionStorage(context, {
+    '@xhunt/name-insights-expanded': false,
     '@settings/showPanel': true,
     '@settings/showSidebarIcon': true,
     '@settings/showAvatarRank': true,

@@ -57,6 +57,14 @@ export const MOCK_TW_INFO = {
       explanation: 'Rational and independent, prefers long-term frameworks over short-term noise.',
     },
   },
+  kolTokenMention: {
+    day90: {
+      tokenMentions: ['SOL', 'JUP', 'ETH', 'EIGEN', 'ENA', 'PENDLE', 'JTO', 'RAY', 'ORCA', 'TIA', 'ARB', 'OP', 'LINK', 'AAVE', 'ONDO', 'W', 'PYTH', 'BONK'].map(
+        (symbol, index) => ({ symbol, mentionCount: 30 - index }),
+      ),
+      maxProfitAvg: 0.352,
+    },
+  },
   narrative: {
     cn: '长期跟踪再质押与链上收益策略，近 30 天重点讨论 Solana 生态 DEX 与 AI Agent 结合的机会。',
     en: 'Tracks restaking and on-chain yield strategies; lately focused on Solana DEXs and AI agents.',
@@ -64,6 +72,24 @@ export const MOCK_TW_INFO = {
 };
 
 export const MOCK_ROOT_DATA = null;
+
+export const MOCK_DELETED_TWEETS = Array.from({ length: 14 }, (_, index) => ({
+  id: `d${index}`,
+  create_time: new Date(Date.now() - (index + 1) * 5 * 86400000).toISOString(),
+  profile: { text: `已删除的推文 ${index + 1}：一段关于链上收益的观点。` },
+}));
+
+export const MOCK_RENAME_INFO = {
+  accounts: [
+    {
+      screen_names: {
+        mira_research: ['2021-02-01', '2022-06-30'],
+        mira_defi: ['2022-07-01', '2024-01-15'],
+        mira_onchain: ['2024-01-16', '2026-11-01'],
+      },
+    },
+  ],
+};
 
 export const MOCK_REVIEW_INFO = {
   averageRating: 4.6,

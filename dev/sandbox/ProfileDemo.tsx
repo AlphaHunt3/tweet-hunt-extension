@@ -5,7 +5,7 @@ import { KolAiChatButton } from '~compontents/area/KolAiChatButton';
 import { NameRightData } from '~compontents/area/NameRightData';
 import SocialCircleFeature from '~compontents/SocialCircle/SocialCircleFeature';
 import type { XPalette } from '~/ui/skin/xPalette';
-import { MOCK_REVIEW_INFO, MOCK_TW_INFO } from './mocks/fixtures';
+import { MOCK_DELETED_TWEETS, MOCK_RENAME_INFO, MOCK_REVIEW_INFO, MOCK_TW_INFO } from './mocks/fixtures';
 
 // 按 X 资料页真实的 data-testid 和文案搭；资料页组件按选择器找节点、挂自己的 Shadow Root
 const X_CSS = `
@@ -76,14 +76,14 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
       <NameRightData
         newTwitterData={null}
         twInfo={MOCK_TW_INFO}
-        deletedTweets={[]}
+        deletedTweets={MOCK_DELETED_TWEETS}
         deletedTweetsIsVip={false}
         loadingTwInfo={false}
         loadingDel={false}
         error={null}
         rootData={null}
         loadingRootData={false}
-        renameInfo={null}
+        renameInfo={MOCK_RENAME_INFO}
         reviewInfo={MOCK_REVIEW_INFO}
         loadingRenameInfo={false}
         discussionInfo={null}
