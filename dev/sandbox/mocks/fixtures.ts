@@ -274,3 +274,23 @@ export const MOCK_DISCUSSION = {
   discussion7dCn: sentiment(58, 27.4, ['生态合作数量增长'], ['近期价格波动较大', '社区对空投规则有争议']),
   discussion7dEn: sentiment(58, 27.4, ['More ecosystem partners'], ['Volatile price lately', 'Airdrop rules disputed']),
 };
+
+const fund = (name: string, lead = false) => ({ name, avatar: '', twitter: '', lead_investor: lead });
+
+export const MOCK_PROJECT_ROOT_DATA = {
+  projectLink: 'https://www.rootdata.com/',
+  invested: {
+    total_funding: 12_500_000,
+    investors: [fund('Lumen Ventures', true), fund('Nova Capital'), fund('Delta Labs'), fund('Rin Angels'), fund('Juno DAO'), fund('Orbit Partners')],
+  },
+  investor: { investors: [fund('Echo Protocol'), fund('Mika Finance'), fund('Theo Swap')] },
+};
+
+const person = (handle: string, name: string, level?: string) => ({ handle, name, image: '', level });
+
+export const MOCK_PROJECT_MEMBERS = {
+  handle: 'mira_onchain',
+  'founder/executive': [person('lumenlabs', 'Lumen Labs', 'CEO'), person('0xkai', '0xKai', 'CTO')],
+  member: [person('echolin', 'Echo Lin'), person('theopark', 'Theo Park'), person('rin_eth', 'Rin.eth'), person('mika', 'Mika')],
+  'investor/advisor': [person('nova_vc', 'Nova VC')],
+};

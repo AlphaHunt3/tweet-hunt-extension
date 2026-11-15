@@ -1281,5 +1281,10 @@
   "tokenReturnBasis": "按近 90 天提及的代币计算",
   "tokenCount": "{count} 个代币",
   "openPost": "打开帖子",
-  "tweetCount": "{count} 条"
+  "tweetCount": "{count} 条",
+  "investorCount": "{count} 家",
+  "portfolioCount": "{count} 个项目",
+  "leadInvestor": "领投",
+  "memberCount": "{count} 人",
+  "membersAiNote": "AI 归类，仅供参考"
 }

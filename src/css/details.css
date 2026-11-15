@@ -1049,3 +1049,105 @@
     font-size: 13px;
   }
 }
+
+@layer xh-primitives {
+  .xh-kolf-note {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--xh-fg-2);
+    font-size: 10.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .xh-investors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .xh-investor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 6px;
+    border-radius: 8px;
+    color: var(--xh-fg);
+    font-size: 12.5px;
+    text-decoration: none;
+  }
+  a.xh-investor:hover {
+    background: var(--xh-hover);
+  }
+  a.xh-investor:focus-visible {
+    outline: 2px solid var(--xh-accent);
+    outline-offset: -2px;
+  }
+  .xh-investor-av {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+  }
+  .xh-investor-lead {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 9px;
+    height: 9px;
+    border: 2px solid var(--xh-surface);
+    border-radius: 999px;
+    background: var(--xh-warn);
+  }
+  .xh-investor-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .xh-investors[data-compact] .xh-investor {
+    padding: 3px 4px;
+    font-size: 12px;
+  }
+  [data-skin='native'] .xh-investor {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .xh-invest {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+  }
+  .xh-invest[data-compact] {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .xh-invest-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .xh-invest-title {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0;
+    color: var(--xh-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .xh-invest-meta {
+    color: var(--xh-fg-2);
+    font-family: var(--xh-font-num);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .xh-invest .xh-investors {
+    max-height: 132px;
+    overflow-y: auto;
+  }
+}

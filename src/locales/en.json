@@ -1278,5 +1278,10 @@
   "tokenReturnBasis": "Based on tokens mentioned in the last 90 days",
   "tokenCount": "{count} tokens",
   "openPost": "Open post",
-  "tweetCount": "{count} posts"
+  "tweetCount": "{count} posts",
+  "investorCount": "{count} investors",
+  "portfolioCount": "{count} projects",
+  "leadInvestor": "Lead investor",
+  "memberCount": "{count} people",
+  "membersAiNote": "Grouped by AI · for reference"
 }

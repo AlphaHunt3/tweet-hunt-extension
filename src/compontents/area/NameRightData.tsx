@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
 import { TokenMentionsCard, TokenReturnCard } from '~/ui/profile/details/TokenCards';
-import { renderInvestorList } from '~/compontents/InvestmentPanel.tsx';
+import { InvestorsCard } from '~/ui/profile/details/InvestorsCard';
+import { MembersCard } from '~/ui/profile/details/MembersCard';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { DiscussionCard, MbtiCard, RenameCard } from '~/ui/profile/details/TextCards';
 import {
@@ -25,7 +26,6 @@ import { SkinScope } from '~/ui/skin/SkinScope';
 import { getSoulInfo } from '~contents/services/api.ts';
 import { SoulCard } from '~/ui/profile/details/SoulCard';
 import { useRequest } from 'ahooks';
-import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { ProRequired } from '~compontents/ProRequired';
@@ -334,24 +334,26 @@ function _NameRightData({
       case 'renamed':
         return <RenameCard data={renameInfo?.accounts?.[0]} handle={userId} />;
       case 'members':
-        return (
-          <ProjectMembersSection data={projectMemberData} isHoverPanel={true} />
-        );
+        return <MembersCard groups={projectMemberData} rootData={rootData} />;
       case 'investors':
-        return renderInvestorList(
-          t('investors'),
-          rootData?.invested?.investors,
-          rootData?.invested?.total_funding,
-          rootData?.projectLink,
-          true,
+        return (
+          <InvestorsCard
+            title={t('investors')}
+            kind='investors'
+            investors={rootData?.invested?.investors}
+            totalFunding={rootData?.invested?.total_funding}
+            projectLink={rootData?.projectLink}
+          />
         );
       case 'portfolio':
-        return renderInvestorList(
-          t('portfolio'),
-          rootData?.investor?.investors,
-          rootData?.investor?.total_funding,
-          rootData?.projectLink,
-          true,
+        return (
+          <InvestorsCard
+            title={t('portfolio')}
+            kind='portfolio'
+            investors={rootData?.investor?.investors}
+            totalFunding={rootData?.investor?.total_funding}
+            projectLink={rootData?.projectLink}
+          />
         );
       case 'discussion1d':
         return (

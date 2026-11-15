@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useI18n } from '~contents/hooks/i18n';
 import { UsersIcon } from '~/ui/icons';
-import { Avatar } from '~/ui/primitives/Avatar';
 import { TabList, TabPanel, Tabs } from '~/ui/primitives/Tabs';
 import type { KolStat, KolTab, RankDomain } from '../kolRankItems';
-import { useOfficialTags } from '../useOfficialTags';
 import { DetailCard, DetailEmpty } from './DetailCard';
+import { PersonChip } from './PersonChip';
 
 const LIST_FIELD: Record<KolTab, string> = {
   global: 'globalKolFollowers',
@@ -24,32 +23,6 @@ export function followerList(kolFollow: any, tab: KolTab, domain: RankDomain): K
   return Array.isArray(list) ? list.filter((item) => item && typeof item.username === 'string' && item.username) : [];
 }
 
-function FollowerChip({ kol, lang }: { kol: KolFollower; lang: string }) {
-  const tags = useOfficialTags(kol.username, null, lang).slice(0, 2);
-  const name = kol.name || kol.username;
-  return (
-    <a
-      className='xh-kolf'
-      href={`https://x.com/${kol.username}`}
-      target='_blank'
-      rel='noopener noreferrer'
-      title={`${name} (@${kol.username})`}
-    >
-      <Avatar name={name} src={kol.avatar} size='sm' />
-      <span className='xh-kolf-name'>{name}</span>
-      {tags.length ? (
-        <span className='xh-kolf-tags'>
-          {tags.map((tag) => (
-            <span key={tag} className='xh-kolf-tag'>
-              {tag}
-            </span>
-          ))}
-        </span>
-      ) : null}
-    </a>
-  );
-}
-
 export interface KolFollowersCardProps {
   kolFollow: any;
   domain: RankDomain;
@@ -58,7 +31,7 @@ export interface KolFollowersCardProps {
 }
 
 export function KolFollowersCard({ kolFollow, domain, tabs, initialTab }: KolFollowersCardProps) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [selected, setSelected] = useState<KolTab>(initialTab);
   const current = tabs.find((stat) => stat.tab === selected) ?? tabs[0];
   const list = current ? followerList(kolFollow, current.tab, domain) : [];
@@ -66,7 +39,7 @@ export function KolFollowersCard({ kolFollow, domain, tabs, initialTab }: KolFol
     <ul className='xh-kolf-grid'>
       {list.map((kol) => (
         <li key={kol.username}>
-          <FollowerChip kol={kol} lang={lang} />
+          <PersonChip handle={kol.username} name={kol.name} avatar={kol.avatar} />
         </li>
       ))}
     </ul>

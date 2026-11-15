@@ -8,6 +8,8 @@ import type { XPalette } from '~/ui/skin/xPalette';
 import {
   MOCK_DELETED_TWEETS,
   MOCK_DISCUSSION,
+  MOCK_PROJECT_MEMBERS,
+  MOCK_PROJECT_ROOT_DATA,
   MOCK_PROJECT_TW_INFO,
   MOCK_RENAME_INFO,
   MOCK_REVIEW_INFO,
@@ -92,14 +94,14 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
         loadingTwInfo={false}
         loadingDel={false}
         error={null}
-        rootData={null}
+        rootData={PROJECT ? MOCK_PROJECT_ROOT_DATA : null}
         loadingRootData={false}
         renameInfo={MOCK_RENAME_INFO}
         reviewInfo={MOCK_REVIEW_INFO}
         loadingRenameInfo={false}
         discussionInfo={PROJECT ? MOCK_DISCUSSION : null}
         loadingDiscussionInfo={false}
-        projectMemberData={null}
+        projectMemberData={PROJECT ? MOCK_PROJECT_MEMBERS : null}
         loadingProjectMember={false}
       />
       </ErrorBoundary>
