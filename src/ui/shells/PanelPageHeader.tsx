@@ -10,23 +10,30 @@ export function PanelPageHeader({
   title,
   showBack = true,
   onClose,
+  onBack,
   actions,
 }: {
   title: ReactNode;
   showBack?: boolean;
   onClose?: () => void;
+  onBack?: () => void;
   actions?: ReactNode;
 }) {
   const { t } = useI18n();
   const { skin } = useUiSkin();
   const { goBack, history } = useNavigation();
   const controls = usePanelControls(onClose);
-  const canGoBack = skin !== 'obsidian' && showBack && history.length > 1;
+  const canGoBack = Boolean(onBack) || (skin !== 'obsidian' && showBack && history.length > 1);
 
   return (
     <div className='flex items-center gap-2 soft:h-9 soft:px-0.5 obsidian:px-3 obsidian:pb-2 obsidian:pt-2.5 native:gap-3 native:pb-1 native:pl-4 native:pr-3 native:pt-3'>
       {canGoBack ? (
-        <IconButton label={t('panelBack')} size='sm' onClick={goBack} data-xhunt-testid='panel-back-button'>
+        <IconButton
+          label={t('panelBack')}
+          size='sm'
+          onClick={onBack ?? goBack}
+          data-xhunt-testid={onBack ? 'panel-section-back-button' : 'panel-back-button'}
+        >
           {skin === 'native' ? <ArrowLeftIcon size={20} /> : <ChevronLeftIcon />}
         </IconButton>
       ) : null}

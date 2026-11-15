@@ -25,6 +25,27 @@ const SOCIAL_LINKS = [
   { label: 'Telegram', href: 'https://t.me/xhunt_ai', icon: <TelegramIcon className='h-3.5 w-3.5 fill-current' /> },
 ];
 
+export function SocialLinks() {
+  return (
+    <>
+      {SOCIAL_LINKS.map((link) => (
+        <a
+          key={link.label}
+          href={link.href}
+          target='_blank'
+          rel='noopener noreferrer'
+          aria-label={link.label}
+          title={link.label}
+          className='xh-iconbtn'
+          data-size='sm'
+        >
+          {link.icon}
+        </a>
+      ))}
+    </>
+  );
+}
+
 function _UserAuthPanel({
   userInfo,
 }: {
@@ -79,20 +100,7 @@ function _UserAuthPanel({
         data-xhunt-testid='auth-logged-out-panel'
         className='flex items-center gap-0.5 soft:px-1 obsidian:border-t obsidian:border-xh-line obsidian:px-2.5 obsidian:py-2 native:border-t native:border-xh-line native:px-3 native:py-2.5'
       >
-        {SOCIAL_LINKS.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            target='_blank'
-            rel='noopener noreferrer'
-            aria-label={link.label}
-            title={link.label}
-            className='xh-iconbtn'
-            data-size='sm'
-          >
-            {link.icon}
-          </a>
-        ))}
+        <SocialLinks />
         <Button
           size='sm'
           variant='primary'
