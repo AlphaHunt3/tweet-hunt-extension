@@ -31,7 +31,7 @@ function getEntityHref(entity: string) {
   return `https://x.com/search?q=${encodeURIComponent(entity)}&src=cashtag_click`;
 }
 
-function renderTextWithEntities(text: string, kind: TweetContentPartKind) {
+function renderTextWithEntities(text: string) {
   const result: ReactNode[] = [];
   let cursor = 0;
   let key = 0;
@@ -56,14 +56,12 @@ function renderTextWithEntities(text: string, kind: TweetContentPartKind) {
         href={getEntityHref(entity)}
         target='_blank'
         rel='noopener noreferrer nofollow'
-        className={`${kind === 'equal' ? 'text-[#1D9BF0]' : 'text-current'} underline decoration-current/50 underline-offset-2 hover:decoration-current`}
         onClick={(event) => event.stopPropagation()}
       >
         {entity}
       </a>,
     );
     if (trailingPunctuation) result.push(trailingPunctuation);
-
     cursor = matchIndex + rawEntity.length;
     key += 1;
   }
@@ -73,33 +71,24 @@ function renderTextWithEntities(text: string, kind: TweetContentPartKind) {
 }
 
 function renderPart(part: TweetContentPart, index: number) {
-  const content = renderTextWithEntities(part.text, part.kind);
+  const content = renderTextWithEntities(part.text);
   const key = `tweet-content-part-${part.kind}-${index}`;
-
   if (part.kind === 'delete') {
     return (
-      <del
-        key={key}
-        className='rounded-sm bg-red-500/10 px-0.5 text-red-600 decoration-red-500 decoration-2 dark:bg-red-400/15 dark:text-red-400 dark:decoration-red-400'
-      >
+      <del key={key} className='xh-diff-del'>
         {content}
       </del>
     );
   }
-
   if (part.kind === 'insert') {
     return (
-      <ins
-        key={key}
-        className='rounded-sm bg-emerald-500/10 px-0.5 text-emerald-600 no-underline dark:bg-emerald-400/15 dark:text-emerald-400'
-      >
+      <ins key={key} className='xh-diff-ins'>
         {content}
       </ins>
     );
   }
-
   return (
-    <span key={key} className={part.collapsed ? 'theme-text-secondary' : ''}>
+    <span key={key} className={part.collapsed ? 'xh-tweet-collapsed' : undefined}>
       {content}
     </span>
   );
@@ -117,16 +106,11 @@ export function TweetContent({
   const hasParts = Boolean(parts?.length);
 
   return (
-    <div
-      className={`break-words [&_a]:break-words [&_a]:underline [&_a]:decoration-current/50 [&_a]:underline-offset-2 hover:[&_a]:decoration-current [&_img]:h-auto ${limitImageWidth ? '[&_img]:max-w-[70%]' : '[&_img]:max-w-full'} [&_video]:max-w-full ${className}`}
-    >
+    <div className={`xh-tweet-content ${className}`} data-limit-images={limitImageWidth ? '' : undefined}>
       {hasParts ? (
-        <div className='whitespace-pre-wrap'>
-          {parts?.map((part, index) => renderPart(part, index))}
-        </div>
+        <div className='xh-tweet-pre'>{parts?.map((part, index) => renderPart(part, index))}</div>
       ) : safeHtml ? (
         <div
-          className='[&_a]:text-[#1D9BF0] [&_p]:my-0'
           onClick={(event) => {
             if (event.target instanceof Element && event.target.closest('a')) {
               event.stopPropagation();
@@ -135,9 +119,7 @@ export function TweetContent({
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
       ) : text ? (
-        <div className='whitespace-pre-wrap'>
-          {renderTextWithEntities(text, 'equal')}
-        </div>
+        <div className='xh-tweet-pre'>{renderTextWithEntities(text)}</div>
       ) : (
         emptyContent
       )}

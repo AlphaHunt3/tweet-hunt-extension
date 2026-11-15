@@ -1,16 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import { PanelHeader } from '~/compontents/navigation/PanelNavigator';
-import {
-  GripVertical,
-  CircleX,
-  Loader2,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { InAppMessages } from '~/compontents/InAppMessages.tsx';
 import { messageManager } from '~/utils/messageManager';
-import HeaderRightControls from '~/compontents/navigation/HeaderRightControls';
-import { useNavigation } from '~/compontents/navigation/PanelNavigator';
+import { PanelPageHeader } from '~/ui/shells/PanelPageHeader';
 
 interface MessagesPageProps {
   showBackButton?: boolean;
@@ -26,7 +19,6 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
   const { t } = useI18n();
   const { lang } = useI18n();
   const langRef = useRef(lang);
-  const { navigateTo } = useNavigation();
 
   // Update message manager language when user language changes
   useEffect(() => {
@@ -41,33 +33,14 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
     messageManager.markAllAsRead();
   }, []);
 
-  // Right content for header
-  const headerRightContent = (
-    <HeaderRightControls
-      onOpenSettings={() => {
-        navigateTo('/settings');
-      }}
-      onClose={onClose}
-      onOpenMessages={() => {
-        requestAnimationFrame(() => {
-          messageManager.markAllAsRead();
-        });
-      }}
-    />
-  );
-
   return (
     <>
-      <PanelHeader
-        title={`XHunt ${t('messages')}`}
-        showBackButton={showBackButton}
-        rightContent={headerRightContent}
-      />
+      <PanelPageHeader title={`XHunt ${t('messages')}`} showBack={showBackButton} onClose={onClose} />
 
       {loading ? (
-        <div className='flex-1 flex flex-col items-center justify-center min-h-[300px]'>
-          <Loader2 className='w-8 h-8 text-blue-400 animate-spin mb-2' />
-          <p className='text-sm text-blue-400'>{t('loading')}</p>
+        <div className='flex min-h-[300px] flex-1 flex-col items-center justify-center gap-2 text-xh-fg-2'>
+          <Loader2 className='h-6 w-6 animate-spin' />
+          <p className='text-sm'>{t('loading')}</p>
         </div>
       ) : (
         <div

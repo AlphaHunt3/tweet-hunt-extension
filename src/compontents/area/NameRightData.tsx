@@ -1,39 +1,31 @@
 import React, { useMemo } from 'react';
-import { HoverStatItem } from '~/compontents/HoverStatItem.tsx';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import { DeletedTweetsSection } from '~/compontents/DeletedTweetsSection.tsx';
-import { TokenPerformanceSection } from '~/compontents/TokenPerformanceSection.tsx';
-import { formatFunding, formatPercentage, getMBTIColor } from '~contents/utils';
-import { renderInvestorList } from '~/compontents/InvestmentPanel.tsx';
+import { TokenMentionsCard, TokenReturnCard } from '~/ui/profile/details/TokenCards';
+import { InvestorsCard } from '~/ui/profile/details/InvestorsCard';
+import { MembersCard } from '~/ui/profile/details/MembersCard';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import { NameHistorySection } from '~/compontents/NameHistorySection.tsx';
-import { MBTISection } from '~/compontents/MBTISection.tsx';
-import { DiscussionSection } from '~/compontents/DiscussionSection.tsx';
+import { DiscussionCard, MbtiCard, RenameCard } from '~/ui/profile/details/TextCards';
 import {
   MBTIData,
-  MultiFieldData,
-  MultiFieldItem,
   SoulDensityData,
 } from '~types';
-import KolAbilityRadar, {
-  buildAbilityFooter,
-} from '~/compontents/KolAbilityRadar.tsx';
-import AbilityTags from '~/compontents/AbilityTags.tsx';
-import {
-  generatePersonalizedColor,
-  generateScoreBasedColor,
-} from '~/utils/colorGenerator.ts';
+import { AbilityCard, abilityEntries } from '~/ui/profile/details/AbilityCard';
+import { DetailCard } from '~/ui/profile/details/DetailCard';
+import { PencilIcon, TrashIcon } from '~/ui/icons';
 import { configManager } from '~/utils/configManager.ts';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
-import { NotesSection } from '~compontents/NotesSection.tsx';
-import { NarrativeSection } from '~/compontents/NarrativeSection.tsx';
-import SoulDensity from '~/compontents/SoulDensity.tsx';
+import { buildInsightItems, type InsightKey } from '~/ui/profile/insightItems';
+import { NarrativeLine } from '~/ui/profile/NarrativeLine';
+import { ProfileInsights } from '~/ui/profile/ProfileInsights';
+import { ProfileTagline } from '~/ui/profile/ProfileTagline';
+import { SkinScope } from '~/ui/skin/SkinScope';
 import { getSoulInfo } from '~contents/services/api.ts';
+import { SoulCard } from '~/ui/profile/details/SoulCard';
 import { useRequest } from 'ahooks';
-import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { ProRequired } from '~compontents/ProRequired';
@@ -41,11 +33,14 @@ import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { EditedTweetsSection } from '~compontents/EditedTweetsSection';
 import { useEditedTweets } from '~contents/hooks/useEditedTweets';
+import {
+  AI_ABILITY_MIN_SCORE,
+  getAbilityModelData,
+  type AbilityModelData,
+} from '~/utils/abilityModel';
 
 type DomainType = 'web3' | 'ai';
-const AI_ABILITY_MIN_SCORE = 70;
 const ABILITY_MODEL_MIN_DISPLAY_COUNT = 1;
-const ABILITY_MODEL_MIN_RADAR_COUNT = 3;
 
 type NameRightDataProps = Pick<
   MainData,
@@ -67,396 +62,8 @@ type NameRightDataProps = Pick<
   | 'loadingProjectMember'
 >;
 
-interface AbilityModelData {
-  abilities: MultiFieldItem[];
-  summary: string;
-  updateTime?: string | number | null;
-}
-
-function getAbilityModelData(
-  multiField: MultiFieldData | null | undefined,
-  lang: string,
-  minScore?: number,
-): AbilityModelData {
-  try {
-    if (!multiField) return { abilities: [], summary: '', updateTime: null };
-
-    const languageFields = lang === 'zh' ? multiField.cn : multiField.en;
-    if (!languageFields?.fields || !Array.isArray(languageFields.fields)) {
-      return {
-        abilities: [],
-        summary: '',
-        updateTime:
-          multiField.update ?? multiField.updateDate ?? multiField.updatedAt ?? null,
-      };
-    }
-
-    const abilities =
-      typeof minScore === 'number'
-        ? languageFields.fields.filter((item) => {
-          const key = Object.keys(item)[0];
-          const score = Number(item?.[key]);
-          return Number.isFinite(score) && score >= minScore;
-        })
-        : languageFields.fields;
-
-    return {
-      abilities,
-      summary: languageFields.summary || '',
-      updateTime:
-        multiField.update ?? multiField.updateDate ?? multiField.updatedAt ?? null,
-    };
-  } catch {
-    return { abilities: [], summary: '', updateTime: null };
-  }
-}
-
 function hasDisplayableAbilityData(data: AbilityModelData) {
   return data.abilities.length >= ABILITY_MODEL_MIN_DISPLAY_COUNT;
-}
-
-function hasRadarAbilityData(data: AbilityModelData) {
-  return data.abilities.length >= ABILITY_MODEL_MIN_RADAR_COUNT;
-}
-
-function NameInsightsSkeleton() {
-  return (
-    <div className='flex items-center w-full h-5 gap-1 mt-3'>
-      <span className='h-3.5 w-9 rounded-sm bg-gray-300/50 dark:bg-gray-700/60 animate-pulse' />
-      <span className='h-0.5 w-0.5 rounded-full bg-gray-300/60 dark:bg-gray-600/70' />
-      <span className='h-3.5 w-20 rounded-sm bg-gray-300/50 dark:bg-gray-700/60 animate-pulse' />
-      <span className='h-0.5 w-0.5 rounded-full bg-gray-300/60 dark:bg-gray-600/70' />
-      <span className='h-3.5 w-16 rounded-sm bg-gray-300/50 dark:bg-gray-700/60 animate-pulse' />
-    </div>
-  );
-}
-
-interface AbilityModelPanelProps {
-  web3Data: AbilityModelData;
-  aiData: AbilityModelData;
-  activeDomain: DomainType;
-  onDomainChange: (domain: DomainType) => void;
-  userId: string;
-  newTwitterData: MainData['newTwitterData'];
-  loadingTwInfo: boolean;
-  title: string;
-  web3Label: string;
-  aiLabel: string;
-}
-
-interface AbilityModelDetailPanelProps {
-  web3Data: AbilityModelData;
-  aiData: AbilityModelData;
-  activeDomain: DomainType;
-  onDomainChange: (domain: DomainType) => void;
-  title: string;
-  web3Label: string;
-  aiLabel: string;
-  personalizedColor: string;
-}
-
-function getAbilityScore(item: MultiFieldItem) {
-  try {
-    const key = Object.keys(item)[0];
-    const score = Number(item?.[key]);
-    if (!Number.isFinite(score)) return 0;
-    return Math.max(0, Math.min(100, score));
-  } catch {
-    return 0;
-  }
-}
-
-function getAbilityName(item: MultiFieldItem, index: number) {
-  try {
-    const key = Object.keys(item)[0];
-    return key || `Ability${index + 1}`;
-  } catch {
-    return `Ability${index + 1}`;
-  }
-}
-
-function AbilityModelDetailPanel({
-  web3Data,
-  aiData,
-  activeDomain,
-  onDomainChange,
-  title,
-  web3Label,
-  aiLabel,
-  personalizedColor,
-}: AbilityModelDetailPanelProps) {
-  const { t, lang } = useI18n();
-  const {
-    handler: hookUsername,
-    displayName: hookName,
-    avatar: hookAvatar,
-    loading: hookLoading,
-  } = usePlacementTracking();
-  const domUserInfo = useMemo(
-    () =>
-      hookUsername
-        ? {
-          username: hookUsername,
-          name: hookName,
-          avatar: hookAvatar,
-        }
-        : null,
-    [hookUsername, hookName, hookAvatar],
-  );
-  const hasWeb3Data = hasDisplayableAbilityData(web3Data);
-  const hasAiData = hasDisplayableAbilityData(aiData);
-  const canSwitch = hasWeb3Data && hasAiData;
-  const currentDomain: DomainType =
-    activeDomain === 'ai'
-      ? hasAiData
-        ? 'ai'
-        : 'web3'
-      : hasWeb3Data
-        ? 'web3'
-        : 'ai';
-  const currentData = currentDomain === 'ai' ? aiData : web3Data;
-  const domainOptions = (['web3', 'ai'] as DomainType[]).filter((domain) =>
-    domain === 'ai' ? hasAiData : hasWeb3Data,
-  );
-  const abilityFooter = useMemo(() => {
-    return buildAbilityFooter(
-      t('abilityModelFooter') || '',
-      currentData.updateTime,
-      lang,
-    );
-  }, [t, currentData.updateTime, lang]);
-
-  return (
-    <div className='px-3 pt-1 pb-3 min-w-[360px] theme-bg-secondary rounded-lg relative'>
-      <div className='flex items-center gap-3 pb-1 border-b theme-border'>
-        <div className='relative'>
-          {hookLoading ? (
-            <div className='w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse flex items-center justify-center'>
-              <div className='w-5 h-5 text-gray-400'>
-                <svg viewBox='0 0 24 24' fill='currentColor'>
-                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
-                </svg>
-              </div>
-            </div>
-          ) : domUserInfo?.avatar ? (
-            <img
-              src={domUserInfo.avatar}
-              alt={domUserInfo.name}
-              className='w-10 h-10 rounded-full border-2 theme-border'
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          ) : (
-            <div className='w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center border-2 theme-border'>
-              <span className='text-white font-medium text-sm'>
-                {domUserInfo?.name
-                  ? domUserInfo.name.charAt(0).toUpperCase()
-                  : '?'}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className='flex-1 min-w-0'>
-          {hookLoading ? (
-            <div className='space-y-1'>
-              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-20'></div>
-              <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-16'></div>
-            </div>
-          ) : (
-            <>
-              <h3 className='text-sm font-medium theme-text-primary leading-tight truncate'>
-                {domUserInfo?.name || 'Unknown User'}
-              </h3>
-              <p className='text-xs theme-text-secondary leading-tight truncate'>
-                @{domUserInfo?.username || 'unknown'}
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className='flex flex-col items-end gap-1 text-right shrink-0'>
-          <h3 className='text-[10px] font-medium theme-text-primary leading-none'>
-            {title}
-          </h3>
-          {canSwitch ? (
-            <div className='inline-flex items-center gap-0.5 theme-bg-tertiary rounded-full p-[2px]'>
-              {domainOptions.map((domain) => {
-                const active = currentDomain === domain;
-                const isAi = domain === 'ai';
-                return (
-                  <button
-                    key={domain}
-                    type='button'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDomainChange(domain);
-                    }}
-                    className={`px-2 py-0.5 text-[11px] rounded-full font-semibold leading-none transition-all ${active
-                      ? 'text-white'
-                      : 'theme-text-secondary hover:theme-text-primary'
-                      }`}
-                    style={
-                      active
-                        ? {
-                          background: isAi
-                            ? 'linear-gradient(135deg, #10b981 0%, #34d399 100%)'
-                            : 'linear-gradient(135deg, #1D9BF0 0%, #a855f7 100%)',
-                          boxShadow: isAi
-                            ? '0 1px 4px rgba(16,185,129,0.2)'
-                            : '0 1px 4px rgba(29,155,240,0.22)',
-                        }
-                        : undefined
-                    }
-                  >
-                    {isAi ? aiLabel : web3Label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <span
-              className='text-[10px] font-semibold leading-none'
-              style={{ color: currentDomain === 'ai' ? '#10b981' : '#1D9BF0' }}
-            >
-              {currentDomain === 'ai' ? aiLabel : web3Label}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className='py-2 space-y-2'>
-        {currentData.abilities.map((item, index) => {
-          const name = getAbilityName(item, index);
-          const score = getAbilityScore(item);
-
-          return (
-            <div
-              key={`${name}-${index}`}
-              className='flex items-center justify-between gap-3'
-            >
-              <span className='text-xs font-medium theme-text-primary truncate'>
-                {name}
-              </span>
-              <span
-                className='text-xs font-semibold shrink-0'
-                style={{ color: personalizedColor }}
-              >
-                {score}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {currentData.summary && (
-        <div className='pt-2 border-t theme-border'>
-          <h4 className='text-xs font-medium theme-text-primary mb-1'>
-            {t('abilityAnalysis')}
-          </h4>
-          <p className='text-xs theme-text-secondary leading-relaxed'>
-            {currentData.summary}
-            {abilityFooter ? <> ({abilityFooter})</> : null}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AbilityModelPanel({
-  web3Data,
-  aiData,
-  activeDomain,
-  onDomainChange,
-  userId,
-  newTwitterData,
-  loadingTwInfo,
-  title,
-  web3Label,
-  aiLabel,
-}: AbilityModelPanelProps) {
-  const hasWeb3Data = hasDisplayableAbilityData(web3Data);
-  const hasAiData = hasDisplayableAbilityData(aiData);
-  const canSwitch = hasWeb3Data && hasAiData;
-  const currentDomain: DomainType =
-    activeDomain === 'ai'
-      ? hasAiData
-        ? 'ai'
-        : 'web3'
-      : hasWeb3Data
-        ? 'web3'
-        : 'ai';
-  const currentData = currentDomain === 'ai' ? aiData : web3Data;
-  const domainOptions = (['web3', 'ai'] as DomainType[]).filter((domain) =>
-    domain === 'ai' ? hasAiData : hasWeb3Data,
-  );
-
-  const titleExtra = (
-    <div className='flex flex-col items-end gap-1'>
-      <h3 className='text-[10px] font-medium theme-text-primary leading-none'>
-        {title}
-      </h3>
-      {canSwitch ? (
-        <div className='inline-flex items-center gap-0.5 theme-bg-tertiary rounded-full p-[2px]'>
-          {domainOptions.map((domain) => {
-            const active = currentDomain === domain;
-            const isAi = domain === 'ai';
-            return (
-              <button
-                key={domain}
-                type='button'
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDomainChange(domain);
-                }}
-                className={`px-2 py-0.5 text-[11px] rounded-full font-semibold leading-none transition-all ${active
-                  ? 'text-white'
-                  : 'theme-text-secondary hover:theme-text-primary'
-                  }`}
-                style={
-                  active
-                    ? {
-                      background: isAi
-                        ? 'linear-gradient(135deg, #10b981 0%, #34d399 100%)'
-                        : 'linear-gradient(135deg, #1D9BF0 0%, #a855f7 100%)',
-                      boxShadow: isAi
-                        ? '0 1px 4px rgba(16,185,129,0.2)'
-                        : '0 1px 4px rgba(29,155,240,0.22)',
-                    }
-                    : undefined
-                }
-              >
-                {isAi ? aiLabel : web3Label}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <span
-          className='text-[10px] font-semibold leading-none'
-          style={{ color: currentDomain === 'ai' ? '#10b981' : '#1D9BF0' }}
-        >
-          {currentDomain === 'ai' ? aiLabel : web3Label}
-        </span>
-      )}
-    </div>
-  );
-
-  return (
-    <div className='theme-bg-secondary rounded-lg min-w-[360px]'>
-      <KolAbilityRadar
-        abilities={currentData.abilities}
-        summary={currentData.summary}
-        userId={userId}
-        newTwitterData={newTwitterData}
-        loadingTwInfo={loadingTwInfo}
-        titleExtra={titleExtra}
-        updateTime={currentData.updateTime}
-      />
-    </div>
-  );
 }
 
 function _NameRightData({
@@ -480,10 +87,10 @@ function _NameRightData({
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
+    shadowMode: 'open',
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
   const { t, lang } = useI18n();
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
@@ -492,7 +99,7 @@ function _NameRightData({
     useLocalStorage<DomainType | null>('@xhunt/name-ability-domain', null);
   const [isInsightsExpanded, setIsInsightsExpanded] = useLocalStorage(
     '@xhunt/name-insights-expanded',
-    false,
+    true,
   );
 
   const preferredAbilityDomain = useMemo<DomainType>(() => {
@@ -524,13 +131,6 @@ function _NameRightData({
       return lang === 'zh' ? twInfo?.mbti?.cn : twInfo?.mbti?.en;
     }
   }, [lang, twInfo]) as MBTIData;
-  const mbtiColor = useMemo(() => {
-    if (mbti && 'mbti' in mbti && mbti?.mbti) {
-      return getMBTIColor(mbti.mbti);
-    }
-    return '';
-  }, [mbti]);
-
   const web3AbilityData = useMemo(
     () => getAbilityModelData(twInfo?.multiField, lang),
     [twInfo?.multiField, lang],
@@ -560,34 +160,10 @@ function _NameRightData({
   const defaultAbilityData =
     activeAbilityDomain === 'ai' ? aiAbilityData : web3AbilityData;
   const { abilities } = defaultAbilityData;
-
-  // 从 abilities 中提取能力名称用于生成个性化颜色
-  const abilityNames = useMemo(() => {
-    try {
-      if (!abilities || abilities.length === 0) return [];
-      return abilities.map((item) => {
-        const key = Object.keys(item)[0];
-        return key || 'Unknown';
-      });
-    } catch {
-      return [];
-    }
-  }, [abilities]);
-
-  // 生成个性化颜色
-  const personalizedColors = useMemo(() => {
-    return generatePersonalizedColor(abilityNames);
-  }, [abilityNames]);
-
-  const soulColor = useMemo(() => {
-    if (!soulData || !soulData.score) {
-      return {
-        primary: '#7c3aed', // violet-600
-        secondary: 'rgba(124, 58, 237, 0.15)',
-      };
-    }
-    return generateScoreBasedColor(soulData.score);
-  }, [userId, soulData?.score]);
+  const abilityNames = useMemo(
+    () => abilityEntries(defaultAbilityData).map((entry) => entry.name),
+    [defaultAbilityData],
+  );
 
   // 计算项目成员数据
   const projectMemberStats = useMemo(() => {
@@ -633,398 +209,194 @@ function _NameRightData({
 
     return configAllowsDisplay && hasDisplayableAbilities;
   }, [abilities]);
-  const shouldShowAbilityRadar = useMemo(() => {
-    return hasRadarAbilityData(defaultAbilityData);
-  }, [defaultAbilityData]);
 
   if (!shadowRoot) return null;
   if (error || !userId) {
     return <></>;
   }
-  const isPerson = twInfo?.basicInfo?.classification === 'person';
-  // const isKol = twInfo?.basicInfo?.isKol;
-  const day90TokenMentionsLength = String(
-    twInfo?.kolTokenMention?.day90?.tokenMentions?.length,
-  );
-  const day90NowProfitAvg = twInfo?.kolTokenMention?.day90?.maxProfitAvg;
-  const day90NowProfitAvgStr =
-    (day90NowProfitAvg && day90NowProfitAvg >= 0 ? '+' : '') +
-    formatPercentage(day90NowProfitAvg);
-  const compactInvestorsText =
-    isEnabled('showInvestors') &&
-      !loadingRootData &&
-      rootData?.invested?.investors?.length
-      ? `${t('investors')} ${Number(rootData.invested.total_funding)
-        ? formatFunding(Number(rootData.invested.total_funding || 0))
-        : rootData.invested.investors.length
-      }`
-      : null;
-  const compactPortfolioText =
-    isEnabled('showPortfolio') &&
-      !loadingRootData &&
-      rootData?.investor?.investors?.length
-      ? `${t('portfolio')} ${rootData.investor.investors.length}`
-      : null;
-  const compactAbilityText = abilityNames.slice(0, 3).join(', ');
-  const compactMbtiText =
-    isEnabled('showPersonalityType') && !loadingTwInfo && twInfo?.mbti
-      ? mbti?.mbti
-      : '';
 
-  const compactSoulText =
-    isEnabled('showSoulIndex') && !loadingSoulData && soulData
-      ? `${t('soulIndex')} ${soulData.score || 0}${t('points')}`
-      : null;
+  const discussionData = discussionInfo
+    ? {
+        ca: discussionInfo.ca || '',
+        symbol: discussionInfo.symbol || '',
+        name: discussionInfo.name,
+        twitter: discussionInfo.twitter,
+        discussion1dCn: discussionInfo.discussion1dCn,
+        discussion1dEn: discussionInfo.discussion1dEn,
+        discussion7dCn: discussionInfo.discussion7dCn,
+        discussion7dEn: discussionInfo.discussion7dEn,
+      }
+    : undefined;
+  const bulletCount = (period?: {
+    negativeBulletPoints?: unknown[];
+    positiveBulletPoints?: unknown[];
+  }) =>
+    (period?.negativeBulletPoints?.length || 0) +
+    (period?.positiveBulletPoints?.length || 0);
+  const screenNameCount = Object.keys(
+    renameInfo?.accounts?.[0]?.screen_names || {},
+  ).length;
 
-  const compactInsightParts = [
-    compactMbtiText || null,
-    isEnabled('showKolAbilityModel') &&
-      !loadingTwInfo &&
-      shouldShowAbilityModel &&
-      compactAbilityText
-      ? compactAbilityText
-      : null,
-    compactSoulText,
-    compactInvestorsText,
-    compactPortfolioText,
-  ].filter(Boolean) as string[];
-  const shouldCollapseInsights = compactInsightParts.length > 0;
-  const fullStatsClassName = [
-    'flex flex-wrap items-center w-full mh-[40px] h-auto gap-1',
-    shouldCollapseInsights ? 'mt-2' : 'mt-4',
-  ].join(' ');
+  const insightItems = buildInsightItems({
+    t,
+    isEnabled,
+    hasWeb3,
+    classification: twInfo?.basicInfo?.classification,
+    isProject: Boolean(twInfo?.kolFollow?.isProject),
+    soulScore: soulData?.score,
+    hasSoul: !loadingSoulData && Boolean(soulData),
+    mbti: mbti?.mbti,
+    hasMbti: Boolean(twInfo?.mbti),
+    abilityNames,
+    showAbilityModel: shouldShowAbilityModel,
+    mentions90: twInfo?.kolTokenMention?.day90?.tokenMentions?.length,
+    return90: twInfo?.kolTokenMention?.day90?.maxProfitAvg,
+    deletedCount:
+      !loadingDel && deletedTweets?.length ? deletedTweets.length : 0,
+    editedCount: editedTweets.loadingCount ? 0 : editedTweets.count,
+    showEditInfo,
+    renameCount:
+      !loadingRenameInfo && screenNameCount > 1 ? screenNameCount - 1 : 0,
+    membersCount: projectMembersCount,
+    showMembers: hasRootMembers || hasGroupedMembers,
+    investorsCount: loadingRootData
+      ? 0
+      : rootData?.invested?.investors?.length || 0,
+    totalFunding: Number(rootData?.invested?.total_funding) || 0,
+    portfolioCount: loadingRootData
+      ? 0
+      : rootData?.investor?.investors?.length || 0,
+    discussion1d: loadingDiscussionInfo ? null : discussionInfo?.popularity1d,
+    discussion1dTotal: bulletCount(discussionInfo?.discussion1dCn),
+    discussion7d: loadingDiscussionInfo ? null : discussionInfo?.popularity7d,
+    discussion7dTotal: bulletCount(discussionInfo?.discussion7dCn),
+  });
 
-  const compactInsightContent = (
-    <div
-      className='inline-flex min-w-0 max-w-full items-center rounded px-0.5 py-0.5'
-      style={{
-        maxWidth: 'calc(100% - 42px)',
-      }}
-    >
-      <span className='min-w-0 truncate text-sm leading-5 theme-text-secondary'>
-        {compactInsightParts.join(' · ')}
-      </span>
-    </div>
-  );
+  const renderDetail = (key: InsightKey): React.ReactNode => {
+    switch (key) {
+      case 'soul':
+        return soulData ? <SoulCard data={soulData} handle={userId} /> : null;
+      case 'mbti':
+        return <MbtiCard data={mbti} />;
+      case 'ability':
+        return (
+          <AbilityCard
+            handle={userId}
+            web3={web3AbilityData}
+            ai={aiAbilityData}
+            domain={activeAbilityDomain}
+            onDomainChange={setStoredAbilityDomain}
+          />
+        );
+      case 'return90':
+        return <TokenReturnCard period={twInfo?.kolTokenMention?.day90} />;
+      case 'mentions90':
+        return <TokenMentionsCard period={twInfo?.kolTokenMention?.day90} />;
+      case 'deleted':
+        return (
+          <DetailCard
+            size='lg'
+            icon={<TrashIcon />}
+            title={t('insightDeleted')}
+            subtitle={t('tweetCount').replace('{count}', String(deletedTweets?.length || 0))}
+          >
+            <ProRequired enableAnimation={false} showExtraTitle={true}>
+              <DeletedTweetsSection
+                isHoverPanel={true}
+                deletedTweets={deletedTweets}
+                loadingDel={loadingDel}
+                isVip={deletedTweetsIsVip}
+              />
+            </ProRequired>
+          </DetailCard>
+        );
+      case 'edited':
+        return (
+          <DetailCard
+            size='lg'
+            icon={<PencilIcon />}
+            title={t('insightEdited')}
+            subtitle={t('editedTweetCountTitle').replace('{count}', String(editedTweets.count))}
+          >
+            <EditedTweetsSection
+              count={editedTweets.count}
+              access={editedTweets.access}
+              items={editedTweets.items}
+              loading={editedTweets.loadingDetails}
+              loaded={editedTweets.detailsLoaded}
+              error={editedTweets.error}
+              hasMore={editedTweets.hasMore}
+              onRetry={editedTweets.retryDetails}
+              onLoadMore={editedTweets.loadMore}
+            />
+          </DetailCard>
+        );
+      case 'renamed':
+        return <RenameCard data={renameInfo?.accounts?.[0]} handle={userId} />;
+      case 'members':
+        return <MembersCard groups={projectMemberData} rootData={rootData} />;
+      case 'investors':
+        return (
+          <InvestorsCard
+            title={t('investors')}
+            kind='investors'
+            investors={rootData?.invested?.investors}
+            totalFunding={rootData?.invested?.total_funding}
+            projectLink={rootData?.projectLink}
+          />
+        );
+      case 'portfolio':
+        return (
+          <InvestorsCard
+            title={t('portfolio')}
+            kind='portfolio'
+            investors={rootData?.investor?.investors}
+            totalFunding={rootData?.investor?.total_funding}
+            projectLink={rootData?.projectLink}
+          />
+        );
+      case 'discussion1d':
+        return (
+          <DiscussionCard
+            data={discussionData}
+            period='1d'
+            loading={loadingDiscussionInfo}
+          />
+        );
+      case 'discussion7d':
+        return (
+          <DiscussionCard
+            data={discussionData}
+            period='7d'
+            loading={loadingDiscussionInfo}
+          />
+        );
+    }
+  };
 
   return ReactDOM.createPortal(
-    <div
-      data-theme={theme}
-      data-xhunt-testid='name-right-data'
-      style={{ display: 'contents' }}
-    >
-      <NotesSection
-        userId={userId}
+    <SkinScope data-xhunt-testid='name-right-data'>
+      <ProfileTagline
+        handle={userId}
         twitterId={twitterId}
-        reviewInfo={reviewInfo}
+        fallbackNote={reviewInfo?.currentUserReview?.note}
       />
-      {shouldCollapseInsights && !isInsightsExpanded && (
-        <div className='mt-1.5 flex w-full items-center gap-1.5'>
-          {compactInsightContent}
-          <button
-            type='button'
-            data-xhunt-testid='profile-insights-expand-button'
-            aria-expanded={isInsightsExpanded}
-            className='shrink-0 whitespace-nowrap px-0.5 text-sm leading-5 text-[#1D9BF0] hover:underline transition-colors'
-            onClick={() => setIsInsightsExpanded((prev) => !prev)}
-          >
-            {t('profileInsightsMore')}
-          </button>
-        </div>
-      )}
-      {loadingTwInfo ? (
-        <NameInsightsSkeleton />
-      ) : (!shouldCollapseInsights || isInsightsExpanded) && (
-        <div className={fullStatsClassName}>
-          {/* 项目成员 */}
-          {isEnabled('showProjectMembers') &&
-            twInfo?.basicInfo?.classification !== 'person' &&
-            (hasRootMembers || hasGroupedMembers) && (
-              <HoverStatItem
-                label={t('projectMembers')}
-                value={`(${projectMembersCount})`}
-                hoverContent={
-                  <ProjectMembersSection
-                    data={projectMemberData}
-                    isHoverPanel={true}
-                  />
-                }
-                valueClassName='text-purple-400'
-              />
-            )}
-
-          {!loadingRootData ? (
-            <>
-              {/*投资人*/}
-              {isEnabled('showInvestors') &&
-                rootData &&
-                rootData?.invested?.investors?.length ? (
-                <HoverStatItem
-                  label={t('investors')}
-                  value={
-                    Number(rootData.invested.total_funding) ? (
-                      <span className='text-green-600'>
-                        (
-                        {formatFunding(
-                          Number(rootData.invested.total_funding || 0),
-                        )}
-                        )
-                      </span>
-                    ) : (
-                      <>({rootData?.invested?.investors?.length})</>
-                    )
-                  }
-                  hoverContent={renderInvestorList(
-                    t('investors'),
-                    rootData.invested.investors,
-                    rootData.invested.total_funding,
-                    rootData?.projectLink,
-                    true,
-                  )}
-                  valueClassName={'text-[#1D9BF0]'}
-                />
-              ) : null}
-              {isEnabled('showPortfolio') &&
-                rootData &&
-                rootData?.investor?.investors?.length ? (
-                <HoverStatItem
-                  label={t('portfolio')}
-                  value={`(${rootData?.investor?.investors?.length || 0})`}
-                  hoverContent={renderInvestorList(
-                    t('portfolio'),
-                    rootData.investor.investors,
-                    rootData.investor.total_funding,
-                    rootData?.projectLink,
-                    true,
-                  )}
-                  valueClassName={'text-[#1D9BF0]'}
-                />
-              ) : null}
-            </>
-          ) : null}
-          {!loadingTwInfo ? (
-            <>
-              {/*90d谈及代币*/}
-              {isEnabled('show90dMention') &&
-                hasWeb3 &&
-                isPerson &&
-                Number(day90TokenMentionsLength) ? (
-                <HoverStatItem
-                  label={t('90dMention')}
-                  value={`(${day90TokenMentionsLength || 0})`}
-                  hoverContent={
-                    <TokenPerformanceSection
-                      isHoverPanel={true}
-                      kolData={twInfo}
-                      defaultPeriod={'day90'}
-                      mode={'WordCloud'}
-                    />
-                  }
-                  valueClassName={'text-[#1D9BF0]'}
-                />
-              ) : null}
-
-              {/*90d收益率*/}
-              {isEnabled('show90dPerformance') &&
-                hasWeb3 &&
-                isPerson &&
-                day90NowProfitAvg ? (
-                <HoverStatItem
-                  label={t('90dPerformance')}
-                  value={`(${day90NowProfitAvgStr})`}
-                  hoverContent={
-                    <TokenPerformanceSection
-                      isHoverPanel={true}
-                      kolData={twInfo}
-                      defaultPeriod={'day90'}
-                      mode={'Metrics'}
-                    />
-                  }
-                  valueClassName={
-                    day90NowProfitAvg >= 0 ? 'text-green-600' : 'text-red-400'
-                  }
-                />
-              ) : null}
-            </>
-          ) : null}
-
-          {/*MBTI*/}
-          {isEnabled('showPersonalityType') &&
-            !loadingTwInfo &&
-            twInfo &&
-            twInfo?.mbti && (
-              <HoverStatItem
-                label={t('personalityType')}
-                value={`(${mbti?.mbti || 'N/A'})`}
-                hoverContent={<MBTISection data={mbti!} isHoverPanel={true} />}
-                valueClassName={mbtiColor}
-              />
-            )}
-
-          {/*改名*/}
-          {isEnabled('showRenameInfo') &&
-            !loadingRenameInfo &&
-            renameInfo &&
-            renameInfo?.accounts?.length &&
-            Object.keys(renameInfo.accounts[0]?.screen_names || {}).length > 1 ? (
-            <HoverStatItem
-              label={t('renameInfo')}
-              value={`(${String(
-                Object.keys(renameInfo.accounts[0]?.screen_names || {}).length -
-                1,
-              )})`}
-              hoverContent={
-                <NameHistorySection data={renameInfo.accounts[0]} />
-              }
-              valueClassName='text-indigo-400'
-            />
-          ) : null}
-
-          {/*删帖*/}
-          {isEnabled('showDelInfo') &&
-            !loadingDel &&
-            deletedTweets &&
-            deletedTweets?.length ? (
-            <HoverStatItem
-              label={t('delInfo')}
-              value={`(${deletedTweets?.length || 0})`}
-              hoverContent={
-                <ProRequired enableAnimation={false} showExtraTitle={true}>
-                  <DeletedTweetsSection
-                    isHoverPanel={true}
-                    deletedTweets={deletedTweets}
-                    loadingDel={loadingDel}
-                    isVip={deletedTweetsIsVip}
-                  />
-                </ProRequired>
-              }
-              panelMaxWidth={560}
-              panelMaxHeight={560}
-              valueClassName='text-red-400'
-            />
-          ) : null}
-
-          {/*改贴*/}
-          {showEditInfo && !editedTweets.loadingCount && editedTweets.count > 0 ? (
-            <HoverStatItem
-              label={t('editInfo')}
-              value={`(${editedTweets.count})`}
-              hoverContent={
-                <EditedTweetsSection
-                  count={editedTweets.count}
-                  access={editedTweets.access}
-                  items={editedTweets.items}
-                  loading={editedTweets.loadingDetails}
-                  loaded={editedTweets.detailsLoaded}
-                  error={editedTweets.error}
-                  hasMore={editedTweets.hasMore}
-                  onRetry={editedTweets.retryDetails}
-                  onLoadMore={editedTweets.loadMore}
-                />
-              }
-              onHover={editedTweets.loadDetails}
-              panelMaxWidth={560}
-              panelMaxHeight={560}
-              valueClassName='text-amber-500'
-            />
-          ) : null}
-
-          {isEnabled('showDiscussion') && twInfo?.kolFollow?.isProject && (
-            <DiscussionSection
-              userId={userId}
-              discussionInfo={discussionInfo}
-              loadingDiscussionInfo={loadingDiscussionInfo}
-            />
-          )}
-
-          {/* 能力模型 - 🆕 使用自定义的最大宽高 */}
-          {isEnabled('showKolAbilityModel') &&
-            !loadingTwInfo &&
-            shouldShowAbilityModel && (
-              <HoverStatItem
-                label={t('kolAbilityModel')}
-                value={
-                  <AbilityTags
-                    abilities={abilities}
-                    personalizedColor={personalizedColors.primary}
-                  />
-                }
-                hoverContent={
-                  shouldShowAbilityRadar ? (
-                    <AbilityModelPanel
-                      web3Data={web3AbilityData}
-                      aiData={aiAbilityData}
-                      activeDomain={activeAbilityDomain}
-                      onDomainChange={setStoredAbilityDomain}
-                      userId={userId}
-                      newTwitterData={newTwitterData}
-                      loadingTwInfo={loadingTwInfo}
-                      title={t('kolAbilityModel')}
-                      web3Label={t('domainWeb3') || 'Web3'}
-                      aiLabel={t('domainAi') || 'AI'}
-                    />
-                  ) : (
-                    <AbilityModelDetailPanel
-                      web3Data={web3AbilityData}
-                      aiData={aiAbilityData}
-                      activeDomain={activeAbilityDomain}
-                      onDomainChange={setStoredAbilityDomain}
-                      title={t('kolAbilityModel')}
-                      web3Label={t('domainWeb3') || 'Web3'}
-                      aiLabel={t('domainAi') || 'AI'}
-                      personalizedColor={personalizedColors.primary}
-                    />
-                  )
-                }
-                valueClassName={'text-[#1D9BF0]'}
-                preferredPlacement='bottom'
-              />
-            )}
-
-          {/* 灵魂指数 */}
-          {isEnabled('showSoulIndex') && !loadingSoulData && soulData && (
-            <HoverStatItem
-              label={t('soulIndex')}
-              value={`(${soulData.score || 0}${t('points')})`}
-              hoverContent={
-                <SoulDensity
-                  data={soulData}
-                  userId={userId}
-                  newTwitterData={newTwitterData}
-                  loadingTwInfo={loadingTwInfo}
-                />
-              }
-              valueStyle={{
-                color: soulColor.primary,
-              }}
-            />
-          )}
-
-          {shouldCollapseInsights && isInsightsExpanded && (
-            <button
-              type='button'
-              data-xhunt-testid='profile-insights-collapse-button'
-              aria-expanded={isInsightsExpanded}
-              className='ml-1 shrink-0 whitespace-nowrap px-1 text-[13px] leading-[18px] text-[#1D9BF0] hover:underline transition-colors'
-              onClick={() => setIsInsightsExpanded(false)}
-            >
-              {t('collapse')}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 🆕 叙事功能区域 */}
-      {isEnabled('showNarrative') &&
-        twInfo &&
-        twInfo?.narrative &&
-        !loadingTwInfo && (
-          <NarrativeSection
-            narrative={twInfo?.narrative}
-            isLoading={loadingTwInfo}
-          />
-        )}
-    </div>,
+      <ProfileInsights
+        items={insightItems}
+        loading={loadingTwInfo}
+        expanded={isInsightsExpanded}
+        onExpandedChange={setIsInsightsExpanded}
+        renderDetail={renderDetail}
+        onOpenItem={(key) => {
+          if (key === 'edited') void editedTweets.loadDetails();
+        }}
+        narrative={
+          isEnabled('showNarrative') && twInfo?.narrative && !loadingTwInfo ? (
+            <NarrativeLine narrative={twInfo.narrative} />
+          ) : null
+        }
+      />
+    </SkinScope>,
     portalHost!,
   );
 }

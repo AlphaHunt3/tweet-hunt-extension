@@ -168,6 +168,14 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
       widthRef.current = width;
     }, [position, savedPosition, width]);
 
+    // 宽度变大（比如切到带图标栏的黑曜）不会触发窗口 resize，这里单独把面板收回屏幕内
+    useEffect(() => {
+      const current = positionRef.current;
+      if (!current) return;
+      const bounded = adjustPositionForBoundaries(current.x, current.y);
+      if (bounded.x !== current.x || bounded.y !== current.y) setPosition(bounded);
+    }, [width]);
+
     // Use global resize listener (shared across all components)
     // Only re-subscribe when width changes, not when position or savedPosition changes
     // to avoid infinite loops (position and savedPosition are updated in the callback)
@@ -247,7 +255,8 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
 
     return (
       <Draggable
-        nodeRef={nodeRef}
+        // react-draggable 4.4 的类型还不接受 React 19 的 RefObject<T | null>
+        nodeRef={nodeRef as React.RefObject<HTMLElement>}
         position={position}
         onDrag={handleDrag}
         onStop={handleDragStop}

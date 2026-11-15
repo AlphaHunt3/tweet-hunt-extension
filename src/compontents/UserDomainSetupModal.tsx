@@ -6,6 +6,8 @@ import { Blocks, Bot, X } from 'lucide-react';
 import { avatarSkins } from '~contents/constants/avatarSkins';
 import { useAvatarSkinState } from '~contents/hooks/useAvatarSkin';
 import cssText from 'data-text:~/css/style.css';
+import { SkinPicker } from '~/ui/skin/SkinPicker';
+import { UI_SKIN_INTRO_SEEN_KEY } from '~/ui/skin/skins';
 
 export type DomainType = 'web3' | 'ai';
 
@@ -190,7 +192,8 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
     '@settings/showAvatarRank',
     true,
   );
-  const [setupStep, setSetupStep] = useState<'domain' | 'avatar'>('domain');
+  const [setupStep, setSetupStep] = useState<'domain' | 'skin' | 'avatar'>('domain');
+  const [, setSkinIntroSeen] = useLocalStorage<boolean>(UI_SKIN_INTRO_SEEN_KEY, false);
   const [selectedDomains, setSelectedDomains] = useState<DomainType[]>([]);
   const [primaryDomain, setPrimaryDomain] = useState<DomainType | null>(null);
   const [selectedAvatarSkin, setSelectedAvatarSkin] = useState('skin-1');
@@ -263,7 +266,7 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
   const handleNextStep = useCallback(() => {
     if (!canGoNext) return;
     setShowBtnTooltip(false);
-    setSetupStep('avatar');
+    setSetupStep('skin');
   }, [canGoNext]);
 
   const handleConfirm = useCallback(() => {
@@ -276,6 +279,7 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
         : selectedDomains[0];
     setShowAvatarRank(selectedAvatarRankEnabled);
     setSkinCustomized(selectedAvatarSkin);
+    setSkinIntroSeen(true);
     onComplete({ domains: selectedDomains, primaryDomain: finalPrimary });
   }, [
     selectedDomains,
@@ -284,6 +288,7 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
     selectedAvatarSkin,
     setShowAvatarRank,
     setSkinCustomized,
+    setSkinIntroSeen,
     onComplete,
   ]);
 
@@ -401,7 +406,9 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
                 <h2 className='text-[16px] leading-5 font-semibold theme-text-primary'>
                   {setupStep === 'domain'
                     ? t('userDomainSetupTitle') || '选择您感兴趣的领域'
-                    : t('domainSetupAvatarSkinTitle') || '头像排名颜色'}
+                    : setupStep === 'skin'
+                      ? t('uiSkinStepTitle')
+                      : t('domainSetupAvatarSkinTitle') || '头像排名颜色'}
                 </h2>
                 <p className='mt-0.5 text-[12px] leading-4 theme-text-secondary'>
                   {setupStep === 'domain' ? (
@@ -411,6 +418,8 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
                         {t('domainSetupMultiSelectHint') || '支持多选'}
                       </span>
                     </>
+                  ) : setupStep === 'skin' ? (
+                    t('uiSkinStepSubtitle')
                   ) : (
                     avatarStepSubtitle
                   )}
@@ -419,24 +428,23 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
             </div>
 
             <div className='mb-5 flex items-center gap-2.5'>
-              <div
-                className='h-1 flex-1 rounded-full transition-colors'
-                style={{
-                  background:
-                    setupStep === 'domain'
-                      ? '#1D9BF0'
-                      : 'rgba(29,155,240,0.35)',
-                }}
-              />
-              <div
-                className='h-1 flex-1 rounded-full transition-colors'
-                style={{
-                  background:
-                    setupStep === 'avatar'
-                      ? '#1D9BF0'
-                      : 'var(--border-color-soft)',
-                }}
-              />
+              {(['domain', 'skin', 'avatar'] as const).map((step, index, steps) => {
+                const current = steps.indexOf(setupStep);
+                return (
+                  <div
+                    key={step}
+                    className='h-1 flex-1 rounded-full transition-colors'
+                    style={{
+                      background:
+                        index === current
+                          ? '#1D9BF0'
+                          : index < current
+                            ? 'rgba(29,155,240,0.35)'
+                            : 'var(--border-color-soft)',
+                    }}
+                  />
+                );
+              })}
             </div>
 
             {setupStep === 'domain' && (
@@ -531,6 +539,8 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
                 )}
               </>
             )}
+
+            {setupStep === 'skin' && <SkinPicker />}
 
             {/* 头像排名皮肤引导 */}
             {setupStep === 'avatar' && (
@@ -664,12 +674,35 @@ export const UserDomainSetupModal: React.FC<UserDomainSetupModalProps> = ({
                 >
                   {t('domainSetupNextButton') || '下一步'}
                 </button>
+              ) : setupStep === 'skin' ? (
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    data-xhunt-testid='domain-setup-skin-back'
+                    onClick={() => setSetupStep('domain')}
+                    className='h-9 px-4 rounded-full text-[13px] font-medium theme-text-secondary theme-bg-tertiary hover:theme-text-primary transition-colors'
+                  >
+                    {t('domainSetupBackButton') || '上一步'}
+                  </button>
+                  <button
+                    type='button'
+                    data-xhunt-testid='domain-setup-skin-next'
+                    onClick={() => setSetupStep('avatar')}
+                    className='h-9 flex-1 px-4 rounded-full text-[13px] font-semibold text-white transition-all border-none hover:opacity-90'
+                    style={{
+                      background: 'linear-gradient(90deg, #1D9BF0, #6366f1)',
+                      boxShadow: '0 6px 18px rgba(29, 155, 240, 0.22)',
+                    }}
+                  >
+                    {t('domainSetupNextButton') || '下一步'}
+                  </button>
+                </div>
               ) : (
                 <div className='flex items-center gap-2'>
                   <button
                     type='button'
                     data-xhunt-testid='domain-setup-back'
-                    onClick={() => setSetupStep('domain')}
+                    onClick={() => setSetupStep('skin')}
                     className='h-9 px-4 rounded-full text-[13px] font-medium theme-text-secondary theme-bg-tertiary hover:theme-text-primary transition-colors'
                   >
                     {t('domainSetupBackButton') || '上一步'}

@@ -49,11 +49,13 @@ interface PanelNavigatorProps {
   >;
   initialRoute?: string;
   children?: ReactNode;
+  layout?: (content: ReactNode) => ReactNode;
 }
 
 export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   routes,
   initialRoute = '/home',
+  layout,
 }) => {
   const [history, setHistory] = useState<string[]>(() => {
     const storedHistory = navigationService
@@ -70,10 +72,6 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   const contentRef = React.useRef<HTMLDivElement | null>(null);
 
   const currentRoute = history[history.length - 1];
-
-  // 检查浏览器是否支持 View Transition API
-  const supportsViewTransition =
-    typeof document !== 'undefined' && 'startViewTransition' in document;
 
   // Update history when initialRoute changes, but keep the user's restored route
   useEffect(() => {
@@ -96,41 +94,22 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
     (path: string) => {
       if (routes[path]) {
         // 仅当目标路由不是当前路由时再更新；并确保每个路由在历史中只保留一个实例
-        const updateHistory = () => {
-          setHistory((prev) => {
-            const last = prev[prev.length - 1];
-            if (last === path) return prev;
-            const withoutTarget = prev.filter((p) => p !== path);
-            return [...withoutTarget, path];
-          });
-        };
-
-        if (supportsViewTransition) {
-          (document as any).startViewTransition(updateHistory);
-        } else {
-          updateHistory();
-        }
-      } else {
-        // 静默处理路由未找到的情况
-        // console.log(`Route "${path}" not found`);
+        setHistory((prev) => {
+          const last = prev[prev.length - 1];
+          if (last === path) return prev;
+          const withoutTarget = prev.filter((p) => p !== path);
+          return [...withoutTarget, path];
+        });
       }
     },
-    [routes, supportsViewTransition],
+    [routes],
   );
 
   const goBack = useCallback(() => {
     if (history.length > 1) {
-      const updateHistory = () => {
-        setHistory((prev) => prev.slice(0, prev.length - 1));
-      };
-
-      if (supportsViewTransition) {
-        (document as any).startViewTransition(updateHistory);
-      } else {
-        updateHistory();
-      }
+      setHistory((prev) => prev.slice(0, prev.length - 1));
     }
-  }, [history, supportsViewTransition]);
+  }, [history]);
 
   // Handle pending payload: scroll and notify, then clear
   const flushPendingPayload = useCallback(() => {
@@ -194,6 +173,11 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
   useEffect(() => {
     // Wrap to capture props and then navigate
     const navigateWithProps = (route: string, props?: Record<string, any>) => {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('xhunt:route-request', { detail: { route, props } }),
+        );
+      } catch {}
       if (props) {
         pendingPayloadRef.current = { route, props };
       }
@@ -237,40 +221,29 @@ export const PanelNavigator: React.FC<PanelNavigatorProps> = ({
     history,
   };
 
-  // Get the current route configuration
-  const currentRouteConfig = routes[currentRoute];
+  const routeConfig = routes[currentRoute] ?? routes['/home'];
+  if (!routeConfig) return <div>No routes defined</div>;
 
-  // If there's a matching route, render its component
-  if (currentRouteConfig) {
-    return (
-      <NavigationContext.Provider value={value}>
-        <div
-          ref={contentRef}
-          className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden panel-route-content'
-        >
-          {currentRouteConfig.component}
-        </div>
-      </NavigationContext.Provider>
-    );
-  }
+  const content = (
+    <div
+      ref={contentRef}
+      key={currentRoute}
+      data-route={currentRoute}
+      className={
+        layout
+          ? 'panel-route-content xh-rise flex min-h-0 flex-1 flex-col'
+          : 'panel-route-content flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden'
+      }
+    >
+      {routeConfig.component}
+    </div>
+  );
 
-  // Fallback to home route if current route not found
-  const fallbackRoute = routes['/home'];
-  if (fallbackRoute) {
-    return (
-      <NavigationContext.Provider value={value}>
-        <div
-          ref={contentRef}
-          className='flex flex-col h-full max-h-[calc(90vh-80px)] overflow-hidden panel-route-content'
-        >
-          {fallbackRoute.component}
-        </div>
-      </NavigationContext.Provider>
-    );
-  }
-
-  // If no routes at all, render empty div
-  return <div>No routes defined</div>;
+  return (
+    <NavigationContext.Provider value={value}>
+      {layout ? layout(content) : content}
+    </NavigationContext.Provider>
+  );
 };
 
 // Header component with back button

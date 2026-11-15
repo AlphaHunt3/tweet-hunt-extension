@@ -1,0 +1,176 @@
+import type { ReactNode, SVGProps } from 'react';
+
+type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };
+
+function makeIcon(paths: ReactNode, filled = false) {
+  return function Icon({ size = 16, ...props }: IconProps) {
+    return (
+      <svg
+        viewBox='0 0 24 24'
+        width={size}
+        height={size}
+        fill={filled ? 'currentColor' : 'none'}
+        stroke={filled ? 'none' : 'currentColor'}
+        strokeWidth={1.75}
+        strokeLinecap='round'
+        strokeLinejoin='round'
+        aria-hidden='true'
+        focusable='false'
+        {...props}
+      >
+        {paths}
+      </svg>
+    );
+  };
+}
+
+const GRID = [6, 12, 18];
+
+export const LogoIcon = makeIcon(
+  <>
+    <circle cx='12' cy='12' r='6.5' />
+    <path d='M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5' />
+  </>,
+);
+export const BellIcon = makeIcon(
+  <>
+    <path d='M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z' />
+    <path d='M10 20.5a2 2 0 0 0 4 0' />
+  </>,
+);
+export const SlidersIcon = makeIcon(
+  <>
+    <path d='M4 7h10M18 7h2M4 17h4M12 17h8' />
+    <circle cx='16' cy='7' r='2' />
+    <circle cx='10' cy='17' r='2' />
+  </>,
+);
+export const GripIcon = makeIcon(
+  <>
+    {GRID.map((y) => (
+      <g key={y}>
+        <circle cx='9' cy={y} r='1.3' />
+        <circle cx='15' cy={y} r='1.3' />
+      </g>
+    ))}
+  </>,
+  true,
+);
+export const MoreIcon = makeIcon(
+  <>
+    <circle cx='12' cy='5.5' r='1.3' />
+    <circle cx='12' cy='12' r='1.3' />
+    <circle cx='12' cy='18.5' r='1.3' />
+  </>,
+  true,
+);
+export const MinimizeIcon = makeIcon(<path d='M4 14h6v6M20 10h-6V4M14 10l6-6M4 20l6-6' />);
+export const SidebarIcon = makeIcon(
+  <>
+    <rect x='4' y='4' width='16' height='16' rx='3' />
+    <path d='M9 4v16' />
+  </>,
+);
+export const PopOutIcon = makeIcon(
+  <>
+    <path d='M14 4h6v6M20 4l-8 8' />
+    <path d='M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5' />
+  </>,
+);
+export const OverviewIcon = makeIcon(
+  <>
+    <rect x='4' y='4' width='7' height='7' rx='1.5' />
+    <rect x='13' y='4' width='7' height='7' rx='1.5' />
+    <rect x='4' y='13' width='7' height='7' rx='1.5' />
+    <rect x='13' y='13' width='7' height='7' rx='1.5' />
+  </>,
+);
+export const UsersIcon = makeIcon(
+  <>
+    <circle cx='9' cy='8' r='3.5' />
+    <path d='M2.5 20a6.5 6.5 0 0 1 13 0' />
+    <path d='M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6' />
+  </>,
+);
+export const PortraitIcon = makeIcon(
+  <>
+    <path d='M12 3 21 9.5 17.5 20h-11L3 9.5 12 3Z' />
+    <path d='M12 8.5l3.6 2.6-1.4 4.4H9.8L8.4 11.1 12 8.5Z' />
+  </>,
+);
+export const StarIcon = makeIcon(
+  <path d='m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z' />,
+  true,
+);
+export const SparkleIcon = makeIcon(
+  <path d='M12 3.5c.7 4.1 3.4 6.8 7.5 7.5-4.1.7-6.8 3.4-7.5 7.5-.7-4.1-3.4-6.8-7.5-7.5 4.1-.7 6.8-3.4 7.5-7.5Z' />,
+);
+export const SearchIcon = makeIcon(
+  <>
+    <circle cx='11' cy='11' r='7' />
+    <path d='m20 20-3.5-3.5' />
+  </>,
+);
+export const ChevronRightIcon = makeIcon(<path d='m9 6 6 6-6 6' />);
+export const ChevronLeftIcon = makeIcon(<path d='m15 6-6 6 6 6' />);
+export const ChevronDownIcon = makeIcon(<path d='m6 9 6 6 6-6' />);
+export const ArrowLeftIcon = makeIcon(<path d='M19 12H5M11 6l-6 6 6 6' />);
+export const CloseIcon = makeIcon(<path d='M18 6 6 18M6 6l12 12' />);
+export const PlayIcon = makeIcon(<path d='M7 5v14l11-7L7 5Z' />);
+export const InfoIcon = makeIcon(
+  <>
+    <circle cx='12' cy='12' r='9' />
+    <path d='M12 11v5M12 8h.01' />
+  </>,
+);
+export const TagIcon = makeIcon(
+  <>
+    <path d='M4 4h7l9 9-7 7-9-9V4Z' />
+    <circle cx='8.5' cy='8.5' r='1.2' />
+  </>,
+);
+export const PlusIcon = makeIcon(<path d='M12 5v14M5 12h14' />);
+export const NoteIcon = makeIcon(
+  <>
+    <path d='M5 4h14v11l-5 5H5V4Z' />
+    <path d='M14 20v-5h5' />
+  </>,
+);
+export const XLogoIcon = makeIcon(
+  <path d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' />,
+  true,
+);
+export const SwapIcon = makeIcon(<path d='M7 7h11l-3-3M17 17H6l3 3' />);
+export const PencilIcon = makeIcon(<path d='M4 20h4L19 9l-4-4L4 16v4Z' />);
+export const SocialCircleIcon = makeIcon(
+  <>
+    <circle cx='12' cy='6' r='2.5' />
+    <circle cx='5.5' cy='17' r='2.5' />
+    <circle cx='18.5' cy='17' r='2.5' />
+    <path d='M10.8 8.2 7 14.8M13.2 8.2l3.8 6.6M8 17h8' />
+  </>,
+);
+export const TrophyIcon = makeIcon(
+  <>
+    <path d='M8 4h8v5a4 4 0 0 1-8 0V4Z' />
+    <path d='M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4' />
+  </>,
+);
+export const TrendIcon = makeIcon(
+  <>
+    <path d='M3 17l6-6 4 4 8-8' />
+    <path d='M15 7h6v6' />
+  </>,
+);
+export const TrashIcon = makeIcon(
+  <>
+    <path d='M4 7h16M10 11v6M14 11v6' />
+    <path d='M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3' />
+  </>,
+);
+export const BriefcaseIcon = makeIcon(
+  <>
+    <rect x='3' y='7' width='18' height='13' rx='2' />
+    <path d='M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18' />
+  </>,
+);

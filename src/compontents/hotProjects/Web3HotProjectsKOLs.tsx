@@ -146,7 +146,7 @@ export function Web3HotProjectsKOLs({ className = '' }: Web3HotProjectsKOLsProps
 
     const isPointInside = (
       event: PointerEvent,
-      refs: React.RefObject<HTMLDivElement>[],
+      refs: React.RefObject<HTMLDivElement | null>[],
     ) => refs.some((ref) => {
       const rect = ref.current?.getBoundingClientRect();
       if (!rect) return false;

@@ -1,3 +1,5 @@
+const plugin = require('tailwindcss/plugin');
+
 const twitterBlue = {
   50: '#E8F5FD',
   100: '#D7EDFF',
@@ -24,10 +26,54 @@ module.exports = {
           hover: twitterBlue[600],
           soft: twitterBlue[50],
         },
+        xh: {
+          canvas: 'var(--xh-canvas)',
+          raised: 'var(--xh-raised)',
+          surface: 'var(--xh-surface)',
+          sunken: 'var(--xh-sunken)',
+          line: 'var(--xh-line)',
+          fg: 'var(--xh-fg)',
+          'fg-2': 'var(--xh-fg-2)',
+          'fg-3': 'var(--xh-fg-3)',
+          accent: 'var(--xh-accent)',
+          'accent-soft': 'var(--xh-accent-soft)',
+          'accent-fg': 'var(--xh-accent-fg)',
+          'on-accent': 'var(--xh-on-accent)',
+          up: 'var(--xh-up)',
+          'up-bg': 'var(--xh-up-bg)',
+          down: 'var(--xh-down)',
+          'down-bg': 'var(--xh-down-bg)',
+          warn: 'var(--xh-warn)',
+          'warn-bg': 'var(--xh-warn-bg)',
+          hover: 'var(--xh-hover)',
+          'line-2': 'var(--xh-line-2)',
+        },
+      },
+      borderRadius: {
+        'xh-panel': 'var(--xh-radius-panel)',
+        'xh-card': 'var(--xh-radius-card)',
+        'xh-control': 'var(--xh-radius-control)',
+      },
+      boxShadow: {
+        'xh-panel': 'var(--xh-shadow-panel)',
+        'xh-pop': 'var(--xh-shadow-pop)',
+        'xh-card': 'var(--xh-shadow-card)',
+      },
+      fontFamily: {
+        'xh-ui': 'var(--xh-font-ui)',
+        'xh-num': 'var(--xh-font-num)',
+        'xh-mono': 'var(--xh-font-mono)',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // <html> 上的 data-xh-skin 进不了 Shadow Root，所以每个界面根节点也挂 data-skin
+    plugin(({ addVariant }) => {
+      for (const skin of ['soft', 'obsidian', 'native']) {
+        addVariant(skin, [`&[data-skin="${skin}"]`, `[data-skin="${skin}"] &`]);
+      }
+    }),
+  ],
   // 生产环境优化
   ...(process.env.NODE_ENV === 'production' &&
     {

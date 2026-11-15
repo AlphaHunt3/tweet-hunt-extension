@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>XHunt UI 沙盒</title>
+    <style>
+      body { margin: 0; font: 14px -apple-system, 'PingFang SC', sans-serif; background: var(--host-bg); color: var(--host-fg); }
+      .bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-bottom: 1px solid rgba(128,128,128,.3); }
+      .bar button[aria-pressed='true'] { font-weight: 700; text-decoration: underline; }
+      #stage { padding: 24px 16px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

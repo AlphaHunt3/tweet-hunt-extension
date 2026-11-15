@@ -12,7 +12,7 @@ import { useGlobalResize } from '~contents/hooks/useGlobalResize';
 
 export interface FloatingContainerProps {
   children?: React.ReactNode;
-  targetRef: React.RefObject<HTMLElement>;
+  targetRef: React.RefObject<HTMLElement | null>;
   offsetX?: number;
   offsetY?: number;
   maxWidth?: string;

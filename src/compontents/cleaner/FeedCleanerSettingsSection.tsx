@@ -1,25 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  X,
-  Ban,
-  User,
-  Info,
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { localStorageInstance } from '~storage/index';
 import { useI18n } from '~contents/hooks/i18n';
 import type { CleanerMode, InterceptedAccount } from '~contents/utils/cleaner/types';
 import { launchNativeBlock } from '~contents/utils/cleaner/profileBlockLauncher';
-import { PortalTooltip } from '~compontents/PortalTooltip';
 import { RankCacheManager, hasKolRankInCache } from '~utils/rankCacheManager';
 import { navigateInX } from '~contents/utils/navigateInX';
+import { CloseIcon } from '~/ui/icons';
+import { Avatar, Button, CollapsibleSection, IconButton, SegmentedControl, Switch, TextField } from '~/ui/primitives';
+import { cx } from '~/ui/primitives/cx';
+import { ROW_PAD, SettingRow } from '~/ui/settings/SettingRow';
+import { GuideBubble } from '~/ui/shells/GuideBubble';
 
-export const FeedCleanerSettingsSection: React.FC = () => {
+export const FeedCleanerSettingsSection: React.FC<{ focusRequest?: number }> = ({ focusRequest = 0 }) => {
   const { t } = useI18n();
-  const [isExpanded, setIsExpanded] = useState(true);
   const [showBubbleTip, setShowBubbleTip] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -28,7 +22,6 @@ export const FeedCleanerSettingsSection: React.FC = () => {
   const bubbleTimerRef = useRef<any>(null);
 
   const handleFocusCleaner = useCallback(() => {
-    setIsExpanded(true);
     setShowBubbleTip(true);
     setIsHighlighted(true);
 
@@ -85,6 +78,10 @@ export const FeedCleanerSettingsSection: React.FC = () => {
     };
   }, [handleFocusCleaner]);
 
+  useEffect(() => {
+    if (focusRequest) handleFocusCleaner();
+  }, [focusRequest, handleFocusCleaner]);
+
   const [enabled, setEnabled] = useLocalStorage<boolean>(
     '@settings/cleaner-enabled',
     false
@@ -138,9 +135,6 @@ export const FeedCleanerSettingsSection: React.FC = () => {
   const [openKeywords, setOpenKeywords] = useState(false);
   const [openWhitelist, setOpenWhitelist] = useState(false);
   const [openIntercepted, setOpenIntercepted] = useState(false);
-  const [hoveredUnblockHandle, setHoveredUnblockHandle] = useState<
-    string | null
-  >(null);
 
   // 输入框临时状态
   const [keywordInput, setKeywordInput] = useState('');
@@ -206,20 +200,18 @@ export const FeedCleanerSettingsSection: React.FC = () => {
     return () => window.removeEventListener('focus', refreshRecords);
   }, [setInterceptedAccounts]);
 
-  const handleToggleOpenIntercepted = async () => {
-    const nextState = !openIntercepted;
-    setOpenIntercepted(nextState);
-    if (nextState) {
-      try {
-        const stored = (await localStorageInstance.get(
-          '@xhunt/cleaner-intercepted-accounts'
-        )) as InterceptedAccount[] | null;
-        if (Array.isArray(stored)) {
-          setInterceptedAccounts(stored);
-        }
-      } catch {
-        // ignore
+  const handleOpenIntercepted = async (open: boolean) => {
+    setOpenIntercepted(open);
+    if (!open) return;
+    try {
+      const stored = (await localStorageInstance.get(
+        '@xhunt/cleaner-intercepted-accounts'
+      )) as InterceptedAccount[] | null;
+      if (Array.isArray(stored)) {
+        setInterceptedAccounts(stored);
       }
+    } catch {
+      // ignore
     }
   };
 
@@ -229,437 +221,223 @@ export const FeedCleanerSettingsSection: React.FC = () => {
   };
 
   const handleUnblockAccount = (targetHandle: string) => {
-    setHoveredUnblockHandle(null);
     launchNativeBlock(targetHandle, 'unblock');
   };
+
+  const modeValue: CleanerMode = mode === 'hide' || mode === 'collapse' ? mode : 'mark';
 
   return (
     <div
       ref={sectionRef}
       id='xhunt-feed-cleaner-settings'
-      className={`theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 overflow-hidden transition-all duration-300 ${
-        isHighlighted ? 'ring-1 ring-[#1D9BF0]/35' : ''
-      }`}>
-      {/* 分组标题：与其它设置项风格完全一致 */}
-      <div
-        className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/50 transition-colors'
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <span className='text-[12px] font-semibold theme-text-primary tracking-wide leading-4'>
-          {t('cleanerSettingsTitle')}
-        </span>
-        {isExpanded ? (
-          <ChevronDown className='w-3.5 h-3.5 theme-text-secondary' />
-        ) : (
-          <ChevronRight className='w-3.5 h-3.5 theme-text-secondary' />
-        )}
-      </div>
-
-      {/* 气泡提示 (与设置页顶部气泡样式风格保持一致) */}
-      {showBubbleTip && (
-        <div className='mx-3 mt-1.5 mb-2.5 relative'>
-          <div
-            className='relative rounded-2xl theme-bg-secondary px-3 py-2.5 shadow-[0_12px_34px_rgba(0,0,0,0.18)]'
-            role='status'
-            style={{
-              fontFamily:
-                'TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              border: '1px solid rgba(29, 155, 240, 0.18)',
-              backgroundImage:
-                'linear-gradient(135deg, rgba(29,155,240,0.075), rgba(29,155,240,0.012) 42%, transparent)',
-            }}
-          >
-            <div
-              className='absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 theme-bg-secondary border-r border-b'
-              style={{
-                borderColor: 'rgba(29, 155, 240, 0.18)',
-                backgroundImage:
-                  'linear-gradient(135deg, rgba(29,155,240,0.075), rgba(29,155,240,0.012))',
-              }}
-              aria-hidden='true'
-            />
-            <button
-              type='button'
-              className='absolute right-2 top-2 rounded-full p-0.5 theme-text-secondary hover:theme-bg-tertiary transition-colors'
-              aria-label={t('close') || '关闭'}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowBubbleTip(false);
-              }}
-            >
-              <X className='h-3.5 w-3.5 opacity-75' />
-            </button>
-            <div
-              className='pr-6 text-[12px] leading-[18px] theme-text-secondary'
-              style={{
-                letterSpacing: '0.005em',
-              }}
-            >
-              {t('cleanerConfigBubbleDesc')}
-            </div>
-            <div className='mt-1.5 flex justify-end'>
-              <button
-                type='button'
-                className='rounded-full px-2 py-0.5 text-[12px] font-semibold leading-[18px] text-[#1D9BF0] hover:bg-[#1D9BF0]/10 transition-colors'
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowBubbleTip(false);
-                }}
-              >
-                {t('headerControlsGuideGotIt') || '知道了'}
-              </button>
-            </div>
-          </div>
-        </div>
+      className={cx(
+        'flex flex-col rounded-xh-card transition-shadow soft:divide-y soft:divide-xh-line',
+        isHighlighted && 'shadow-[0_0_0_2px_var(--xh-accent-fg)]',
       )}
-
-      {/* 展开内容 */}
-      {isExpanded && (
-        <div className='border-t theme-border'>
-          {/* 1. 总开关 */}
-          <div className='flex items-center justify-between py-2 px-3'>
-            <span className='text-[13px] theme-text-primary leading-tight'>
-              {t('cleanerEnableTitle')}
-            </span>
-            <label className='relative inline-flex items-center shrink-0 cursor-pointer'>
-              <input
-                type='checkbox'
-                className='sr-only peer'
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
+    >
+      {showBubbleTip ? (
+        <div className={ROW_PAD}>
+          <GuideBubble placement='inline' text={t('cleanerConfigBubbleDesc')} onDismiss={() => setShowBubbleTip(false)} />
+        </div>
+      ) : null}
+      <SettingRow
+        labelled
+        label={t('cleanerEnableTitle')}
+        control={<Switch checked={enabled} onCheckedChange={setEnabled} data-xhunt-testid='settings-cleaner-enabled' />}
+      />
+      {enabled ? (
+        <>
+          <SettingRow
+            label={t('cleanerModeTitle')}
+            control={
+              <SegmentedControl
+                aria-label={t('cleanerModeTitle')}
+                size='sm'
+                value={modeValue}
+                onValueChange={setMode}
+                options={[
+                  { value: 'collapse', label: t('cleanerModeCollapse') },
+                  { value: 'mark', label: t('cleanerModeMark') },
+                  { value: 'hide', label: t('cleanerModeHide') },
+                ]}
               />
-              <div className="relative w-9 h-5 bg-gray-500/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-xhunt-accent"></div>
-            </label>
-          </div>
-
-          {enabled && (
-            <>
-              {/* 2. 呈现模式选择（原生胶囊分段器） */}
-              <div className='flex items-center justify-between py-2 px-3 border-t theme-border'>
-                <span className='text-[13px] theme-text-primary leading-tight'>
-                  {t('cleanerModeTitle')}
-                </span>
-                <div className='inline-flex items-center gap-1 theme-bg-tertiary rounded-full p-0.5'>
-                  <button
-                    type='button'
-                    onClick={() => setMode('collapse')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded-full transition-colors ${
-                      mode === 'collapse'
-                        ? 'bg-xhunt-accent text-white'
-                        : 'theme-text-secondary hover:theme-text-primary'
-                    }`}
-                  >
-                    {t('cleanerModeCollapse')}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setMode('mark')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded-full transition-colors ${
-                      mode !== 'hide' && mode !== 'collapse'
-                        ? 'bg-xhunt-accent text-white'
-                        : 'theme-text-secondary hover:theme-text-primary'
-                    }`}
-                  >
-                    {t('cleanerModeMark')}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setMode('hide')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded-full transition-colors ${
-                      mode === 'hide'
-                        ? 'bg-xhunt-accent text-white'
-                        : 'theme-text-secondary hover:theme-text-primary'
-                    }`}
-                  >
-                    {t('cleanerModeHide')}
-                  </button>
-                </div>
-              </div>
-
-              {/* 3. 自定义屏蔽词管理 */}
-              <div className='border-t theme-border'>
-                <div
-                  className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/40 transition-colors'
-                  onClick={() => setOpenKeywords(!openKeywords)}
-                >
-                  <div className='flex items-center gap-1.5'>
-                    <span className='text-[13px] theme-text-primary leading-tight'>
-                      {t('cleanerCustomKeywordsTitle')}
-                      <span className='text-[11px] theme-text-secondary ml-1.5'>
-                        ({customKeywords.length})
-                      </span>
-                    </span>
-                    <PortalTooltip
-                      content={t('cleanerCustomKeywordsTip')}
-                      maxWidth={260}
-                    >
-                      <span
-                        className='inline-flex items-center cursor-help text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors'
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Info className='w-3.5 h-3.5' />
-                      </span>
-                    </PortalTooltip>
-                  </div>
-                  {openKeywords ? (
-                    <ChevronDown className='w-3.5 h-3.5 theme-text-secondary' />
-                  ) : (
-                    <ChevronRight className='w-3.5 h-3.5 theme-text-secondary' />
-                  )}
-                </div>
-
-                {openKeywords && (
-                  <div className='px-3 pb-2.5 pt-1 space-y-2'>
-                    <div className='flex items-center gap-1.5'>
-                      <input
-                        type='text'
-                        value={keywordInput}
-                        onChange={(e) => setKeywordInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddKeywords();
-                          }
-                        }}
-                        placeholder={t('cleanerCustomKeywordsPlaceholder')}
-                        className='flex-1 h-7 px-2 text-[11px] rounded-lg border theme-border theme-bg-secondary theme-text-primary placeholder:theme-text-secondary/60 focus:outline-hidden focus:border-xhunt-accent'
-                      />
-                      <button
-                        type='button'
-                        onClick={handleAddKeywords}
-                        className='h-7 px-2.5 rounded-lg bg-xhunt-accent text-white text-[11px] font-medium flex items-center gap-0.5 hover:bg-xhunt-accent-hover transition-colors'
-                      >
-                        <Plus className='w-3 h-3' />
-                        <span>{t('cleanerAddBtn')}</span>
-                      </button>
-                    </div>
-
-                    {customKeywords.length > 0 && (
-                      <div className='flex flex-wrap gap-1 max-h-24 overflow-y-auto pt-0.5'>
-                        {customKeywords.map((kw) => (
-                          <span
-                            key={kw}
-                            className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] theme-bg-secondary theme-border border theme-text-primary'
-                          >
-                            <span>{kw}</span>
-                            <button
-                              type='button'
-                              onClick={() => handleRemoveKeyword(kw)}
-                              className='theme-text-secondary hover:text-red-500'
-                            >
-                              <X className='w-2.5 h-2.5' />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* 4. 放行白名单管理 */}
-              <div className='border-t theme-border'>
-                <div
-                  className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/40 transition-colors'
-                  onClick={() => setOpenWhitelist(!openWhitelist)}
-                >
-                  <span className='text-[13px] theme-text-primary leading-tight'>
-                    {t('cleanerWhitelistTitle')}
-                    <span className='text-[11px] theme-text-secondary ml-1.5'>
-                      ({whitelist.length})
-                    </span>
-                  </span>
-                  {openWhitelist ? (
-                    <ChevronDown className='w-3.5 h-3.5 theme-text-secondary' />
-                  ) : (
-                    <ChevronRight className='w-3.5 h-3.5 theme-text-secondary' />
-                  )}
-                </div>
-
-                {openWhitelist && (
-                  <div className='px-3 pb-2.5 pt-1 space-y-2'>
-                    <div className='flex items-center gap-1.5'>
-                      <input
-                        type='text'
-                        value={whitelistInput}
-                        onChange={(e) => setWhitelistInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddWhitelist();
-                          }
-                        }}
-                        placeholder={t('cleanerWhitelistPlaceholder')}
-                        className='flex-1 h-7 px-2 text-[11px] rounded-lg border theme-border theme-bg-secondary theme-text-primary placeholder:theme-text-secondary/60 focus:outline-hidden focus:border-xhunt-accent'
-                      />
-                      <button
-                        type='button'
-                        onClick={handleAddWhitelist}
-                        className='h-7 px-2.5 rounded-lg border theme-border theme-bg-secondary theme-text-primary text-[11px] font-medium flex items-center gap-0.5 hover:theme-bg-tertiary transition-colors'
-                      >
-                        <Plus className='w-3 h-3' />
-                        <span>{t('cleanerAddBtn')}</span>
-                      </button>
-                    </div>
-
-                    {whitelist.length > 0 && (
-                      <div className='flex flex-wrap gap-1 max-h-24 overflow-y-auto pt-0.5'>
-                        {whitelist.map((handle) => (
-                          <span
-                            key={handle}
-                            className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                          >
-                            <span>@{handle}</span>
-                            <button
-                              type='button'
-                              onClick={() => handleRemoveWhitelist(handle)}
-                              className='text-blue-500/70 hover:text-red-500'
-                            >
-                              <X className='w-2.5 h-2.5' />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* 5. 拦截记录管理 */}
-              <div className='border-t theme-border'>
-                <div
-                  className='flex items-center justify-between py-2 px-3 cursor-pointer hover:theme-bg-tertiary/40 transition-colors'
-                  onClick={handleToggleOpenIntercepted}
-                >
-                  <span className='text-[13px] theme-text-primary leading-tight'>
-                    {t('cleanerInterceptedTitle')}
-                    <span className='text-[11px] theme-text-secondary ml-1.5'>
-                      ({visibleInterceptedAccounts.length})
-                    </span>
-                  </span>
-                  {openIntercepted ? (
-                    <ChevronDown className='w-3.5 h-3.5 theme-text-secondary' />
-                  ) : (
-                    <ChevronRight className='w-3.5 h-3.5 theme-text-secondary' />
-                  )}
-                </div>
-
-                {openIntercepted && (
-                  <div className='px-3 pb-2.5 pt-1 space-y-2'>
-                    {visibleInterceptedAccounts.length === 0 ? (
-                      <div className='py-3 text-center text-[11px] theme-text-secondary/70'>
-                        {t('cleanerInterceptedEmpty')}
-                      </div>
-                    ) : (
-                      <div className='space-y-1.5 max-h-60 overflow-y-auto pr-0.5'>
-                        {visibleInterceptedAccounts.map((account) => {
-                          return (
-                            <div
-                              key={account.handle}
-                              className='flex items-center justify-between gap-2 p-1.5 rounded-lg border theme-border theme-bg-secondary'
-                            >
-                              <a
-                                href={`https://x.com/${account.handle}`}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  navigateInX(`https://x.com/${account.handle}`);
-                                }}
-                                className='flex items-center gap-2 min-w-0 flex-1 group cursor-pointer no-underline'
-                              >
-                                {account.avatar ? (
-                                  <img
-                                    src={account.avatar}
-                                    alt={account.handle}
-                                    className='w-7 h-7 rounded-full object-cover shrink-0'
-                                    onError={(e) => {
-                                      (e.target as HTMLElement).style.display =
-                                        'none';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className='w-7 h-7 rounded-full theme-bg-tertiary flex items-center justify-center shrink-0'>
-                                    <User className='w-3.5 h-3.5 theme-text-secondary' />
-                                  </div>
-                                )}
-
-                                <div className='min-w-0 flex-1'>
-                                  <div className='flex items-center gap-1.5 leading-tight'>
-                                    <span className='text-[11px] font-medium theme-text-primary truncate max-w-[140px] group-hover:underline'>
-                                      {account.name || account.handle}
-                                    </span>
-                                    <span className='text-[10px] theme-text-secondary truncate max-w-[120px] group-hover:underline'>
-                                      @{account.handle}
-                                    </span>
-                                  </div>
-                                </div>
-                              </a>
-
-                              <div className='shrink-0'>
-                                {account.isBlocked ? (
-                                  <button
-                                    type='button'
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleUnblockAccount(account.handle);
-                                    }}
-                                    onMouseEnter={() =>
-                                      setHoveredUnblockHandle(
-                                        account.handle.toLowerCase()
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      setHoveredUnblockHandle(null)
-                                    }
-                                    className={`h-5 px-2 text-[10px] font-medium rounded-full text-white inline-flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
-                                      hoveredUnblockHandle ===
-                                      account.handle.toLowerCase()
-                                        ? 'bg-red-500 hover:bg-red-600'
-                                        : 'bg-emerald-500 hover:bg-emerald-600'
-                                    }`}
-                                                                      >
-                                    {hoveredUnblockHandle ===
-                                    account.handle.toLowerCase() ? (
-                                      <span>{t('cleanerUnblockBtn')}</span>
-                                    ) : (
-                                      <span>{t('cleanerBlockedStatus')}</span>
-                                    )}
-                                  </button>
-                                ) : (
-                                  <PortalTooltip
-                                    content={t('cleanerBlockTitle')}
-                                    maxWidth={280}
-                                  >
-                                    <button
-                                      type='button'
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleBlockAccount(account.handle);
-                                      }}
-                                      className='h-5 px-2 text-[10px] font-medium rounded-full bg-xhunt-accent text-white hover:bg-xhunt-accent-hover transition-colors inline-flex items-center justify-center gap-0.5 shrink-0 cursor-pointer'
-                                    >
-                                      <Ban className='w-2.5 h-2.5' />
-                                      <span>{t('cleanerBlockBtn')}</span>
-                                    </button>
-                                  </PortalTooltip>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            }
+          />
+          <ListSection title={t('cleanerCustomKeywordsTitle')} count={customKeywords.length} open={openKeywords} onOpenChange={setOpenKeywords}>
+            <p className='text-[11.5px] leading-relaxed text-xh-fg-2 native:text-[13px]'>{t('cleanerCustomKeywordsTip')}</p>
+            <AddRow
+              list={t('cleanerCustomKeywordsTitle')}
+              placeholder={t('cleanerCustomKeywordsPlaceholder')}
+              value={keywordInput}
+              onValueChange={setKeywordInput}
+              onAdd={handleAddKeywords}
+            />
+            <Chips items={customKeywords} onRemove={handleRemoveKeyword} />
+          </ListSection>
+          <ListSection title={t('cleanerWhitelistTitle')} count={whitelist.length} open={openWhitelist} onOpenChange={setOpenWhitelist}>
+            <AddRow
+              list={t('cleanerWhitelistTitle')}
+              placeholder={t('cleanerWhitelistPlaceholder')}
+              value={whitelistInput}
+              onValueChange={setWhitelistInput}
+              onAdd={handleAddWhitelist}
+            />
+            <Chips items={whitelist} format={(handle) => `@${handle}`} onRemove={handleRemoveWhitelist} />
+          </ListSection>
+          <ListSection
+            title={t('cleanerInterceptedTitle')}
+            count={visibleInterceptedAccounts.length}
+            open={openIntercepted}
+            onOpenChange={(open) => void handleOpenIntercepted(open)}
+          >
+            {visibleInterceptedAccounts.length === 0 ? (
+              <p className='py-3 text-center text-[11.5px] text-xh-fg-2'>{t('cleanerInterceptedEmpty')}</p>
+            ) : (
+              <>
+                <p className='text-[11.5px] leading-relaxed text-xh-fg-2 native:text-[13px]'>{t('cleanerBlockTitle')}</p>
+                <ul className='flex max-h-60 flex-col gap-0.5 overflow-y-auto'>
+                  {visibleInterceptedAccounts.map((account) => (
+                    <InterceptedRow
+                      key={account.handle}
+                      account={account}
+                      onBlock={handleBlockAccount}
+                      onUnblock={handleUnblockAccount}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+          </ListSection>
+        </>
+      ) : null}
     </div>
   );
 };
+
+function ListSection({
+  title,
+  count,
+  open,
+  onOpenChange,
+  children,
+}: {
+  title: string;
+  count: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <CollapsibleSection title={`${title} (${count})`} open={open} onOpenChange={onOpenChange} className={ROW_PAD}>
+      <div className='flex flex-col gap-2 pt-1'>{children}</div>
+    </CollapsibleSection>
+  );
+}
+
+function AddRow({
+  list,
+  placeholder,
+  value,
+  onValueChange,
+  onAdd,
+}: {
+  list: string;
+  placeholder: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  onAdd: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className='flex items-center gap-1.5'>
+      <TextField aria-label={list} placeholder={placeholder} value={value} onValueChange={onValueChange} onSubmit={onAdd} className='min-w-0 flex-1' />
+      <Button size='sm' onClick={onAdd} aria-label={t('settingsAddTo').replace('{list}', list)}>
+        {t('cleanerAddBtn')}
+      </Button>
+    </div>
+  );
+}
+
+function Chips({
+  items,
+  format = (item) => item,
+  onRemove,
+}: {
+  items: string[];
+  format?: (item: string) => string;
+  onRemove: (item: string) => void;
+}) {
+  const { t } = useI18n();
+  if (!items.length) return null;
+  return (
+    <ul className='flex max-h-24 flex-wrap gap-1 overflow-y-auto'>
+      {items.map((item) => (
+        <li key={item} className='xh-tag pr-1'>
+          {format(item)}
+          <IconButton
+            label={t('settingsRemoveItem').replace('{item}', format(item))}
+            size='sm'
+            className='size-4 rounded-full'
+            onClick={() => onRemove(item)}
+          >
+            <CloseIcon size={10} />
+          </IconButton>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function InterceptedRow({
+  account,
+  onBlock,
+  onUnblock,
+}: {
+  account: InterceptedAccount;
+  onBlock: (handle: string) => void;
+  onUnblock: (handle: string) => void;
+}) {
+  const { t } = useI18n();
+  const [hover, setHover] = useState(false);
+  const handle = account.handle;
+  return (
+    <li className='flex items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-xh-hover'>
+      <a
+        href={`https://x.com/${handle}`}
+        target='_blank'
+        rel='noopener noreferrer'
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          navigateInX(`https://x.com/${handle}`);
+        }}
+        className='xh-link flex min-w-0 flex-1 items-center gap-2'
+      >
+        <Avatar name={account.name || handle} src={account.avatar} size='sm' />
+        <span className='min-w-0 truncate text-[12px] font-medium'>{account.name || handle}</span>
+        <span className='min-w-0 truncate text-[11px] text-xh-fg-2'>@{handle}</span>
+      </a>
+      {account.isBlocked ? (
+        <Button
+          size='sm'
+          variant={hover ? 'default' : 'soft'}
+          onPointerEnter={() => setHover(true)}
+          onPointerLeave={() => setHover(false)}
+          onClick={() => {
+            setHover(false);
+            onUnblock(handle);
+          }}
+          aria-label={`${t('cleanerBlockedStatus')} · ${t('cleanerUnblockBtn')} @${handle}`}
+        >
+          {hover ? t('cleanerUnblockBtn') : t('cleanerBlockedStatus')}
+        </Button>
+      ) : (
+        <Button size='sm' variant='primary' onClick={() => onBlock(handle)} aria-label={`${t('cleanerBlockBtn')} @${handle}`}>
+          {t('cleanerBlockBtn')}
+        </Button>
+      )}
+    </li>
+  );
+}
 
 export default FeedCleanerSettingsSection;
