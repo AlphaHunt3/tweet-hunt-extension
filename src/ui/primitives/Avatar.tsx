@@ -30,15 +30,17 @@ export interface AvatarProps {
   name: string;
   src?: string | null;
   size?: 'lg' | 'md' | 'sm' | 'xs';
+  label?: string;
   className?: string;
 }
 
-export function Avatar({ name, src, size = 'lg', className }: AvatarProps) {
+export function Avatar({ name, src, size = 'lg', label, className }: AvatarProps) {
   return (
     <UiAvatar
       className={cx('xh-avatar', className)}
       data-size={size}
       style={{ '--xh-av': avatarColor(name) } as CSSProperties}
+      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
     >
       {src ? <AvatarImage src={src} alt='' className='xh-avatar-img' /> : null}
       <AvatarFallback aria-hidden className='xh-avatar-fallback'>

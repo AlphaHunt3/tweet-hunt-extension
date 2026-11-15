@@ -29,6 +29,13 @@ describe('Avatar', () => {
     expect(screen.getByText('MC')).toBeTruthy();
   });
 
+  test('is decorative unless it is given a label', () => {
+    const { container } = render(<Avatar name='Mira Chen' />);
+    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+    render(<Avatar name='Mira Chen' label='Mira Chen' />);
+    expect(screen.getByRole('img', { name: 'Mira Chen' })).toBeTruthy();
+  });
+
   test('initials handle handles, single words and CJK names', () => {
     expect(initials('@mira_onchain')).toBe('MO');
     expect(initials('米拉')).toBe('米拉');
