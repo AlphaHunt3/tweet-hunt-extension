@@ -3,29 +3,32 @@ import React, { useState, useCallback, useEffect } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import { MainData } from '~contents/hooks/useMainData.ts';
 import ReactDOM from 'react-dom';
-import { KolFollowersSection } from '~/compontents/KolFollowersSection.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import numeral from 'numeral';
 import { ReviewHeader } from '~/compontents/ReviewHeader.tsx';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
-import { ArrowUp, ArrowDown } from 'lucide-react';
 import {
   GhostFollowingPanelEventDetail,
   GHOST_FOLLOWING_PANEL_EVENT,
 } from './GhostFollowingPanel';
-import { KolData } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { SkinScope } from '~/ui/skin/SkinScope';
-import { buildKolStats, buildRankStats, type RankStatKey, type RankType } from '~/ui/profile/kolRankItems';
+import { buildKolStats, buildRankStats, type KolStatKey, type KolTab, type RankStatKey, type RankType } from '~/ui/profile/kolRankItems';
 import { ProfileKolRow } from '~/ui/profile/ProfileKolRow';
+import { KolFollowersCard } from '~/ui/profile/details/KolFollowersCard';
+import { RankCard } from '~/ui/profile/details/RankCard';
 
 const RANK_TYPES: Record<RankStatKey, RankType> = {
   rankGlobal: 'followers',
   rankCn: 'chinese',
   rankEn: 'english',
   rankProject: 'project',
+};
+const KOL_TABS: Record<KolStatKey, KolTab> = {
+  kolGlobal: 'global',
+  kolTop100: 'top100',
+  kolCn: 'cn',
 };
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 
@@ -40,26 +43,6 @@ type FollowedRightDataProps = Pick<
   | 'refreshAsyncUserInfo'
   | 'loadingReviewInfo'
 >;
-
-const renderRankChange = (change: number | undefined | null) => {
-  try {
-    if (!change || change === 0) return null;
-    const isPositive = change > 0;
-    const Icon = isPositive ? ArrowUp : ArrowDown;
-    const textColor = isPositive ? 'text-green-500' : 'text-red-500';
-
-    return (
-      <span
-        className={`align-text-top inline-flex items-center ${textColor} ml-1`}
-      >
-        <Icon className='w-3.5 h-3.5' strokeWidth={2.5} />
-        <span className='text-xs ml-0.5'>{Math.abs(change)}</span>
-      </span>
-    );
-  } catch (err) {
-    return null;
-  }
-};
 
 function FollowStatsSkeleton() {
   const items = [
@@ -106,170 +89,6 @@ function ReviewHeaderSkeleton() {
     </div>
   );
 }
-
-const RankTooltip = React.memo(
-  ({
-    twInfo,
-    rankType,
-    isAi = false,
-  }: {
-    twInfo: KolData | null;
-    rankType: 'followers' | 'project' | 'chinese' | 'english';
-    isAi?: boolean;
-  }) => {
-    const [activePeriod, setActivePeriod] = useState<'day1' | 'day7' | 'day30'>(
-      'day1',
-    );
-    const { t } = useI18n();
-    const [theme] = useLocalStorage('@xhunt/theme', 'dark');
-
-    if (!twInfo) return null;
-
-    let change;
-    let rank;
-    let title;
-    let description;
-    let tooltip;
-
-    switch (rankType) {
-      case 'followers':
-        change = isAi
-          ? twInfo?.kolFollow?.kolRankChangeAi?.[activePeriod]
-          : twInfo?.kolFollow?.kolRankChange?.[activePeriod];
-        rank = isAi
-          ? twInfo?.kolFollow?.kolRank20WAi
-          : twInfo?.kolFollow?.kolRank20W;
-        title = t('followersQualityRankChange');
-        description =
-          !rank || rank <= 0
-            ? isAi
-              ? t('notInTop50k')
-              : t('notInTop10w')
-            : isAi
-              ? `${t('inTop50k1')} ${rank} ${t('inTop50k2')}`
-              : `${t('inTop10w1')} ${rank} ${t('inTop10w2')}`;
-        tooltip = t('globalInfluenceRankTooltip');
-        break;
-      case 'project':
-        change = isAi
-          ? twInfo?.kolFollow?.kolProjectRankChangeAi?.[activePeriod]
-          : twInfo?.kolFollow?.kolProjectRankChange?.[activePeriod];
-        rank = isAi
-          ? twInfo?.kolFollow?.kolProjectRankAi
-          : twInfo?.kolFollow?.kolProjectRank;
-        title = t('projectRankChange');
-        description =
-          !rank || rank <= 0
-            ? t('notInTop10kProject')
-            : Number(rank) > Number(t('kolProjectRankTotal') || 10000)
-              ? `${t('inTop10kProject1')} >${formatUpperCase(
-                Number(t('kolProjectRankTotal')),
-              )}`
-              : `${t('inTop10kProject1')} ${rank} ${t('inTop10kProject2')}`;
-        tooltip = t('projectInfluenceRankTooltip');
-        break;
-      case 'chinese':
-        change = isAi
-          ? twInfo?.kolFollow?.kolCnRankChangeAi?.[activePeriod]
-          : twInfo?.kolFollow?.kolCnRankChange?.[activePeriod];
-        rank = isAi
-          ? twInfo?.kolFollow?.kolCnRankAi
-          : twInfo?.kolFollow?.kolCnRank;
-        title = t('chineseKOLRankChange');
-        {
-          const cnTotal = isAi ? 3000 : Number(t('kolCnRankTotal') || 10000);
-          description =
-            !rank || rank <= 0
-              ? isAi
-                ? t('notInTop3k')
-                : t('notInTop1k')
-              : Number(rank) > cnTotal
-                ? `${isAi ? t('inTop3k1') : t('inTop1k1')} >${formatUpperCase(cnTotal)}`
-                : `${isAi ? t('inTop3k1') : t('inTop1k1')} ${rank} ${isAi ? t('inTop3k2') : t('inTop1k2')}`;
-        }
-        tooltip = t('chineseInfluenceRankTooltip');
-        break;
-      case 'english':
-        change = isAi
-          ? (twInfo?.kolFollow?.kolGlobalRankChangeAi?.[activePeriod] as any)
-          : (twInfo?.kolFollow?.kolGlobalRankChange?.[activePeriod] as any);
-        rank = isAi
-          ? (twInfo?.kolFollow?.kolGlobalRankAi as any)
-          : (twInfo?.kolFollow?.kolGlobalRank as any);
-        title = t('englishInfluenceRankChange');
-        description =
-          !rank || rank <= 0
-            ? t('notInTopEn')
-            : Number(rank) > Number(t('kolEnRankTotal') || 10000)
-              ? `${t('inTopEn1')} >${formatUpperCase(
-                Number(t('kolEnRankTotal')),
-              )}`
-              : `${t('inTopEn1')} ${rank} ${t('inTopEn2')}`;
-        tooltip = t('englishInfluenceRankTooltip');
-        break;
-    }
-
-    // if (!change) return null;
-
-    return (
-      <div
-        data-theme={theme}
-        className='theme-bg-secondary rounded-lg theme-border  p-3 w-full'
-      >
-        <div className='text-xs space-y-2'>
-          <div className='flex justify-between items-center mb-4'>
-            <button
-              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day1'
-                ? 'theme-bg-tertiary theme-text-primary'
-                : 'theme-text-secondary hover:theme-bg-tertiary'
-                }`}
-              onClick={() => setActivePeriod('day1')}
-            >
-              {t('day1')}
-            </button>
-            <button
-              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day7'
-                ? 'theme-bg-tertiary theme-text-primary'
-                : 'theme-text-secondary hover:theme-bg-tertiary'
-                }`}
-              onClick={() => setActivePeriod('day7')}
-            >
-              {t('day7')}
-            </button>
-            <button
-              className={`px-2 py-1 rounded transition-colors ${activePeriod === 'day30'
-                ? 'theme-bg-tertiary theme-text-primary'
-                : 'theme-text-secondary hover:theme-bg-tertiary'
-                }`}
-              onClick={() => setActivePeriod('day30')}
-            >
-              {t('day30')}
-            </button>
-          </div>
-          <div className='p-2 theme-bg-tertiary rounded-lg'>
-            <div className='flex justify-between items-center'>
-              <span className='theme-text-secondary'>{title}</span>
-              {change === 0 ? 0 : change ? renderRankChange(change) : '-'}
-            </div>
-            <div className='mt-1 text-[11px] theme-text-secondary opacity-80'>
-              {description}
-            </div>
-          </div>
-
-          {/* 说明文字移到底部，样式更轻量 */}
-          <div className='pt-2 mt-2 border-t theme-border'>
-            <div className='flex items-start gap-2'>
-              <div className='w-1 h-1 rounded-full bg-blue-400 mt-1.5 flex-shrink-0'></div>
-              <p className='text-[10px] theme-text-secondary leading-relaxed opacity-75'>
-                {tooltip}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  },
-);
 
 function _FollowedRightData({
   twInfo,
@@ -354,6 +173,9 @@ function _FollowedRightData({
   }
 
   const domainAvailable = activeDomain === 'web3' ? hasWeb3 : hasAi;
+  const kolStats = domainAvailable && twInfo
+    ? buildKolStats({ t, isEnabled, domain: activeDomain, kolFollow: twInfo.kolFollow })
+    : [];
 
   return ReactDOM.createPortal(
     <SkinScope data-xhunt-testid='followed-right-data'>
@@ -362,11 +184,7 @@ function _FollowedRightData({
       ) : twInfo && (
         <>
           <ProfileKolRow
-            kolStats={
-              domainAvailable
-                ? buildKolStats({ t, isEnabled, domain: activeDomain, kolFollow: twInfo?.kolFollow })
-                : []
-            }
+            kolStats={kolStats}
             rankStats={
               domainAvailable
                 ? buildRankStats({ t, lang, isEnabled, domain: activeDomain, kolFollow: twInfo?.kolFollow })
@@ -375,21 +193,19 @@ function _FollowedRightData({
             domain={activeDomain}
             canSwitch={hasWeb3 && hasAi}
             onDomainChange={handleSwitchDomain}
-            renderDetail={(key) => {
-              if (key === 'kolGlobal' || key === 'kolTop100' || key === 'kolCn') {
-                const tab = key === 'kolGlobal' ? 'global' : key === 'kolTop100' ? 'top100' : 'cn';
-                return (
-                  <KolFollowersSection
-                    kolData={twInfo}
-                    isHoverPanel={true}
-                    defaultTab={tab}
-                    domain={activeDomain}
-                  />
-                );
-              }
-              const rankType = RANK_TYPES[key];
-              return <RankTooltip twInfo={twInfo} rankType={rankType} isAi={activeDomain === 'ai'} />;
-            }}
+            renderDetail={(key) =>
+              key === 'kolGlobal' || key === 'kolTop100' || key === 'kolCn' ? (
+                <KolFollowersCard
+                  key={key}
+                  kolFollow={twInfo.kolFollow}
+                  domain={activeDomain}
+                  tabs={kolStats}
+                  initialTab={KOL_TABS[key]}
+                />
+              ) : (
+                <RankCard kolFollow={twInfo.kolFollow} rankType={RANK_TYPES[key]} ai={activeDomain === 'ai'} />
+              )
+            }
           />
         </>
       )}
@@ -427,12 +243,6 @@ function _FollowedRightData({
     </SkinScope>,
     portalHost!,
   );
-}
-
-function formatUpperCase(num: number) {
-  return numeral(Number(num))
-    .format('0,0a')
-    .replace(/([kmt])/i, (_, c) => c.toUpperCase());
 }
 
 export const FollowedRightData = React.memo(_FollowedRightData);

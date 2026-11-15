@@ -344,7 +344,7 @@
     font-size: 12px;
   }
 
-  [data-skin='obsidian'] .xh-dcard-sub {
+  [data-skin='obsidian'] :is(.xh-soul, .xh-ability) .xh-dcard-sub {
     font-family: var(--xh-font-mono);
     font-size: 11px;
   }
@@ -483,5 +483,91 @@
   [data-skin='native'] .xh-dchip[data-emphasis] {
     background: var(--xh-accent-soft);
     box-shadow: none;
+  }
+}
+
+@layer xh-primitives {
+  .xh-dcard.xh-rank {
+    width: 300px;
+  }
+  .xh-rank .xh-dscore[data-unranked] {
+    color: var(--xh-fg-2);
+    font-size: 15px;
+    letter-spacing: 0;
+  }
+
+  .xh-kolf-card .xh-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .xh-kolf-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .xh-kolf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 4px 6px;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    transition: background var(--xh-d-sm) var(--xh-ease-out);
+  }
+  .xh-kolf:hover {
+    background: var(--xh-hover);
+  }
+  .xh-kolf:focus-visible {
+    outline: 2px solid var(--xh-accent);
+    outline-offset: -2px;
+  }
+  .xh-kolf-name {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .xh-kolf-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    max-width: 100%;
+  }
+  .xh-kolf-tag {
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--xh-sunken);
+    color: var(--xh-fg-2);
+    font-size: 10px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  [data-skin='obsidian'] .xh-kolf {
+    border-radius: 8px;
+  }
+  [data-skin='obsidian'] .xh-kolf-tag {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--xh-line);
+  }
+  [data-skin='native'] .xh-kolf-name {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  [data-skin='native'] .xh-kolf-tag {
+    font-size: 11px;
   }
 }

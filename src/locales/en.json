@@ -1260,5 +1260,13 @@
   "soulCardBasis": "90 days · up to 100 original posts",
   "abilityCardBasis": "90 days · up to 200 original posts",
   "abilityRadarLabel": "Ability radar",
-  "abilityDomainLabel": "Ability domain"
+  "abilityDomainLabel": "Ability domain",
+  "rankTitleCn": "Chinese influence",
+  "rankTitleEn": "English influence",
+  "rankTitleProject": "Project influence",
+  "rankSampleOf": "Out of {total}",
+  "rankUnranked": "Not ranked",
+  "rankChange1d": "1-day change",
+  "rankChange7d": "7-day change",
+  "rankChange30d": "30-day change"
 }
