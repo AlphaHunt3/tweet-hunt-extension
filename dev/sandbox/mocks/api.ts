@@ -1,4 +1,4 @@
-import { MOCK_SOUL } from './fixtures';
+import { MOCK_SOUL, MOCK_EDITED_CHAINS } from './fixtures';
 
 export * from '../../../src/contents/services/api';
 
@@ -26,3 +26,14 @@ export const getSoulInfo = async () => {
   await new Promise((resolve) => setTimeout(resolve, 600));
   return MOCK_SOUL;
 };
+
+const EDITED_ACCESS = { detail_scope: 'full' };
+export const fetchEditedTweetCounts = async (ids: string[]) => ({
+  counts: Object.fromEntries(ids.map((id) => [id, MOCK_EDITED_CHAINS.length])),
+  xhunt_access: EDITED_ACCESS,
+});
+export const fetchEditedTweets = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  return { items: MOCK_EDITED_CHAINS, xhunt_access: EDITED_ACCESS };
+};
+export const fetchDeletedStatus = async () => null;

@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import {
-  Trash2,
+  Bookmark,
   ChevronDown,
   ChevronUp,
   Eye,
-  MessageCircle,
   Heart,
+  MessageCircle,
   Repeat,
-  Bookmark,
+  Trash2,
 } from 'lucide-react';
-import { DeletedTweet } from '~types';
-import dayjs from 'dayjs';
 import numeral from 'numeral';
+import { DeletedTweet } from '~types';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { fetchDeletedStatus } from '~contents/services/api';
 import { navigateInX } from '~contents/utils/navigateInX';
 import { TweetContent } from '~compontents/TweetContent';
+import { formatTweetTime } from '~/ui/profile/details/format';
+import { TweetAuthor } from '~/ui/profile/details/TweetParts';
 
 const DELETED_TWEET_UNAVAILABLE_TEXT = '您暂时无法查看详细删帖内容';
 
@@ -30,97 +31,77 @@ function getVisibleDeletedTweets(
   );
 }
 
-// Quote Tweet Component
-function QuoteTweet({ quote }: { quote: DeletedTweet }) {
-  const { t } = useI18n();
+const statText = (num: number | undefined | null) =>
+  numeral(num || 0)
+    .format('0.[0]a')
+    .toUpperCase();
 
-  const formatNumber = (num: number | undefined) => {
-    if (num === undefined || num === null) return '0';
-    return numeral(num || 0)
-      .format('0.[0]a')
-      .toUpperCase();
-  };
+const postUrl = (tweet: DeletedTweet) =>
+  `https://x.com/${tweet.profile?.username || 'unknown'}/status/${tweet.id || 'unknown'}`;
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    const date = dayjs(dateString);
-    const now = dayjs();
-    const hoursAgo = now.diff(date, 'hour');
+function openDeletedTweet(tweet: DeletedTweet) {
+  // 先上报再跳转，不等上报结果
+  fetchDeletedStatus(tweet.id);
+  navigateInX(postUrl(tweet));
+}
 
-    if (hoursAgo < 24) {
-      return date.format('h:mm A');
-    } else {
-      return date.format('MMM D');
-    }
-  };
+const STATS = [
+  { key: 'reply_count', Icon: MessageCircle },
+  { key: 'retweet_count', Icon: Repeat },
+  { key: 'likes', Icon: Heart },
+  { key: 'views', Icon: Eye },
+  { key: 'bookmark_count', Icon: Bookmark },
+] as const;
 
-  // 处理点击事件
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // 调用 fetchDeletedStatus，不等待返回结果
-    fetchDeletedStatus(quote.id);
-    // 跳转到帖子详情页
-    navigateInX(
-      `https://x.com/${quote.profile?.username || 'unknown'}/status/${
-        quote.id || 'unknown'
-      }`,
-    );
-  };
-
-  // 使用公共 sanitizeHtml
+function DeletedTweetCard({
+  tweet,
+  quote = false,
+}: {
+  tweet: DeletedTweet;
+  quote?: boolean;
+}) {
+  const { t, lang } = useI18n();
+  const open = () => openDeletedTweet(tweet);
 
   return (
     <div
-      className='mb-2 rounded-md border theme-border p-2 theme-bg-tertiary/30 cursor-pointer hover:bg-white/5 transition-colors'
-      onClick={handleClick}
+      className={quote ? 'xh-tweet xh-tweet-quote' : 'xh-tweet'}
+      onClick={(event) => {
+        event.stopPropagation();
+        open();
+      }}
     >
-      {/* 引用推文头部 */}
-      <div className='flex items-center gap-2 mb-1'>
-        <img
-          src={quote.profile?.profile_image_url}
-          alt={quote.profile?.name}
-          className='w-5 h-5 rounded-full object-cover'
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
-          }}
-        />
-        <a
-          href={`https://x.com/${quote.profile?.username || 'unknown'}`}
-          className='text-[12px] font-medium theme-text-primary hover:underline truncate'
-          title={quote.profile?.name}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            navigateInX(
-              `https://x.com/${quote.profile?.username || 'unknown'}`,
-            );
-          }}
-        >
-          {quote.profile?.name}
-        </a>
-        {quote.profile?.is_blue_verified && (
-          <svg
-            className='w-3 h-3 text-[#1d9bf0] flex-shrink-0'
-            viewBox='0 0 22 22'
-            fill='currentColor'
-          >
-            <path d='M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z'></path>
-          </svg>
-        )}
-        <span className='text-[10px] theme-text-secondary'>
-          {formatDate(quote.create_time)}
-        </span>
-      </div>
-
-      {/* 引用推文正文 */}
+      <TweetAuthor
+        name={tweet.profile?.name}
+        username={tweet.profile?.username}
+        avatar={tweet.profile?.profile_image_url}
+        verified={Boolean(tweet.profile?.is_blue_verified)}
+        time={formatTweetTime(tweet.create_time, lang)}
+        postUrl={postUrl(tweet)}
+        onOpenPost={open}
+        size={quote ? 'xs' : 'sm'}
+      />
       <TweetContent
-        html={quote.info?.html}
-        text={quote.text}
-        className='text-[13px] theme-text-primary'
-        emptyContent={<span className='italic text-gray-400'>No content</span>}
+        html={tweet.info?.html}
+        text={tweet.text}
+        emptyContent={
+          <span className='xh-tweet-empty'>{t('tweet_list_no_content')}</span>
+        }
         limitImageWidth
       />
+      {!quote && tweet.quote_status ? (
+        <DeletedTweetCard tweet={tweet.quote_status} quote />
+      ) : null}
+      {!quote ? (
+        <div className='xh-tweet-stats'>
+          {STATS.map(({ key, Icon }) => (
+            <span key={key}>
+              <Icon aria-hidden='true' />
+              {statText(tweet.statistic?.[key])}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -144,217 +125,52 @@ export function DeletedTweetsSection({
   const hasUnavailableTweets =
     isVip && visibleDeletedTweets.length !== deletedTweets.length;
 
-  const formatNumber = (num: number | undefined) => {
-    if (num === undefined || num === null) return '0';
-    return numeral(num || 0)
-      .format('0.[0]a')
-      .toUpperCase();
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    const date = dayjs(dateString);
-    const now = dayjs();
-    const hoursAgo = now.diff(date, 'hour');
-
-    if (hoursAgo < 24) {
-      return date.format('h:mm A');
-    } else {
-      return date.format('MMM D');
-    }
-  };
-
-  // 处理点击事件
-  const handleTweetClick = (tweet: DeletedTweet) => {
-    // 调用 fetchDeletedStatus，不等待返回结果
-    fetchDeletedStatus(tweet.id);
-    // 跳转到帖子详情页
-    navigateInX(
-      `https://x.com/${tweet.profile?.username || 'unknown'}/status/${
-        tweet.id || 'unknown'
-      }`,
-    );
-  };
-
-  // 使用公共 sanitizeHtml
-
   if (isHoverPanel && !isVip) {
-    return (
-      <div className='w-[360px] max-w-full p-3 text-center'>
-        <p className='py-3 text-sm theme-text-secondary'>
-          {t('deletedTweetNoVipDetail')}
-        </p>
-      </div>
-    );
+    return <p className='xh-dempty'>{t('deletedTweetNoVipDetail')}</p>;
   }
+  if (!deletedTweets?.length) return null;
+
+  const list = (
+    <div className='xh-tweets'>
+      {loadingDel ? <p className='xh-dempty'>{t('loading')}</p> : null}
+      {!loadingDel && !visibleDeletedTweets.length && !hasUnavailableTweets ? (
+        <p className='xh-dempty'>{t('noData')}</p>
+      ) : null}
+      {!loadingDel
+        ? visibleDeletedTweets.map((tweet) => (
+            <DeletedTweetCard key={tweet.id} tweet={tweet} />
+          ))
+        : null}
+      {hasUnavailableTweets && !loadingDel ? (
+        <p className='xh-tweets-note'>{t('deletedTweets24hOnly')}</p>
+      ) : null}
+    </div>
+  );
+
+  if (isHoverPanel) return list;
 
   return (
-    Boolean(deletedTweets?.length) && (
-      <div
-        className={
-          isHoverPanel
-            ? visibleDeletedTweets.length
-              ? 'w-[600px] max-w-full'
-              : 'w-[360px] max-w-full'
-            : undefined
-        }
+    <div>
+      <button
+        type='button'
+        className='p-3 flex w-full items-center justify-between theme-border bg-transparent border-0 cursor-pointer'
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded(!isExpanded)}
       >
-        {!isHoverPanel && (
-          <div
-            className='p-3 flex items-center justify-between cursor-pointer theme-border'
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <div className='flex items-center gap-2'>
-              <Trash2 className='w-4 h-4 text-red-400' />
-              <h2 className='font-bold text-sm theme-text-primary'>
-                {t('deletedTweets')}
-              </h2>
-            </div>
-            {isExpanded ? (
-              <ChevronUp className='w-4 h-4 theme-text-secondary' />
-            ) : (
-              <ChevronDown className='w-4 h-4 theme-text-secondary' />
-            )}
-          </div>
+        <span className='flex items-center gap-2'>
+          <Trash2 aria-hidden='true' className='w-4 h-4 text-red-400' />
+          <span className='font-bold text-sm theme-text-primary'>
+            {t('deletedTweets')}
+          </span>
+        </span>
+        {isExpanded ? (
+          <ChevronUp aria-hidden='true' className='w-4 h-4 theme-text-secondary' />
+        ) : (
+          <ChevronDown aria-hidden='true' className='w-4 h-4 theme-text-secondary' />
         )}
-
-        <div
-          className={`${
-            isExpanded ? '' : 'h-0'
-          } overflow-hidden transition-[height] duration-200`}
-        >
-          <div className='xhunt-post-list p-3 space-y-4'>
-            {loadingDel && (
-              <span className='block text-center text-xs theme-text-secondary'>
-                {t('loading')}
-              </span>
-            )}
-            {!visibleDeletedTweets.length &&
-              !hasUnavailableTweets &&
-              !loadingDel && (
-                <span className='block text-center text-xs theme-text-secondary'>
-                  No data
-                </span>
-              )}
-            {!loadingDel && visibleDeletedTweets.length
-              ? visibleDeletedTweets.map((tweet) => (
-                  <div
-                    key={tweet?.id}
-                    className='xhunt-post-card px-3 py-2 rounded-lg border theme-border-soft shadow-sm hover:bg-white/5 cursor-pointer'
-                    onClick={() => handleTweetClick(tweet)}
-                  >
-                    {/* Tweet Header */}
-                    <div className='flex items-center gap-2 mb-1'>
-                      {/* User Avatar */}
-                      <div className='relative'>
-                        <img
-                          src={tweet.profile?.profile_image_url}
-                          alt={tweet.profile?.name}
-                          className='w-6 h-6 rounded-full object-cover'
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
-                          }}
-                        />
-                      </div>
-
-                      {/* User Info */}
-                      <div className='flex-1 min-w-0'>
-                        <div className='flex items-center justify-between text-xs theme-text-primary'>
-                          <div className='flex items-center gap-2 min-w-0 flex-1'>
-                            <a
-                              href={`https://x.com/${
-                                tweet.profile?.username || 'unknown'
-                              }`}
-                              className='font-semibold truncate hover:underline'
-                              title={tweet.profile?.name}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                navigateInX(
-                                  `https://x.com/${
-                                    tweet.profile?.username || 'unknown'
-                                  }`,
-                                );
-                              }}
-                            >
-                              {tweet.profile?.name}
-                            </a>
-                            {tweet.profile?.is_blue_verified && (
-                              <svg
-                                className='w-3 h-3 text-[#1d9bf0] flex-shrink-0'
-                                viewBox='0 0 22 22'
-                                fill='currentColor'
-                              >
-                                <path d='M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z'></path>
-                              </svg>
-                            )}
-                          </div>
-                          {/* 时间显示在右侧 */}
-                          <div className='text-[10px] theme-text-secondary ml-2 flex-shrink-0'>
-                            {formatDate(tweet.create_time)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tweet Content */}
-                    <TweetContent
-                      html={tweet.info?.html}
-                      text={tweet.text}
-                      className='mb-2 text-sm theme-text-primary'
-                      emptyContent={
-                        <span className='italic text-gray-400'>No content</span>
-                      }
-                      limitImageWidth
-                    />
-
-                    {/* Quote Tweet */}
-                    {tweet.quote_status && (
-                      <QuoteTweet quote={tweet.quote_status} />
-                    )}
-
-                    {/* Tweet Stats */}
-                    <div className='flex items-center gap-4 text-[10px] theme-text-secondary'>
-                      <div className='flex items-center gap-1'>
-                        <MessageCircle className='w-3 h-3' />
-                        <span>
-                          {formatNumber(tweet.statistic?.reply_count)}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-1'>
-                        <Repeat className='w-3 h-3' />
-                        <span>
-                          {formatNumber(tweet.statistic?.retweet_count)}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-1'>
-                        <Heart className='w-3 h-3' />
-                        <span>{formatNumber(tweet.statistic?.likes)}</span>
-                      </div>
-                      <div className='flex items-center gap-1'>
-                        <Eye className='w-3 h-3' />
-                        <span>{formatNumber(tweet.statistic?.views)}</span>
-                      </div>
-                      <div className='flex items-center gap-1'>
-                        <Bookmark className='w-3 h-3' />
-                        <span>
-                          {formatNumber(tweet.statistic?.bookmark_count)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              : null}
-            {hasUnavailableTweets && !loadingDel && (
-              <p className='text-center text-xs theme-text-secondary'>
-                {t('deletedTweets24hOnly')}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    )
+      </button>
+      {isExpanded ? <div className='p-3'>{list}</div> : null}
+    </div>
   );
 }
 

@@ -88,7 +88,7 @@ export function ProfileDemo({ palette }: { palette: XPalette }) {
         newTwitterData={null}
         twInfo={TW_INFO}
         deletedTweets={MOCK_DELETED_TWEETS}
-        deletedTweetsIsVip={false}
+        deletedTweetsIsVip={true}
         loadingTwInfo={false}
         loadingDel={false}
         error={null}

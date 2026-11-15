@@ -1279,5 +1279,7 @@
   "tokenAvgNowProfit": "平均当前收益",
   "tokenTopPct": "前 {pct}",
   "tokenReturnBasis": "按近 90 天提及的代币计算",
-  "tokenCount": "{count} 个代币"
+  "tokenCount": "{count} 个代币",
+  "openPost": "打开帖子",
+  "tweetCount": "{count} 条"
 }

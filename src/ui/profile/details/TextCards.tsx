@@ -1,5 +1,5 @@
 import { useI18n } from '~contents/hooks/i18n';
-import { PencilIcon, PortraitIcon, SparkleIcon } from '~/ui/icons';
+import { PortraitIcon, SparkleIcon, SwapIcon } from '~/ui/icons';
 import { DetailCard, DetailEmpty, DetailNote, DetailSection } from './DetailCard';
 import { formatDay, parseDay, toNumber } from './format';
 
@@ -73,7 +73,7 @@ export function RenameCard({ data, handle }: { data: NameHistory | null | undefi
   return (
     <DetailCard
       className='xh-renames-card'
-      icon={<PencilIcon />}
+      icon={<SwapIcon />}
       title={t('nameHistory')}
       subtitle={rows.length > 1 ? t('renameTimes').replace('{count}', String(rows.length - 1)) : undefined}
     >

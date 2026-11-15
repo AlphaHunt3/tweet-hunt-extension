@@ -85,11 +85,60 @@ export const MOCK_TW_INFO = {
 
 export const MOCK_ROOT_DATA = null;
 
-export const MOCK_DELETED_TWEETS = Array.from({ length: 14 }, (_, index) => ({
-  id: `d${index}`,
-  create_time: new Date(Date.now() - (index + 1) * 5 * 86400000).toISOString(),
-  profile: { text: `已删除的推文 ${index + 1}：一段关于链上收益的观点。` },
-}));
+const author = { name: 'Mira Chen', username: 'mira_onchain', profile_image_url: '', is_blue_verified: true };
+const stats = (n: number) => ({ reply_count: n * 3, retweet_count: n * 7, likes: n * 41, views: n * 2300, bookmark_count: n * 5 });
+
+export const MOCK_DELETED_TWEETS = [
+  {
+    id: 'd0',
+    create_time: new Date(Date.now() - 3 * 3600000).toISOString(),
+    text: '刚看完 $JUP 的回购提案，规模比预期小，短期情绪可能会受影响。https://example.com/jup-buyback',
+    profile: author,
+    statistic: stats(12),
+  },
+  {
+    id: 'd1',
+    create_time: new Date(Date.now() - 5 * 86400000).toISOString(),
+    text: '同意这个判断，再质押收益的天花板比大家想的低。',
+    profile: author,
+    statistic: stats(4),
+    quote_status: {
+      id: 'q1',
+      create_time: new Date(Date.now() - 6 * 86400000).toISOString(),
+      text: 'LRT 的收益来源只有三个：质押、AVS 奖励和积分预期，第三个正在消失。',
+      profile: { name: 'Echo Lin', username: 'echolin', profile_image_url: '' },
+    },
+  },
+  ...Array.from({ length: 12 }, (_, index) => ({
+    id: `d${index + 2}`,
+    create_time: new Date(Date.now() - (index + 8) * 5 * 86400000).toISOString(),
+    text: `已删除的推文 ${index + 3}：一段关于链上收益的观点。`,
+    profile: author,
+    statistic: stats(index + 1),
+  })),
+];
+
+const secondsAgo = (days: number) => Math.floor((Date.now() - days * 86400000) / 1000);
+const version = (id: string, text: string) => ({ id, status: 'available', tweet: { text, profile: author } });
+
+export const MOCK_EDITED_CHAINS = [
+  {
+    edit: { root_id: 'e1', version_ids: ['e1v1', 'e1v2', 'e1v3'], last_edited_at: secondsAgo(0.2), first_created_at: secondsAgo(1) },
+    versions: [
+      version('e1v1', 'JUP 的回购计划下周公布，预计规模 5000 万美元。'),
+      version('e1v2', 'JUP 的回购计划下周公布，预计规模 3000 万美元。'),
+      version('e1v3', 'JUP 的回购计划已公布，规模 3000 万美元，分 6 个月执行。'),
+    ],
+    latest: { text: 'JUP 的回购计划已公布，规模 3000 万美元，分 6 个月执行。', profile: author },
+    history_complete: true,
+  },
+  {
+    edit: { root_id: 'e2', version_ids: ['e2v1', 'e2v2'], last_edited_at: secondsAgo(4), first_created_at: secondsAgo(5) },
+    versions: [version('e2v1', 'Solana DEX 交易量本周创新高 @mira_defi'), { id: 'e2v2', status: 'pending' }],
+    latest: { text: 'Solana DEX 交易量本周创新高，Jupiter 占比过半 @mira_defi', profile: author },
+    history_complete: false,
+  },
+];
 
 export const MOCK_RENAME_INFO = {
   accounts: [

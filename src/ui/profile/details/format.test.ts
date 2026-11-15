@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDay, formatRank, formatShortDay, formatTotal, parseDay, toNumber } from './format';
+import { formatDay, formatRank, formatShortDay, formatTotal, formatTweetTime, parseDay, toNumber } from './format';
 
 describe('parseDay', () => {
   it('reads date-only strings as local dates', () => {
@@ -56,5 +56,20 @@ describe('formatTotal and formatRank', () => {
     expect(toNumber(0)).toBe(0);
     expect(toNumber(null)).toBeNull();
     expect(toNumber('abc')).toBeNull();
+  });
+});
+
+describe('formatTweetTime', () => {
+  const now = new Date(2026, 10, 15, 18, 0);
+
+  it('shows the time for posts from the last 24 hours', () => {
+    expect(formatTweetTime(new Date(2026, 10, 15, 14, 5).getTime(), 'zh', now)).toBe('14:05');
+    expect(formatTweetTime(new Date(2026, 10, 15, 14, 5).getTime() / 1000, 'en', now)).toBe('2:05 PM');
+  });
+
+  it('falls back to the short date for older posts', () => {
+    expect(formatTweetTime('2026-11-03', 'zh', now)).toBe('11/03');
+    expect(formatTweetTime('2025-11-03', 'en', now)).toBe('Nov 3, 2025');
+    expect(formatTweetTime(undefined, 'en', now)).toBeNull();
   });
 });

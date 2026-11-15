@@ -1276,5 +1276,7 @@
   "tokenAvgNowProfit": "Avg current profit",
   "tokenTopPct": "Top {pct}",
   "tokenReturnBasis": "Based on tokens mentioned in the last 90 days",
-  "tokenCount": "{count} tokens"
+  "tokenCount": "{count} tokens",
+  "openPost": "Open post",
+  "tweetCount": "{count} posts"
 }

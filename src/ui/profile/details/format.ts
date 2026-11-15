@@ -60,3 +60,17 @@ export function toNumber(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
+
+export function formatTweetTime(value: unknown, lang: string, now: Date = new Date()): string | null {
+  const date = parseDay(value);
+  if (!date) return null;
+  const hours = (now.getTime() - date.getTime()) / 3_600_000;
+  if (hours >= 0 && hours < 24) {
+    return new Intl.DateTimeFormat(lang === 'zh' ? 'zh-CN' : 'en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: lang !== 'zh',
+    }).format(date);
+  }
+  return formatShortDay(date, lang, now);
+}

@@ -10,6 +10,8 @@ import {
   SoulDensityData,
 } from '~types';
 import { AbilityCard, abilityEntries } from '~/ui/profile/details/AbilityCard';
+import { DetailCard } from '~/ui/profile/details/DetailCard';
+import { PencilIcon, TrashIcon } from '~/ui/icons';
 import { configManager } from '~/utils/configManager.ts';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
@@ -292,28 +294,42 @@ function _NameRightData({
         return <TokenMentionsCard period={twInfo?.kolTokenMention?.day90} />;
       case 'deleted':
         return (
-          <ProRequired enableAnimation={false} showExtraTitle={true}>
-            <DeletedTweetsSection
-              isHoverPanel={true}
-              deletedTweets={deletedTweets}
-              loadingDel={loadingDel}
-              isVip={deletedTweetsIsVip}
-            />
-          </ProRequired>
+          <DetailCard
+            size='lg'
+            icon={<TrashIcon />}
+            title={t('insightDeleted')}
+            subtitle={t('tweetCount').replace('{count}', String(deletedTweets?.length || 0))}
+          >
+            <ProRequired enableAnimation={false} showExtraTitle={true}>
+              <DeletedTweetsSection
+                isHoverPanel={true}
+                deletedTweets={deletedTweets}
+                loadingDel={loadingDel}
+                isVip={deletedTweetsIsVip}
+              />
+            </ProRequired>
+          </DetailCard>
         );
       case 'edited':
         return (
-          <EditedTweetsSection
-            count={editedTweets.count}
-            access={editedTweets.access}
-            items={editedTweets.items}
-            loading={editedTweets.loadingDetails}
-            loaded={editedTweets.detailsLoaded}
-            error={editedTweets.error}
-            hasMore={editedTweets.hasMore}
-            onRetry={editedTweets.retryDetails}
-            onLoadMore={editedTweets.loadMore}
-          />
+          <DetailCard
+            size='lg'
+            icon={<PencilIcon />}
+            title={t('insightEdited')}
+            subtitle={t('editedTweetCountTitle').replace('{count}', String(editedTweets.count))}
+          >
+            <EditedTweetsSection
+              count={editedTweets.count}
+              access={editedTweets.access}
+              items={editedTweets.items}
+              loading={editedTweets.loadingDetails}
+              loaded={editedTweets.detailsLoaded}
+              error={editedTweets.error}
+              hasMore={editedTweets.hasMore}
+              onRetry={editedTweets.retryDetails}
+              onLoadMore={editedTweets.loadMore}
+            />
+          </DetailCard>
         );
       case 'renamed':
         return <RenameCard data={renameInfo?.accounts?.[0]} handle={userId} />;
