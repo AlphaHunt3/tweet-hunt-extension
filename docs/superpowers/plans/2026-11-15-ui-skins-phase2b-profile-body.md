@@ -1234,3 +1234,50 @@ git commit -m "feat(profile): render insights per skin, expanded by default"
 - **位置**：柔光、黑曜的 KOL 行和点评卡各占一整行（在 X 关注数下面）；原生的 KOL 数据接在 X 的关注数后面，点评另起一行。
 - **点评卡**：柔光是浅底卡片（星标、平均分、数量、最多 4 个头像、写点评按钮，下面一行标签）；黑曜是一行数据标签；原生是一行文字，「写点评」是蓝色链接。写点评改用弹层（宽 380px），内容仍是 `ReviewTooltip`。
 - **按钮**：AI 分身是胶囊（柔光强调色浅底、黑曜强调色发丝描边、原生 X 描边按钮），「BETA」三套各一种；社交圈是 36px 圆形按钮加「NEW」角标。去掉 AI 按钮上重复的悬停提示（按钮上已经写了名字）。
+
+### 第二部分：任务
+
+> 第二部分的组件代码直接写在实现里（结构和第一部分的 `ProfileInsights` 一致：三套风格各一段 JSX、共用一个弹层控制器），这里列文件、接口、要覆盖的测试和关键的数值逻辑。
+
+**Task 6：文案和图标**
+- 新文案：`kolStatFollowers` KOL 粉丝 / KOL followers；`kolStatTop100` TOP100；`kolStatCn` 中文 KOL / CN KOLs；`rankStatGlobal` 全球影响力 / Global influence；`rankStatCn` 华语 / Chinese；`rankStatEn` 英文 / English；`rankStatProject` 项目 / Project；`rankDomainLabel` 排名领域 / Ranking domain；`reviewWrite` 写点评 / Write a review；`reviewMoreTags` +{count} / +{count}；`betaBadge` BETA。
+- 补 `zh.json` 缺的 `kolCnRankTotal`、`kolProjectRankTotal`（`"10000"`，与 en 一致）。
+- 新图标：`SwapIcon`、`PencilIcon`、`SocialCircleIcon`、`StarFilledIcon`（路径见画布图标表）。
+
+**Task 7：KOL 粉丝与排名的数值**（`src/ui/profile/kolRankItems.ts` + 测试）
+
+```ts
+const rankValue = (rank: unknown, total: number) => {
+  const n = Number(rank || 0);
+  return !n || n <= 0 || n > total ? `>${formatUpperCase(total)}` : `#${numeral(n).format('0,0')}`;
+};
+```
+- `buildKolStats({ t, isEnabled, domain, kolFollow })`：三项按现状表的设置和字段（AI 用 `…Ai` 字段和 AI 设置），数值 `formatNumber`，带 `tab`（global/top100/cn）。
+- `buildRankStats({ t, lang, isEnabled, domain, kolFollow })`：全球（总数 Web3 20 万、AI 5 万）；中文界面才有华语（`kf.isCn`，总数 `Number(t('kolCnRankTotal')) || 10000`，AI 3000）；非中文界面才有英文（需有排名，总数 `Number(t('kolEnRankTotal')) || 10000`）；项目（`kf.isProject`，总数 `Number(t('kolProjectRankTotal')) || 10000`）。`change` 取 `day1`。
+- 测试：Web3 和 AI 各自的字段与设置；`#1,234`、`>200K`、`>50K`、`>3K`、超过总数时 `>10K`；中英文界面分别出现华语、英文排名；`isCn`、`isProject` 的条件；`change` 取值。
+
+**Task 8：KOL 行组件**（`src/ui/profile/ProfileKolRow.tsx` + 测试）
+- 属性：`kolStats`、`rankStats`、`domain`、`canSwitch`、`onDomainChange`、`renderDetail(key)`。
+- 柔光：整行胶囊；KOL 粉丝合成一个胶囊（用户图标 + 三组「数值 标签」，竖线分隔），排名各一个胶囊（`标签 数值`，涨跌小字着色）；末尾迷你 `SegmentedControl`。
+- 黑曜：复用 `.xh-chip`；KOL 粉丝一个标签（「/」分隔），排名后跟涨跌小胶囊；末尾 `SegmentedControl`。
+- 原生：行内 `.xh-inline-item`，「数值 说明」，接在 X 的关注数后面（容器 `display: contents`）；末尾「Web3 ⇄」文字按钮，`aria-label` 为 `switchToDomainRank`。
+- 测试：三套结构；悬停打开 `renderDetail` 对应的详情；点切换按钮或分段控件调用 `onDomainChange`；`canSwitch` 为假时不显示切换。
+
+**Task 9：点评卡**（`src/ui/profile/ProfileReviewCard.tsx` + 测试；`ReviewHeader` 改为调用它）
+- 属性：`stats`、`reviewOnlyKol`、`canWrite`、`writeLabel`、`onOpenComments`、`renderWriteForm(close)`。
+- `ReviewHeader` 保留：换 handler 时的等待、各存储读取、`isCurrentUser`、打开面板评论区的逻辑、`ReviewTooltip`、`getRatingColor` 导出；只把渲染换成 `ProfileReviewCard`，写点评从 `FloatingContainer` 改为弹层。
+- 测试：空状态文案随 `reviewOnlyKol`；数量文案和可点击条件；最多 4 个头像、前 5 个标签加 `+N`；`canWrite` 为假时没有写点评按钮；点写点评打开弹层并渲染表单，表单里调用 `close` 能关闭。
+
+**Task 10：按钮**（`KolAiChatButton`、`SocialCircleFeature` 的按钮部分 + 测试）
+- AI 分身：`.xh-aipill`（火花图标 + 名字 + `BETA`），去掉重复的悬停提示，按钮补 `type='button'`；接口返回 `null` 时按空列表处理。
+- 社交圈：`.xh-circbtn`（社交圈图标 + `NEW` 角标），保留 `aria-*`、`disabled`、`triggerRef`。
+- 外层统一 `.xh-action-slot`（右 8px、下 12px），测试标记不变。
+- 测试：AI 按钮文案（官方取 `perspective_name_*`、非官方回退 `{name}思维`）；列表为 `null` 不报错且不显示；点击时没登录跳登录、登录后派发 `ai-chat-event` 且 `element` 是按钮本身。
+
+**Task 11：接入和样式**
+- `FollowedRightData`：删掉两组 `HoverStatItem`、领域切换和 `mr-6` 占位，换成 `ProfileKolRow`；导出 `RankTooltip` 给详情用；骨架换成简单的三条。
+- `profile.css`：KOL 行、点评卡、按钮的三套样式。
+
+**Task 12：沙盒和验收**
+- 沙盒假数据：`kolFollow` 补 `kolRank20W`、`isCn`、AI 字段；`topReviewers` 补 `name`；KOL 对话列表里加 `mira_onchain`（官方，`perspective_name_zh: 'Mira 思维'`）；社交圈可用。
+- 验收：全量测试、类型检查、打包；三套风格 × 三种背景截图；对比度；键盘操作；关闭对应设置项后相应部分消失。
