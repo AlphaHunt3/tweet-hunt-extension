@@ -1,6 +1,7 @@
 import { Field, FieldDescription, FieldLabel } from '@ui-sdk/react/field';
 import { useRequest } from 'ahooks';
 import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useEffect, useRef, useState } from 'react';
 import { navigationService } from '~/compontents/navigation/NavigationService';
@@ -175,7 +176,7 @@ export function ReviewsView({ stats, userId }: { stats: any; userId: string }) {
 }
 
 function CommentItem({ comment }: { comment: any }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const text = String(comment.comment ?? '');
   const long = text.length > LONG_COMMENT;
@@ -189,7 +190,10 @@ function CommentItem({ comment }: { comment: any }) {
         <div className='min-w-0 flex-1 leading-tight'>
           <p className='truncate text-[12px] font-semibold native:text-[14px] native:font-bold'>{reviewer.displayName}</p>
           <p className='truncate text-[11px] text-xh-fg-2 native:text-[13px]'>
-            @{reviewer.username} · {dayjs(comment.updatedAt).fromNow()}
+            @{reviewer.username} ·{' '}
+            {dayjs(comment.updatedAt)
+              .locale(lang === 'zh' ? 'zh-cn' : 'en')
+              .fromNow()}
           </p>
         </div>
         <span className='flex shrink-0 items-center gap-0.5 font-xh-num text-[12px] font-semibold tabular-nums'>
