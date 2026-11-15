@@ -1220,5 +1220,17 @@
   "profileNoteEditorTitle": "备注 · 仅自己可见",
   "profileLoginWithX": "用 X 登录",
   "profileTagsLabel": "XHunt 标签",
-  "aiNarrative": "AI 叙事"
+  "aiNarrative": "AI 叙事",
+  "insightsTitle": "XHunt 洞察",
+  "insightsSubtitle": "近 90 天公开数据",
+  "insightPersonality": "性格",
+  "insightAbility": "能力",
+  "insightAbilityLong": "KOL 能力",
+  "insightReturn90": "90 天收益",
+  "insightMentions": "提及代币",
+  "insightMentionsLong": "90 天提及代币",
+  "insightDeleted": "删帖",
+  "insightEdited": "改帖",
+  "insightUnitTokens": "个",
+  "insightUnitTimes": "次"
 }

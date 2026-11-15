@@ -1,4 +1,5 @@
 import {
+  createPopoverController,
   Popover as UiPopover,
   PopoverClose as UiPopoverClose,
   PopoverContent as UiPopoverContent,
@@ -9,6 +10,7 @@ import {
 import type { ComponentProps } from 'react';
 import { cx } from './cx';
 
+export { createPopoverController };
 export const Popover = UiPopover;
 export const PopoverTrigger = UiPopoverTrigger;
 export const PopoverClose = UiPopoverClose;

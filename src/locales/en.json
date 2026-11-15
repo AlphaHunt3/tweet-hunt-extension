@@ -1219,5 +1219,17 @@
   "profileNoteEditorTitle": "Note · only visible to you",
   "profileLoginWithX": "Log in with X",
   "profileTagsLabel": "XHunt tags",
-  "aiNarrative": "AI narrative"
+  "aiNarrative": "AI narrative",
+  "insightsTitle": "XHunt insights",
+  "insightsSubtitle": "Public data from the last 90 days",
+  "insightPersonality": "Personality",
+  "insightAbility": "Ability",
+  "insightAbilityLong": "KOL ability",
+  "insightReturn90": "90d return",
+  "insightMentions": "Tokens mentioned",
+  "insightMentionsLong": "Tokens mentioned (90d)",
+  "insightDeleted": "Deleted",
+  "insightEdited": "Edited",
+  "insightUnitTokens": "tokens",
+  "insightUnitTimes": "times"
 }
