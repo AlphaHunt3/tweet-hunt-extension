@@ -1231,5 +1231,15 @@
   "insightDeleted": "Deleted",
   "insightEdited": "Edited",
   "insightUnitTokens": "tokens",
-  "insightUnitTimes": "times"
+  "insightUnitTimes": "times",
+  "kolStatFollowers": "KOL followers",
+  "kolStatTop100": "TOP100",
+  "kolStatCn": "CN KOLs",
+  "rankStatGlobal": "Global influence",
+  "rankStatCn": "Chinese",
+  "rankStatEn": "English",
+  "rankStatProject": "Project",
+  "rankDomainLabel": "Ranking domain",
+  "reviewWrite": "Write a review",
+  "reviewMoreTags": "+{count}"
 }

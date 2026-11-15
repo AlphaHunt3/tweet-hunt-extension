@@ -1232,5 +1232,17 @@
   "insightDeleted": "删帖",
   "insightEdited": "改帖",
   "insightUnitTokens": "个",
-  "insightUnitTimes": "次"
+  "insightUnitTimes": "次",
+  "kolStatFollowers": "KOL 粉丝",
+  "kolStatTop100": "TOP100",
+  "kolStatCn": "中文 KOL",
+  "rankStatGlobal": "全球影响力",
+  "rankStatCn": "华语",
+  "rankStatEn": "英文",
+  "rankStatProject": "项目",
+  "rankDomainLabel": "排名领域",
+  "reviewWrite": "写点评",
+  "reviewMoreTags": "+{count}",
+  "kolCnRankTotal": "10000",
+  "kolProjectRankTotal": "10000"
 }

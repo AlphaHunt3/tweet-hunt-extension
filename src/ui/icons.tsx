@@ -140,3 +140,13 @@ export const XLogoIcon = makeIcon(
   <path d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' />,
   true,
 );
+export const SwapIcon = makeIcon(<path d='M7 7h11l-3-3M17 17H6l3 3' />);
+export const PencilIcon = makeIcon(<path d='M4 20h4L19 9l-4-4L4 16v4Z' />);
+export const SocialCircleIcon = makeIcon(
+  <>
+    <circle cx='12' cy='6' r='2.5' />
+    <circle cx='5.5' cy='17' r='2.5' />
+    <circle cx='18.5' cy='17' r='2.5' />
+    <path d='M10.8 8.2 7 14.8M13.2 8.2l3.8 6.6M8 17h8' />
+  </>,
+);
