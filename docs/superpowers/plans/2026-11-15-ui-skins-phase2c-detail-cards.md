@@ -71,12 +71,39 @@
 
 每个任务先写测试，再实现，跑通后单独提交。
 
-- [ ] **任务 1 共用部分**：`details/DetailCard.tsx`、`details/MeterRow.tsx`、`details/RadarChart.tsx`、`details/format.ts`（`formatDay`、`formatShortDay`、`formatTotal`）；`src/css/details.css`；`.xh-detail-pop` 原生内边距。测试：卡片头部和页脚按需出现；`MeterRow` 的无障碍名称和「—」；雷达点数、`aria-label`、截断；日期和总数格式（中英文、秒和毫秒、无效值）。
-- [ ] **任务 2 灵魂指数卡** `details/SoulCard.tsx`（替换 `SoulDensity`，删除旧文件）。测试：等级分档、中文只有英文原因时回退、三套风格结构（原生无雷达）、页脚日期。
-- [ ] **任务 3 能力卡** `details/AbilityCard.tsx`（替换 `KolAbilityRadar` 和 NRD 里的两个面板）。测试：≥3 项有雷达、1–2 项只有进度条、领域切换回调、只有一个领域时不显示切换、无总结时仍有页脚。
-- [ ] **任务 4 排名卡和 KOL 粉丝卡** `details/RankCard.tsx`（含 `buildRankDetail`）、`details/KolFollowersCard.tsx`（替换 `RankTooltip`、`KolFollowersSection`）。测试：四种排名的封顶、未上榜、千分位、AI 总数；粉丝卡标签页初始值、空列表。
-- [ ] **任务 5 MBTI、改名、讨论** `details/MbtiCard.tsx`、`details/RenameCard.tsx`、`details/DiscussionCard.tsx`。测试：缺数据不崩、改名倒序和「当前」、讨论百分比缺失不出 NaN。
-- [ ] **任务 6 代币卡** `details/TokenReturnCard.tsx`、`details/TokenMentionsCard.tsx`。测试：0 和缺失的显示、排序和前三名标记、文案走 key。
-- [ ] **任务 7 删帖和改帖**：`DeletedTweetsSection`、`TweetContent`、`EditedTweetsSection` 原地改样式和修问题（卡片可用键盘打开、日期按语言、改帖「加载更多失败」重试调 `onRetry`）；NRD 用 `DetailCard` 包装。
-- [ ] **任务 8 投资和关联人物**：`InvestmentPanel` 原地改（修崩溃、不改 props 数组）；`details/MembersCard.tsx` 替换 `ProjectMembersSection`。
-- [ ] **任务 9 沙盒和验收**：假数据补齐；截图拼图、对比度、单测、类型检查、构建；记录执行中的调整和验收结果。
+- [x] **任务 1 共用部分**：`details/DetailCard.tsx`、`details/MeterRow.tsx`、`details/RadarChart.tsx`、`details/format.ts`（`formatDay`、`formatShortDay`、`formatTotal`）；`src/css/details.css`；`.xh-detail-pop` 原生内边距。测试：卡片头部和页脚按需出现；`MeterRow` 的无障碍名称和「—」；雷达点数、`aria-label`、截断；日期和总数格式（中英文、秒和毫秒、无效值）。
+- [x] **任务 2 灵魂指数卡** `details/SoulCard.tsx`（替换 `SoulDensity`，删除旧文件）。测试：等级分档、中文只有英文原因时回退、三套风格结构（原生无雷达）、页脚日期。
+- [x] **任务 3 能力卡** `details/AbilityCard.tsx`（替换 `KolAbilityRadar` 和 NRD 里的两个面板）。测试：≥3 项有雷达、1–2 项只有进度条、领域切换回调、只有一个领域时不显示切换、无总结时仍有页脚。
+- [x] **任务 4 排名卡和 KOL 粉丝卡** `details/RankCard.tsx`（含 `buildRankDetail`）、`details/KolFollowersCard.tsx`（替换 `RankTooltip`、`KolFollowersSection`）。测试：四种排名的封顶、未上榜、千分位、AI 总数；粉丝卡标签页初始值、空列表。
+- [x] **任务 5 MBTI、改名、讨论** `details/MbtiCard.tsx`、`details/RenameCard.tsx`、`details/DiscussionCard.tsx`。测试：缺数据不崩、改名倒序和「当前」、讨论百分比缺失不出 NaN。
+- [x] **任务 6 代币卡** `details/TokenReturnCard.tsx`、`details/TokenMentionsCard.tsx`。测试：0 和缺失的显示、排序和前三名标记、文案走 key。
+- [x] **任务 7 删帖和改帖**：`DeletedTweetsSection`、`TweetContent`、`EditedTweetsSection` 原地改样式和修问题（卡片可用键盘打开、日期按语言、改帖「加载更多失败」重试调 `onRetry`）；NRD 用 `DetailCard` 包装。
+- [x] **任务 8 投资和关联人物**：`InvestmentPanel` 原地改（修崩溃、不改 props 数组）；`details/MembersCard.tsx` 替换 `ProjectMembersSection`。
+- [x] **任务 9 沙盒和验收**：假数据补齐；截图拼图、对比度、单测、类型检查、构建；记录执行中的调整和验收结果。
+
+## 执行中的调整
+
+1. **测试的写法**：每个任务的测试和实现是同一批写的，跑通后再提交，不是严格的先失败再实现。项目没有装 jest-dom，断言统一改成 `toBeTruthy()`、`getAttribute()` 这类写法。
+2. **沙盒的明暗**：沙盒以前从不写 `@xhunt/theme`，`SkinScope` 一直取默认的 dark，浅色背景下也会命中 `[data-theme='dark']` 的规则（能力卡的分段控件选中块变成深色就是这个原因）。扩展里由 `useThemeWatcher` 跟随 X 写入，沙盒现在跟随所选背景写入。2a、2b 的浅色截图当时受了影响，修正后重跑 2b 的对比度，结果不变（最低 4.97:1）。
+3. **沙盒的项目账号**：讨论、关联人物、投资只有项目账号才有，沙盒加了 `?view=profile&kind=project` 和「项目资料」按钮，补了讨论、获投资/已投资、分组成员、改帖（两条修改链，一条历史不完整）、删帖（VIP、带引用推文）、90 天收益指标的假数据。
+4. **`DetailCard` 加了 `header`**：原生风格的灵魂指数卡头部结构完全不同（左侧大号分数、右侧头像），用 `header` 整个替换默认头部。
+5. **灵魂维度文案分两套 key**：进度条用 `soulAxis*`（中文是完整说法，英文用短词，否则 64px 的标签列放不下），雷达用 `soulRadar*`（更短）。
+6. **黑曜的弱化文字**：页脚和雷达标签原本用 `--xh-fg-3`，浅色背景下只有 4.0:1，改用 `--xh-fg-2`；等宽字体只留给 @handle，中文用等宽字体会把空格撑得很宽。
+7. **改名卡**：「当前」标签在 320px 宽度下会压到日期上，改成两行（名字一行、日期一行）。
+8. **改帖的「加载更多失败」重试不是问题**：盘点认为应改调 `onRetry`，核对 `useEditedTweets` 后发现失败时偏移量不前进，再调 `onLoadMore` 正好重试同一页；`onRetry` 会从第一页重新加载并丢掉已加载的页。保留原逻辑并加了注释。真正修的是另一个问题：首次请求前会画出一个空列表，现在显示加载中。
+9. **帖子卡片的悬停效果**：`style.css` 里 `xhunt-post-list`、`xhunt-post-card` 的规则不在任何层里，会压过分层样式。这两个类只有删帖、改帖在用，所以把规则删掉，在 `details.css` 里按风格重做（柔光、黑曜是阴影加其余卡片变淡，原生是 X 式的悬停底色和分隔线）。
+10. **删帖卡片可以用键盘打开**：时间改成真正的链接（`aria-label` 含「打开帖子」），鼠标点卡片任意位置的行为不变。头像统一用 `Avatar`，不再在加载失败时去拉 twimg 的默认头像。
+11. **`TweetContent`**：差异的红绿和链接色改用设计变量（`--xh-down`/`--xh-up`/`--xh-accent-fg`），不再写死 `#1D9BF0`（白底上只有 3:1）。
+12. **人物小卡共用**：KOL 粉丝和关联人物共用 `PersonChip`；RootData 的成员从 X 链接里解析出 handle，这样也能显示官方标签。
+13. **RootData 标志图**：原来从 vercel blob 拉一张远程图片，换成文字链接「来源 · RootData」，署名保留。
+14. **讨论面板保留**：`DiscussionPanel` 还被（本来就没人用的）`DiscussionSection` 引用，没有删；资料页改用新的 `DiscussionCard`。
+15. **删除的文件**：`SoulDensity`、`KolAbilityRadar`、`utils/colorGenerator`、`KolFollowersSection`、`MBTISection`、`NameHistorySection`、`TokenPerformanceSection`、`ProjectMembersSection`，以及 `getMBTIColor`、`renderInvestorList`。
+16. **格式化**：本地没有装 prettier，用 `npx prettier` 格式化过一次 `DetailCard.tsx`，npx 临时下载了 prettier 3.10.1，之后没再用。
+
+## 验收结果
+
+- 单测：68 个文件、256 个测试全部通过（2b 结束时是 60 个文件、192 个）。
+- 类型检查：64 个错误，比 2b 结束时少 4 个（删掉的旧文件里的），新文件没有错误；`EditedTweetsSection` 里那条隐式 any 是原有的，只是行号变了。
+- 构建：成功，`Main.js` 4,446,491 字节，比 2b 结束时多约 94KB。原因是 `style.css` 被 12 个文件用 `data-text:` 引入，在 `Main.js` 里嵌了 10 份，每加 1 字节样式实际增加约 10 字节。去重是单独的改动，没有放进本阶段。
+- 对比度：13 种卡片在三套风格 × 三种 X 背景下逐个打开测量，所有文字 ≥ 4.5:1，最低是原生风格深蓝背景下改帖的删除差异 4.55:1。
+- 截图：每种卡片都有三套风格的深浅两张拼图，最终版在 scratchpad 的 `shots/final/`。

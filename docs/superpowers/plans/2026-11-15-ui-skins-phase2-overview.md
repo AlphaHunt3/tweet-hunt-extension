@@ -51,3 +51,9 @@
 - 2c：90 天收益、投资面板写死了深色专用的颜色，浅色下对比度不够。
 - 2c：写死的中英文字符串（`+N个标签`、`No Data`、`Loading...`、`7D/30D/90D` 等）改用文案。
 - `ReviewSection` 评论框 `maxLength=200` 但截到 300（2b 一并修）。
+
+## 完成情况
+
+- 2a 基础：完成（`2026-11-15-ui-skins-phase2a-foundation.md`）。
+- 2b 资料页主体：完成（`2026-11-15-ui-skins-phase2b-profile-body.md`）。
+- 2c 详情卡片：完成（`2026-11-15-ui-skins-phase2c-detail-cards.md`）。13 种悬停卡片统一为头部、正文、页脚结构，三套风格各自成形；顺带修了盘点出的崩溃和文案问题。
