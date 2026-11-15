@@ -77,7 +77,7 @@ function BadgeSkinPicker({ value, onValueChange }: { value: string; onValueChang
           if (typeof next === 'string') onValueChange(next);
         }}
         aria-label={t('avatarSkinSelectorTitle')}
-        className='flex flex-wrap gap-2'
+        className='flex flex-wrap gap-1.5'
       >
         {Object.entries(avatarSkins).map(([id, config]) => (
           <Radio
