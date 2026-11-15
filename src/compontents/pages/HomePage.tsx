@@ -1,10 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useI18n } from '~contents/hooks/i18n.ts';
-import { KolFollowersSection } from '~/compontents/KolFollowersSection.tsx';
-import { MBTISection } from '~/compontents/MBTISection.tsx';
-import { InvestmentPanel } from '~/compontents/InvestmentPanel.tsx';
-import { ReviewsOverview } from '~/compontents/ReviewsOverview.tsx';
-import { CommentsSection } from '~/compontents/CommentsSection.tsx';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { Loader2 } from 'lucide-react';
 import { KolData, DeletedTweet, InvestmentData } from '~types';
 import { MBTIData } from '~types';
@@ -13,6 +9,10 @@ import { messageManager } from '~/utils/messageManager';
 import { HomeChrome } from '~/ui/shells/HomeChrome';
 import type { HomeView } from '~/ui/shells/panelNav';
 import { usePanelHomeView } from '~/ui/shells/usePanelHomeView';
+import { FollowersView } from '~/ui/panel/FollowersView';
+import { OverviewView } from '~/ui/panel/OverviewView';
+import { PortraitView } from '~/ui/panel/PortraitView';
+import { ReviewsView } from '~/ui/panel/ReviewsView';
 
 interface HomePageProps {
   twInfo?: KolData | null;
@@ -39,8 +39,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const { t, lang } = useI18n();
   const langRef = useRef(lang);
-  const reviewsRef = useRef<HTMLDivElement | null>(null);
   const { setView } = usePanelHomeView();
+  const { twitterId } = usePlacementTracking();
 
   const mbti = useMemo(() => {
     if (Array.isArray(twInfo?.mbti?.cn) && Array.isArray(twInfo?.mbti?.en)) {
@@ -77,39 +77,21 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       );
     }
-    const followers = twInfo ? <KolFollowersSection kolData={twInfo} /> : null;
-    const portrait = (
-      <>
-        {mbti && <MBTISection data={mbti} />}
-        {!loadingRootData &&
-          rootData &&
-          (rootData?.invested || rootData?.investor) &&
-          twInfo?.basicInfo?.classification !== 'person' && (
-            <InvestmentPanel data={rootData} classicStyle />
-          )}
-      </>
-    );
-    const reviews = (
-      <>
-        <div id='panel-scroll-reviews' ref={reviewsRef}>
-          <ReviewsOverview stats={reviewInfo} />
-        </div>
-        {userId && (
-          <div id='panel-scroll-comments'>
-            <CommentsSection userId={userId} initialCommentsCount={0} />
-          </div>
-        )}
-      </>
-    );
-    if (view === 'followers') return followers;
-    if (view === 'portrait') return portrait;
-    if (view === 'reviews') return reviews;
+    const investment = loadingRootData ? null : rootData;
+    if (view === 'followers') return <FollowersView twInfo={twInfo} />;
+    if (view === 'portrait') {
+      return <PortraitView twInfo={twInfo} mbti={mbti} twitterId={twitterId} rootData={investment} />;
+    }
+    if (view === 'reviews') return <ReviewsView key={userId} stats={reviewInfo} userId={userId} />;
     return (
-      <>
-        {followers}
-        {portrait}
-        {reviews}
-      </>
+      <OverviewView
+        twInfo={twInfo}
+        mbti={mbti}
+        stats={reviewInfo}
+        twitterId={twitterId}
+        rootData={investment}
+        onOpen={setView}
+      />
     );
   };
 
