@@ -9,6 +9,8 @@ export interface TextFieldProps {
   'aria-label': string;
   placeholder?: string;
   onSubmit?: (value: string) => void;
+  onEscape?: () => void;
+  maxLength?: number;
   invalid?: boolean;
   className?: string;
   testId?: string;
@@ -19,20 +21,23 @@ export function TextField({
   onValueChange,
   placeholder,
   onSubmit,
+  onEscape,
+  maxLength,
   invalid = false,
   className,
   testId,
   ...rest
 }: TextFieldProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  useKeyGuard(inputRef, onSubmit);
+  useKeyGuard(inputRef, onSubmit, onEscape);
 
   return (
     <label className={cx('xh-search', className)} data-invalid={invalid ? '' : undefined}>
       <Input
         ref={inputRef}
         value={value}
-        onValueChange={(next) => onValueChange(next)}
+        onValueChange={(next) => onValueChange(maxLength ? next.slice(0, maxLength) : next)}
+        maxLength={maxLength}
         placeholder={placeholder}
         aria-label={rest['aria-label']}
         aria-invalid={invalid || undefined}

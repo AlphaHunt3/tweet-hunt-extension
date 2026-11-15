@@ -38,4 +38,21 @@ describe('TextField', () => {
     await userEvent.type(box, 'bad');
     expect(box.getAttribute('aria-invalid')).toBe('true');
   });
+
+  test('Escape runs onEscape and maxLength caps the value', async () => {
+    const onEscape = vi.fn();
+    render(<Note onEscape={onEscape} />);
+    const input = screen.getByRole('textbox', { name: 'Note' }) as HTMLInputElement;
+    await userEvent.type(input, 'abcdefgh');
+    expect(input.value).toBe('abcde');
+    await userEvent.keyboard('{Escape}');
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
 });
+
+function Note({ onEscape }: { onEscape: () => void }) {
+  const [value, setValue] = useState('');
+  return (
+    <TextField aria-label='Note' value={value} onValueChange={setValue} onEscape={onEscape} maxLength={5} />
+  );
+}
