@@ -32,6 +32,7 @@ import { KolData } from '~types';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import { SkinScope } from '~/ui/skin/SkinScope';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
 
@@ -347,6 +348,7 @@ function _FollowedRightData({
       ".//*[ (contains(., 'Following') and contains(., 'Followers')) or (contains(., '正在关注') and contains(., '关注者')) or (contains(., '個跟隨中') and contains(., '位跟隨者')) or (contains(., 'フォロワー') and contains(., 'フォロー中')) ]",
     styleText: cssText,
     useSiblings: true,
+    shadowMode: 'open',
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
 
@@ -360,7 +362,7 @@ function _FollowedRightData({
   }
 
   return ReactDOM.createPortal(
-    <div data-xhunt-testid='followed-right-data' style={{ display: 'contents' }}>
+    <SkinScope data-xhunt-testid='followed-right-data'>
       {loadingTwInfo ? (
         <FollowStatsSkeleton />
       ) : twInfo && (
@@ -892,8 +894,7 @@ function _FollowedRightData({
           </ErrorBoundary>
         ))}
 
-      {/* 检测幽灵following按钮 - 只在当前用户的个人页面显示，且需要开启设置 */}
-    </div>,
+    </SkinScope>,
     portalHost!,
   );
 }

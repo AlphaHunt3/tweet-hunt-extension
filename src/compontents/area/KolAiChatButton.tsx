@@ -10,6 +10,7 @@ import { getTwitterAuthUrl, fetchKolChatList } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
 import { useLockFn, useRequest } from 'ahooks';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import { SkinScope } from '~/ui/skin/SkinScope';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 
@@ -37,6 +38,7 @@ function _KolAiChatButton() {
     containerKey: 'kol-ai-chat',
     cleanupStaleSiblings: true,
     onShadowCreated: keepSocialCircleFirst,
+    shadowMode: 'open',
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
 
@@ -157,6 +159,7 @@ function _KolAiChatButton() {
     return null; // 独立控制非授权kol
 
   return ReactDOM.createPortal(
+    <SkinScope>
     <div
       data-xhunt-testid='kol-ai-chat-button'
       style={{
@@ -183,7 +186,8 @@ function _KolAiChatButton() {
           {buttonLabel}
         </span>
       </button>
-    </div>,
+    </div>
+    </SkinScope>,
     portalHost!,
   );
 }

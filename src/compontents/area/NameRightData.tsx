@@ -27,8 +27,9 @@ import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
-import { NotesSection } from '~compontents/NotesSection.tsx';
-import { NarrativeSection } from '~/compontents/NarrativeSection.tsx';
+import { NarrativeLine } from '~/ui/profile/NarrativeLine';
+import { ProfileTagline } from '~/ui/profile/ProfileTagline';
+import { SkinScope } from '~/ui/skin/SkinScope';
 import SoulDensity from '~/compontents/SoulDensity.tsx';
 import { getSoulInfo } from '~contents/services/api.ts';
 import { useRequest } from 'ahooks';
@@ -439,10 +440,10 @@ function _NameRightData({
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
     styleText: cssText,
+    shadowMode: 'open',
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
   const { t, lang } = useI18n();
-  const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
@@ -667,15 +668,11 @@ function _NameRightData({
   );
 
   return ReactDOM.createPortal(
-    <div
-      data-theme={theme}
-      data-xhunt-testid='name-right-data'
-      style={{ display: 'contents' }}
-    >
-      <NotesSection
-        userId={userId}
+    <SkinScope data-xhunt-testid='name-right-data'>
+      <ProfileTagline
+        handle={userId}
         twitterId={twitterId}
-        reviewInfo={reviewInfo}
+        fallbackNote={reviewInfo?.currentUserReview?.note}
       />
       {shouldCollapseInsights && !isInsightsExpanded && (
         <div className='mt-1.5 flex w-full items-center gap-1.5'>
@@ -973,17 +970,10 @@ function _NameRightData({
         </div>
       )}
 
-      {/* 🆕 叙事功能区域 */}
-      {isEnabled('showNarrative') &&
-        twInfo &&
-        twInfo?.narrative &&
-        !loadingTwInfo && (
-          <NarrativeSection
-            narrative={twInfo?.narrative}
-            isLoading={loadingTwInfo}
-          />
-        )}
-    </div>,
+      {isEnabled('showNarrative') && twInfo?.narrative && !loadingTwInfo && (
+        <NarrativeLine narrative={twInfo.narrative} />
+      )}
+    </SkinScope>,
     portalHost!,
   );
 }

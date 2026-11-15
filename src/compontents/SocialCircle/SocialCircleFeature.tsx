@@ -14,8 +14,8 @@ import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useI18n } from '~contents/hooks/i18n';
 import { openNewTab } from '~contents/utils';
 import { useCrossPageSettings } from '~utils/settingsManager';
-import { useLocalStorage } from '~storage/useLocalStorage';
 import { configManager } from '~utils/configManager';
+import { SkinScope } from '~/ui/skin/SkinScope';
 import {
   FloatingContainer,
   type FloatingContainerRef,
@@ -122,7 +122,6 @@ function SocialCircleLimitDialog({
 
 export default function SocialCircleFeature() {
   const { t, lang } = useI18n();
-  const [theme] = useLocalStorage<'light' | 'dark'>('@xhunt/theme', 'dark');
   const { isEnabled } = useCrossPageSettings();
   const enabled = isEnabled('showKolSocialCircleButton');
   const { urlUid, twitterId, handler, displayName, avatar, loading } =
@@ -158,6 +157,7 @@ export default function SocialCircleFeature() {
     containerKey: SOCIAL_CIRCLE_CONTAINER_KEY,
     cleanupStaleSiblings: true,
     onShadowCreated: keepBeforeAiAvatar,
+    shadowMode: 'open',
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
 
@@ -204,7 +204,7 @@ export default function SocialCircleFeature() {
   return (
     <>
       {ReactDOM.createPortal(
-        <div data-theme={theme} style={{ display: 'contents' }}>
+        <SkinScope>
           <div
             data-xhunt-testid='kol-social-circle-button'
             className='theme-bg-primary'
@@ -238,12 +238,12 @@ export default function SocialCircleFeature() {
               </span>
             </button>
           </div>
-        </div>,
+        </SkinScope>,
         portalHost,
       )}
       {floatingPortal &&
         ReactDOM.createPortal(
-          <div data-theme={theme} style={{ display: 'contents' }}>
+          <SkinScope>
             <FloatingContainer
               ref={floatingContainerRef}
               targetRef={triggerRef}
@@ -275,7 +275,7 @@ export default function SocialCircleFeature() {
                 />
               ) : null}
             </FloatingContainer>
-          </div>,
+          </SkinScope>,
           floatingPortal,
         )}
     </>
