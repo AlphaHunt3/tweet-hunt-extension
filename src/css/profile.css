@@ -1,0 +1,155 @@
+@layer xh-primitives {
+  .xh-ptagline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-family: var(--xh-font-ui);
+    line-height: 1.45;
+  }
+  .xh-ptag,
+  .xh-pnote {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    max-width: 100%;
+    padding: 0 8px;
+    border-radius: 999px;
+    color: var(--xh-fg-2);
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .xh-ptag {
+    gap: 4px;
+    background: var(--xh-sunken);
+  }
+  .xh-ptag-text,
+  .xh-pnote-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .xh-pnote {
+    gap: 3px;
+    max-width: 220px;
+    border: 1px dashed var(--xh-line-2);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      color var(--xh-d-xs) var(--xh-ease-out),
+      border-color var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-pnote:hover {
+    border-color: var(--xh-fg-3);
+    color: var(--xh-fg);
+  }
+  .xh-pnote[data-has-note] {
+    border-style: solid;
+    border-color: transparent;
+    background: var(--xh-sunken);
+  }
+  .xh-pnote:focus-visible {
+    outline: 2px solid var(--xh-accent);
+    outline-offset: 2px;
+  }
+  .xh-pnote:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  [data-skin='obsidian'] .xh-ptag,
+  [data-skin='obsidian'] .xh-pnote {
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  [data-skin='native'] .xh-ptagline {
+    gap: 4px 12px;
+    margin-top: 8px;
+    color: var(--xh-fg-2);
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  [data-skin='native'] .xh-ptag,
+  [data-skin='native'] .xh-pnote,
+  [data-skin='native'] .xh-pnote[data-has-note] {
+    gap: 4px;
+    height: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  [data-skin='native'] .xh-pnote {
+    color: var(--xh-accent-fg);
+  }
+  [data-skin='native'] .xh-pnote:hover {
+    text-decoration: underline;
+  }
+
+  .xh-pnote-pop {
+    display: grid;
+    gap: 10px;
+    width: 280px;
+  }
+  .xh-pnote-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .xh-pnote-count {
+    margin-inline-end: auto;
+    color: var(--xh-fg-3);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .xh-narr {
+    margin: 10px 0 0;
+    color: var(--xh-fg);
+    font-family: var(--xh-font-ui);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .xh-narr-label {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    margin-inline-end: 6px;
+    padding: 0 7px;
+    border-radius: 6px;
+    background: var(--xh-accent-soft);
+    color: var(--xh-accent-fg);
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: 1px;
+  }
+  [data-skin='obsidian'] .xh-narr {
+    color: var(--xh-fg-2);
+    font-size: 13px;
+  }
+  [data-skin='obsidian'] .xh-narr-label {
+    height: auto;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--xh-accent) 45%, transparent);
+    font: 500 10.5px var(--xh-font-num);
+  }
+  [data-skin='native'] .xh-narr {
+    margin-top: 8px;
+    font-size: 15px;
+    line-height: 1.42;
+  }
+  [data-skin='native'] .xh-narr-label {
+    display: inline;
+    height: auto;
+    padding: 0;
+    background: none;
+    font-size: 13px;
+    font-weight: 700;
+  }
+}
