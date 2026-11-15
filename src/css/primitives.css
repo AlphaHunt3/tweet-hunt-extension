@@ -1124,6 +1124,67 @@
     background: #f5b301;
   }
 
+  .xh-swatch {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: var(--xh-sw);
+    box-shadow: inset 0 0 0 1px var(--xh-line-2);
+    cursor: pointer;
+    transition: transform var(--xh-d-xs) var(--xh-ease-out);
+  }
+  .xh-swatch:hover {
+    transform: scale(1.08);
+  }
+  .xh-swatch[data-checked],
+  .xh-swatch:focus-visible {
+    outline: 2px solid var(--xh-accent-fg);
+    outline-offset: 2px;
+  }
+  [data-skin='native'] .xh-swatch {
+    border-radius: 9999px;
+  }
+
+  .xh-slider {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+  .xh-slider-control {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 20px;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .xh-slider-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--xh-sunken);
+  }
+  [data-skin='obsidian'] .xh-slider-track {
+    background: color-mix(in oklab, var(--xh-fg) 12%, transparent);
+  }
+  .xh-slider-indicator {
+    border-radius: inherit;
+    background: var(--xh-accent-fg);
+  }
+  .xh-slider-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--xh-accent-fg);
+    box-shadow: 0 0 0 2px var(--xh-surface), 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+  .xh-slider-thumb:has(:focus-visible) {
+    outline: 2px solid var(--xh-accent-fg);
+    outline-offset: 3px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .xh-seg-indicator,
     .xh-tabs-indicator,
