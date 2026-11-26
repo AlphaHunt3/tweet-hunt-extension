@@ -22,7 +22,7 @@ export interface SystemInitializationStats {
  */
 export function useSystemInitialization() {
   // 等待页面主要内容加载完成后再初始化
-  const mainElement = useWaitForElement('main[role]', [], 10000);
+  const mainElement = useWaitForElement('main', [], 10000);
   const isInitializedRef = useRef(false);
   const [username] = useLocalStorage('@xhunt/current-username', '');
   // const userNameRef = useLatest(username);

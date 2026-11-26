@@ -1,3 +1,4 @@
+import { sidebarNavAnchor } from '~contents/utils/xLayout';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import ReactDOM from 'react-dom';
 import indexText from 'data-text:~/css/index.css';
@@ -27,7 +28,7 @@ const sidebarPlaceholderStyle =
 
 function _SideBarIcon() {
   const shadowRoot = useShadowContainer({
-    selector: 'a[data-testid="AppTabBar_Profile_Link"]',
+    selector: sidebarNavAnchor,
     styleText: indexText,
     useSiblings: true,
     siblingsStyle: sidebarPlaceholderStyle,
@@ -49,7 +50,7 @@ function _SideBarIcon() {
   const [isCheckingMessages, setIsCheckingMessages] = useState(true);
   const initialCheckDoneRef = useRef(false);
   const currentUrl = useCurrentUrl();
-  const sidebar = useWaitForElement('nav[role]', [theme, currentUrl]);
+  const navAnchor = useWaitForElement(sidebarNavAnchor, [theme, currentUrl]);
   const [isExpanded, setIsExpanded] = useState(false);
   const { t, lang } = useI18n();
   const langRef = useRef(lang);
@@ -61,14 +62,11 @@ function _SideBarIcon() {
   const updateIsExpanded = useCallback(() => {
     // 后台/隐藏状态下 DOM 尺寸可能测得 0，跳过更新以防误折叠
     if (typeof document !== 'undefined' && document.hidden) return;
-    if (!sidebar) return;
+    if (!navAnchor) return;
 
-    const profileLink = document.querySelector(
-      'a[data-testid="AppTabBar_Profile_Link"]',
-    ) as HTMLElement | null;
-    const profileLinkWidth = profileLink?.getBoundingClientRect().width || 0;
-    const hasVisibleProfileText = Array.from(
-      profileLink?.querySelectorAll('span') || [],
+    const linkWidth = navAnchor.getBoundingClientRect().width;
+    const hasVisibleText = Array.from(
+      navAnchor.querySelectorAll('span'),
     ).some((span) => {
       const text = span.textContent?.trim();
       if (!text) return false;
@@ -84,13 +82,13 @@ function _SideBarIcon() {
     });
 
     // X 左侧栏存在中间宽度布局：容器宽度够大，但原生菜单文案已隐藏。
-    // 因此以 Profile 原生文案是否可见为准，避免窄屏时 XHunt 文案溢出。
+    // 因此以原生导航文案是否可见为准，避免窄屏时 XHunt 文案溢出。
     setIsExpanded(
       !currentUrl.includes('/i/chat') &&
-      profileLinkWidth > 120 &&
-      hasVisibleProfileText,
+      linkWidth > 120 &&
+      hasVisibleText,
     );
-  }, [sidebar, currentUrl]);
+  }, [navAnchor, currentUrl]);
 
   // 防抖处理宽度获取和计算
   const { run: debouncedUpdateIsExpanded } = useDebounceFn(updateIsExpanded, {
@@ -121,14 +119,14 @@ function _SideBarIcon() {
     };
   }, [updateIsExpanded]);
 
-  // 3. 初始化、sidebar 挂载或路由切换时更新
+  // 3. 初始化、导航入口挂载或路由切换时更新
   useEffect(() => {
-    if (sidebar?.parentElement) {
+    if (navAnchor?.isConnected) {
       updateIsExpanded();
       const timer = setTimeout(updateIsExpanded, 150);
       return () => clearTimeout(timer);
     }
-  }, [sidebar, currentUrl, updateIsExpanded]);
+  }, [navAnchor, currentUrl, updateIsExpanded]);
 
   // Update message manager language when user language changes
   useEffect(() => {

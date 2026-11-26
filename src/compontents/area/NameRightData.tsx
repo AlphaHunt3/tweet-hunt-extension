@@ -1,3 +1,4 @@
+import { profileNameAnchor } from '~contents/utils/xLayout';
 import React, { useMemo } from 'react';
 import { HoverStatItem } from '~/compontents/HoverStatItem.tsx';
 import { MainData } from '~contents/hooks/useMainData.ts';
@@ -478,7 +479,7 @@ function _NameRightData({
   loadingProjectMember,
 }: NameRightDataProps) {
   const shadowRoot = useShadowContainer({
-    selector: 'div[data-testid="UserName"]',
+    selector: profileNameAnchor,
     styleText: cssText,
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
