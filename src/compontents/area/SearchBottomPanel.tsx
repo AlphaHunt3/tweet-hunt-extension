@@ -1,3 +1,4 @@
+import { sidebarPanelAnchor } from '~contents/utils/xLayout';
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import cssText from 'data-text:~/css/style.css';
@@ -33,8 +34,7 @@ function _SearchBottomPanel({
 
   const shadowOptions = useMemo(
     () => ({
-      selector:
-        "div[data-testid='sidebarColumn'] div[aria-label][tabindex] > div:first-child",
+      selector: sidebarPanelAnchor,
       styleText: cssText + avatarCssText,
       autoZIndex: false,
       useSiblings: true,
@@ -142,7 +142,7 @@ function _SearchBottomPanel({
       className='search-bottom-panel-transition'
       data-xhunt-avatar-rank-mode={avatarRankMode}
       style={{
-        marginTop: dynamicMarginTop,
+        marginTop: shadowRoot?.host.closest('aside') ? 0 : dynamicMarginTop,
         opacity: isVisible ? 1 : 0,
         // transform: isVisible ? 'translateY(0)' : 'translateY(-10px)',
         transition:

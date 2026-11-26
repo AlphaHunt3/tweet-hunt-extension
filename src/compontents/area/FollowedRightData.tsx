@@ -1,3 +1,4 @@
+import { profileFollowingLink } from '~contents/utils/xLayout';
 import cssText from 'data-text:~/css/style.css';
 import React, {
   useState,
@@ -342,9 +343,10 @@ function _FollowedRightData({
   );
 
   const shadowRoot = useShadowContainer({
-    selector: 'div[data-testid="UserName"]',
+    selector: `div[data-testid="UserName"], ${profileFollowingLink}`,
+    // On X web the following link is already a direct child of the stats row.
     siblingsXPath:
-      ".//*[ (contains(., 'Following') and contains(., 'Followers')) or (contains(., '正在关注') and contains(., '关注者')) or (contains(., '個跟隨中') and contains(., '位跟隨者')) or (contains(., 'フォロワー') and contains(., 'フォロー中')) ]",
+      "self::div[a[contains(@href, '/following')]] | .//*[ (contains(., 'Following') and contains(., 'Followers')) or (contains(., '正在关注') and contains(., '关注者')) or (contains(., '個跟隨中') and contains(., '位跟隨者')) or (contains(., 'フォロワー') and contains(., 'フォロー中')) ]",
     styleText: cssText,
     useSiblings: true,
   });

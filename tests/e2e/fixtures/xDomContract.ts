@@ -1,3 +1,4 @@
+import { profileNameAnchor, sidebarNavAnchor, sidebarPanelAnchor } from '../../../src/contents/utils/xLayout';
 import { profilePath, searchPath, statusPath } from './accounts';
 
 export type XDomContractLevel = 'P0' | 'P1' | 'P2';
@@ -21,14 +22,21 @@ export const xDomContracts: XDomContract[] = [
     path: '/home',
     selector: 'main',
     level: 'P0',
-    usage: 'global page body and notification target fallback',
+    usage: 'system initialization, global page body and notification target fallback',
   },
   {
-    name: 'global-main-role',
+    name: 'sidebar-navigation-entry',
     path: '/home',
-    selector: 'main[role]',
+    selector: sidebarNavAnchor,
     level: 'P0',
-    usage: 'system initialization wait target',
+    usage: 'XHunt navigation and onboarding entry',
+  },
+  {
+    name: 'sidebar-panel',
+    path: '/home',
+    selector: sidebarPanelAnchor,
+    level: 'P1',
+    usage: 'XHunt desktop sidebar below search',
   },
   {
     name: 'profile-link-auth-signal',
@@ -47,7 +55,7 @@ export const xDomContracts: XDomContract[] = [
   {
     name: 'profile-user-name',
     path: profilePath(),
-    selector: 'main [data-testid="UserName"]',
+    selector: profileNameAnchor,
     level: 'P0',
     usage: 'profile name data injection and handler fallback',
   },

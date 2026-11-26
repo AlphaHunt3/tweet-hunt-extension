@@ -1,3 +1,4 @@
+import { followingLinkForProfile } from '~contents/utils/xLayout';
 import { useEffect, useMemo, useState } from 'react';
 import useWaitForElement from './useWaitForElement';
 import useCurrentUrl from './useCurrentUrl';
@@ -90,6 +91,23 @@ export default function usePlacementTrackingDomUserInfo(options?: {
     followState: null as FollowState,
   });
 
+  const followingSelector = followingLinkForProfile(urlUid);
+  const followingLink = useWaitForElement(followingSelector, [currentUrl]);
+
+  const { runAsync: runFetchAsync, cancel: cancelFetch } = useRequest(
+    async (uid?: string) => {
+      if (!uid) return undefined as any;
+      return fetchTwitterInfoNew(undefined, uid);
+    },
+    {
+      manual: true,
+      cacheKey: urlUid ? `fetchTwitterInfoNew:${urlUid}` : undefined,
+      staleTime: 60 * 1000,
+      cacheTime: 5 * 60 * 1000,
+      debounceWait: 100,
+    }
+  );
+
   // 防抖计算，避免依赖频繁变动时多次解析 DOM
   // 需要有点时间延迟 否则没有感知 变化加载过程
   useDebounceEffect(
@@ -107,6 +125,34 @@ export default function usePlacementTrackingDomUserInfo(options?: {
               avatar: '',
               followState: null,
             });
+          }
+          return;
+        }
+
+        // X web exposes the handle in the profile links but no numeric follow-button ID.
+        if (followingLink?.isConnected && followingLink.matches(followingSelector)) {
+          const profile = {
+            twitterId: '',
+            handler: urlUid,
+            displayName: '',
+            avatar: '',
+            followState: null,
+          };
+          setInfoState(profile);
+          try {
+            const user = await runFetchAsync(urlUid);
+            // X may already be showing another profile while this request is in flight.
+            const currentHandle = extractUsernameFromUrl(window.location.href);
+            if (!cancelled && currentHandle.toLowerCase() === urlUid && user?.id) {
+              setInfoState({
+                ...profile,
+                twitterId: String(user.id),
+                displayName: user.name || user.profile?.name || '',
+                avatar: user.profile?.profile_image_url || '',
+              });
+            }
+          } catch {
+            // The handle is still usable for panels that do not require an ID.
           }
           return;
         }
@@ -177,6 +223,7 @@ export default function usePlacementTrackingDomUserInfo(options?: {
     },
     [
       followButton,
+      followingLink,
       placementTrackingEl,
       currentUrl,
       urlUid,
@@ -190,20 +237,6 @@ export default function usePlacementTrackingDomUserInfo(options?: {
   );
 
   const [loading, setLoading] = useState(true);
-
-  const { runAsync: runFetchAsync, cancel: cancelFetch } = useRequest(
-    async (uid?: string) => {
-      if (!uid) return undefined as any;
-      return fetchTwitterInfoNew(undefined, uid);
-    },
-    {
-      manual: true,
-      cacheKey: urlUid ? `fetchTwitterInfoNew:${urlUid}` : undefined,
-      staleTime: 60 * 1000,
-      cacheTime: 5 * 60 * 1000,
-      debounceWait: 100,
-    }
-  );
 
   useDebounceEffect(
     () => {
