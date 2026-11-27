@@ -10,6 +10,8 @@ import { useRequest } from 'ahooks';
 import { useGlobalTips } from '~compontents/area/GlobalTips.tsx';
 import { calculateTagCharLength } from '~contents/utils';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import { resolveProfileDom } from '~contents/utils/xDomAdapter';
 
 const PRESET_TAGS = {
   kol: [
@@ -67,6 +69,11 @@ function _ReviewSection({
   refreshAsyncUserInfo,
 }: ReviewSectionProps) {
   const { t } = useI18n();
+  const {
+    handler: placementHandler,
+    displayName: placementDisplayName,
+    avatar: placementAvatar,
+  } = usePlacementTracking();
   const [rating, setRating] = useState(
     Number(stats?.currentUserReview?.rating || 0)
   );
@@ -118,15 +125,16 @@ function _ReviewSection({
 
     try {
       setErrorInfo('');
-      const handlerAvatarImg = document.querySelector(
-        'main [data-testid*="UserAvatar-Container"] img'
-      ) as HTMLImageElement;
-      const avatar = handlerAvatarImg?.src || '';
-      const handlerNameInfoDiv = document.querySelector(
-        "main [data-testid='UserName']"
-      ) as HTMLDivElement;
-      const handlerNameAllText = handlerNameInfoDiv?.textContent || '@';
-      const [displayName] = handlerNameAllText.split('@');
+      const profileDom = resolveProfileDom(handler);
+      const isMatchingPlacement =
+        placementHandler.toLowerCase() === handler.toLowerCase();
+      const displayName = (
+        (isMatchingPlacement ? placementDisplayName : '') ||
+        profileDom.displayName ||
+        ''
+      ).trim();
+      const avatar =
+        (isMatchingPlacement ? placementAvatar : '') || profileDom.avatar || '';
       const xLink = window.location.origin + window.location.pathname;
 
       if (!rating || selectedTags.length === 0) {
@@ -134,10 +142,23 @@ function _ReviewSection({
         return;
       }
 
+      let isValidAvatar = false;
+      try {
+        const avatarUrl = new URL(avatar);
+        isValidAvatar =
+          avatarUrl.protocol === 'https:' || avatarUrl.protocol === 'http:';
+      } catch {
+        isValidAvatar = false;
+      }
+      if (!displayName || !isValidAvatar) {
+        setErrorInfo(t('profileInfoUnavailable'));
+        return;
+      }
+
       await postHandeReviewInfoExec({
         xLink,
         handle: handler,
-        displayName: displayName.trim(),
+        displayName,
         avatar,
         followers: 0,
         following: 0,

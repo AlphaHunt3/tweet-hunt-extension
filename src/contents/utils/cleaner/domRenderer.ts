@@ -1,5 +1,6 @@
 import type { CleanerCategory, CleanerMode } from './types';
 import { navigationService } from '~compontents/navigation/NavigationService';
+import { resolveTweetDom } from '~contents/utils/xDomAdapter';
 
 /**
  * 唤起设置面板并定位至信息流净化设置项
@@ -190,9 +191,11 @@ export function applyAction({
 
     // 每次应用时刷新内容，防止复用旧推文单元格导致的信息错位
     const barAvatar = bar.querySelector<HTMLImageElement>('.xhunt-cleaner-bar-avatar');
+    const tweetDom = resolveTweetDom(article);
     const avatarSrc =
+      tweetDom?.avatarImg?.src ||
       article.querySelector<HTMLImageElement>(
-        "div[data-testid='Tweet-User-Avatar'] img, [data-testid='avatar'] img"
+        "div[data-testid='Tweet-User-Avatar'] img, [data-testid='avatar'] img",
       )?.src || '';
     if (barAvatar) {
       if (avatarSrc) {
@@ -203,9 +206,11 @@ export function applyAction({
       }
     }
 
-    const userNameEl = article.querySelector(
-      "div[data-testid='User-Name'], div[data-testid='UserName']"
-    );
+    const userNameEl =
+      tweetDom?.authorNameHost ||
+      article.querySelector(
+        "div[data-testid='User-Name'], div[data-testid='UserName']",
+      );
     const rawName =
       authorName ||
       userNameEl?.querySelector('span')?.textContent?.trim() ||
@@ -290,13 +295,17 @@ export function applyAction({
     badge.appendChild(textSpan);
 
     // 优先插入到 tweetText 正上方
-    const tweetText = article.querySelector("[data-testid='tweetText']");
+    const tweetDom = resolveTweetDom(article);
+    const tweetText =
+      tweetDom?.textHost || article.querySelector("[data-testid='tweetText']");
     if (tweetText && tweetText.parentElement) {
       tweetText.parentElement.insertBefore(badge, tweetText);
     } else {
-      const userNameEl = article.querySelector(
-        "div[data-testid='User-Name'], div[data-testid='UserName']"
-      );
+      const userNameEl =
+        tweetDom?.authorNameHost ||
+        article.querySelector(
+          "div[data-testid='User-Name'], div[data-testid='UserName']",
+        );
       if (userNameEl && userNameEl.parentElement) {
         userNameEl.parentElement.insertAdjacentElement('afterend', badge);
       } else {

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import cssText from 'data-text:~/css/style.css';
 import avatarCssText from 'data-text:~/css/avatar-rank.css';
@@ -11,6 +11,8 @@ import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
+import { subscribeToMutation } from '~contents/hooks/useGlobalMutationObserver';
+import { resolveRightRailBase } from '~contents/utils/xDomAdapter';
 
 type SearchBottomPanelProps = Pick<
   MainData,
@@ -35,6 +37,7 @@ function _SearchBottomPanel({
     () => ({
       selector:
         "div[data-testid='sidebarColumn'] div[aria-label][tabindex] > div:first-child",
+      resolveBaseElement: resolveRightRailBase,
       styleText: cssText + avatarCssText,
       autoZIndex: false,
       useSiblings: true,
@@ -46,6 +49,9 @@ function _SearchBottomPanel({
   );
 
   const shadowRoot = useShadowContainer(shadowOptions);
+  const isNewRightRail = Boolean(
+    shadowRoot && (shadowRoot.host as HTMLElement).closest('aside'),
+  );
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const portalHost = usePersistentPortalHost(shadowRoot);
   const currentUrl = useCurrentUrl();
@@ -54,18 +60,8 @@ function _SearchBottomPanel({
     handler: userId,
     loading: isLoadingHtml,
   } = usePlacementTracking();
-  const stableRouteContextRef = useRef({ urlUid: '', userId: '' });
-
-  if (!isLoadingHtml) {
-    stableRouteContextRef.current = { urlUid: urlUid || '', userId: userId || '' };
-  }
-
-  const displayUrlUid = isLoadingHtml
-    ? stableRouteContextRef.current.urlUid
-    : urlUid || '';
-  const displayUserId = isLoadingHtml
-    ? stableRouteContextRef.current.userId
-    : userId || '';
+  const displayUrlUid = urlUid || '';
+  const displayUserId = userId || urlUid || '';
   // 如果是 https://x.com/i/premium 或其子路径，直接返回空
   const isPremiumRoute = useMemo(() => {
     try {
@@ -83,7 +79,7 @@ function _SearchBottomPanel({
 
   // 检测搜索框是否存在来决定marginTop
   const searchInput = useWaitForElement(
-    "div[data-testid='sidebarColumn'] input[data-testid='SearchBox_Search_Input']",
+    "div[data-testid='sidebarColumn'] input[data-testid='SearchBox_Search_Input'], aside input[data-testid='SearchBox_Search_Input']",
     [userId, currentUrl, isLoadingHtml],
   );
   const r1h3ijdoDom = useWaitForElement(
@@ -91,8 +87,9 @@ function _SearchBottomPanel({
     [userId, currentUrl, isLoadingHtml],
   );
   const dynamicMarginTop = useMemo(() => {
+    if (isNewRightRail) return 0;
     return displayUserId || searchInput ? 65 : 15;
-  }, [displayUserId, searchInput]);
+  }, [displayUserId, isNewRightRail, searchInput]);
 
   // 计算是否应该显示组件
   const shouldShow = useMemo(() => {
@@ -134,6 +131,96 @@ function _SearchBottomPanel({
     }
   }, [r1h3ijdoDom, shouldShow]);
 
+  useEffect(() => {
+    if (!isNewRightRail || !shadowRoot) return;
+
+    let clippingAncestor = (shadowRoot.host as HTMLElement).parentElement;
+    while (clippingAncestor && clippingAncestor !== document.documentElement) {
+      const overflowX = window.getComputedStyle(clippingAncestor).overflowX;
+      if (overflowX === 'clip' || overflowX === 'hidden') break;
+      clippingAncestor = clippingAncestor.parentElement;
+    }
+
+    if (!clippingAncestor) return;
+
+    const previousValue = clippingAncestor.style.getPropertyValue('overflow-x');
+    const previousPriority =
+      clippingAncestor.style.getPropertyPriority('overflow-x');
+    clippingAncestor.style.setProperty('overflow-x', 'visible');
+
+    return () => {
+      if (previousValue) {
+        clippingAncestor.style.setProperty(
+          'overflow-x',
+          previousValue,
+          previousPriority,
+        );
+      } else {
+        clippingAncestor.style.removeProperty('overflow-x');
+      }
+    };
+  }, [isNewRightRail, shadowRoot]);
+
+  useEffect(() => {
+    if (!isNewRightRail || !shadowRoot) return;
+
+    const host = shadowRoot.host as HTMLElement;
+    let animationFrameId: number | null = null;
+
+    const placePanelBelowSearch = () => {
+      animationFrameId = null;
+      const hostParent = host.parentElement;
+      const searchInput = document.querySelector<HTMLInputElement>(
+        'aside input[data-testid="SearchBox_Search_Input"]',
+      );
+      if (!hostParent || !searchInput) return;
+
+      let searchContainer = searchInput.closest<HTMLElement>('form');
+      while (
+        searchContainer?.parentElement &&
+        searchContainer.parentElement !== hostParent
+      ) {
+        searchContainer = searchContainer.parentElement;
+      }
+
+      if (
+        searchContainer?.parentElement === hostParent &&
+        searchContainer.nextElementSibling !== host
+      ) {
+        searchContainer.insertAdjacentElement('afterend', host);
+      }
+    };
+
+    const schedulePlacement = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(placePanelBelowSearch);
+    };
+
+    placePanelBelowSearch();
+    const unsubscribe = subscribeToMutation(
+      schedulePlacement,
+      { childList: true, subtree: true },
+      {
+        filter: (mutation) => {
+          const aside = host.closest('aside');
+          return Boolean(
+            aside &&
+              mutation.type === 'childList' &&
+              aside.contains(mutation.target),
+          );
+        },
+        debugName: 'SearchBottomPanelPlacement',
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [currentUrl, isNewRightRail, shadowRoot]);
+
   return ReactDOM.createPortal(
     <div
       data-theme={theme}
@@ -143,6 +230,7 @@ function _SearchBottomPanel({
       data-xhunt-avatar-rank-mode={avatarRankMode}
       style={{
         marginTop: dynamicMarginTop,
+        width: isNewRightRail ? '100%' : undefined,
         opacity: isVisible ? 1 : 0,
         // transform: isVisible ? 'translateY(0)' : 'translateY(-10px)',
         transition:
@@ -159,7 +247,7 @@ function _SearchBottomPanel({
           pointerEvents: !displayUrlUid ? 'auto' : 'none',
         }}
       >
-        <HomeRightSidebar />
+        <HomeRightSidebar fillContainer={isNewRightRail} />
       </div>
       <div
         style={{
@@ -173,7 +261,7 @@ function _SearchBottomPanel({
         <TwitterPersonalRightSidebar
           userId={displayUserId}
           newTwitterData={newTwitterData}
-          loadingTwInfo={loadingTwInfo}
+          loadingTwInfo={isLoadingHtml || loadingTwInfo}
         />
       </div>
     </div>,

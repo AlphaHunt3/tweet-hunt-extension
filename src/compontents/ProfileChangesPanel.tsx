@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { NewTwitterUserData } from '~types';
 import {
   Loader2,
   ExternalLink,
@@ -8,11 +7,13 @@ import {
   Link2,
   MapPin,
   Clock,
+  ImageOff,
 } from 'lucide-react';
-import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { escapeHtml } from '~utils/sanitizeHtml';
+import { useI18n } from '~contents/hooks/i18n.ts';
+import type { NewTwitterUserData } from '~types';
+import { diffText, type TextDiffPart } from '~utils/textDiff';
 
 dayjs.extend(relativeTime);
 
@@ -22,16 +23,118 @@ interface ProfileChangesPanelProps {
   loading?: boolean;
 }
 
+function DiffLine({
+  parts,
+  version,
+}: {
+  parts: TextDiffPart[];
+  version: 'before' | 'after';
+}) {
+  return parts.map((part, index) => {
+    if (
+      (version === 'before' && part.kind === 'insert') ||
+      (version === 'after' && part.kind === 'delete')
+    ) {
+      return null;
+    }
+
+    if (part.kind === 'equal') {
+      return (
+        <React.Fragment key={`${part.kind}-${index}`}>
+          {part.text}
+        </React.Fragment>
+      );
+    }
+
+    const isWhitespaceOnly = /^\s+$/u.test(part.text);
+    const visibleText = isWhitespaceOnly
+      ? part.text
+          .replace(/\r\n?/g, '\n')
+          .replace(/\u00a0/g, '⍽')
+          .replace(/ /g, '␠')
+          .replace(/\t/g, '⇥')
+          .replace(/\n/g, '↵\n')
+      : part.text;
+
+    return (
+      <span
+        key={`${part.kind}-${index}`}
+        className={
+          part.kind === 'delete'
+            ? `text-red-500 font-medium ${
+                isWhitespaceOnly ? 'rounded-sm bg-red-500/10 px-0.5' : ''
+              }`
+            : `text-green-500 font-medium ${
+                isWhitespaceOnly ? 'rounded-sm bg-green-500/10 px-0.5' : ''
+              }`
+        }
+      >
+        {visibleText}
+      </span>
+    );
+  });
+}
+
+function httpsImageUrl(value: unknown) {
+  return typeof value === 'string' && value.startsWith('https://')
+    ? value
+    : null;
+}
+
+function profileImageUrls(record: any, field: string) {
+  if (!record) return [];
+
+  const primaryUrl = httpsImageUrl(record[field]);
+  const backup = record[field.replace(/_url$/, '_backup')];
+  const backupUrls =
+    backup && typeof backup === 'object' && !Array.isArray(backup)
+      ? [httpsImageUrl(backup.source_url), httpsImageUrl(backup.url)]
+      : [];
+
+  return [primaryUrl, ...backupUrls].filter(
+    (url, index, values): url is string =>
+      Boolean(url) && values.indexOf(url) === index,
+  );
+}
+
+function ProfileHistoryImage({
+  urls,
+  alt,
+  className,
+  emptyFallback,
+  errorFallback,
+}: {
+  urls: string[];
+  alt: string;
+  className: string;
+  emptyFallback: React.ReactNode;
+  errorFallback: React.ReactNode;
+}) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const url = urls[urlIndex];
+
+  if (!url) {
+    return <>{urls.length > 0 ? errorFallback : emptyFallback}</>;
+  }
+
+  return (
+    <img
+      key={url}
+      src={url}
+      alt={alt}
+      className={className}
+      onError={() => setUrlIndex((index) => index + 1)}
+    />
+  );
+}
+
 export function ProfileChangesPanel({
   userId,
   profileHistoryData,
   loading: loadingProp,
 }: ProfileChangesPanelProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [expandedChanges, setExpandedChanges] = useState<Set<number>>(
-    new Set()
-  );
-  const [bannerLoadErrors, setBannerLoadErrors] = useState<Set<string>>(
     new Set()
   );
 
@@ -39,62 +142,6 @@ export function ProfileChangesPanel({
   const data = profileHistoryData;
   const loading = typeof loadingProp === 'boolean' ? loadingProp : !data;
   const error = null;
-
-  // Function to highlight differences between two texts
-  const highlightDiff = (oldText: string, newText: string) => {
-    if (!oldText && !newText) return { oldHighlighted: '', newHighlighted: '' };
-    if (!oldText)
-      return { oldHighlighted: '', newHighlighted: escapeHtml(newText) };
-    if (!newText)
-      return { oldHighlighted: escapeHtml(oldText), newHighlighted: '' };
-
-    // Simple character-by-character diff
-    let oldHighlighted = '';
-    let newHighlighted = '';
-
-    // Find the longest common prefix
-    let i = 0;
-    while (
-      i < oldText.length &&
-      i < newText.length &&
-      oldText[i] === newText[i]
-    ) {
-      i++;
-    }
-
-    // Find the longest common suffix
-    let j = 0;
-    while (
-      j < oldText.length - i &&
-      j < newText.length - i &&
-      oldText[oldText.length - 1 - j] === newText[newText.length - 1 - j]
-    ) {
-      j++;
-    }
-
-    // Extract the common parts and the different parts
-    const commonPrefix = oldText.substring(0, i);
-    const commonSuffix = j > 0 ? oldText.substring(oldText.length - j) : '';
-
-    const oldDiff = oldText.substring(i, oldText.length - j);
-    const newDiff = newText.substring(i, newText.length - j);
-
-    // Highlight the differences
-    oldHighlighted =
-      escapeHtml(commonPrefix) +
-      (oldDiff
-        ? `<span class="text-red-500 font-medium">${escapeHtml(oldDiff)}</span>`
-        : '') +
-      escapeHtml(commonSuffix);
-    newHighlighted =
-      escapeHtml(commonPrefix) +
-      (newDiff
-        ? `<span class="text-green-500 font-medium">${escapeHtml(newDiff)}</span>`
-        : '') +
-      escapeHtml(commonSuffix);
-
-    return { oldHighlighted, newHighlighted };
-  };
 
   // 初始化时展开所有变更
   useEffect(() => {
@@ -218,22 +265,14 @@ export function ProfileChangesPanel({
     });
   };
 
-  // 处理banner加载错误
-  const handleBannerError = (url: string) => {
-    setBannerLoadErrors((prev) => {
-      const newSet = new Set(prev);
-      newSet.add(url);
-      return newSet;
-    });
-  };
-
   // 渲染字段变化
   const renderFieldChange = (field: string, current: any, previous: any) => {
     switch (field) {
       case 'description': {
-        const { oldHighlighted, newHighlighted } = highlightDiff(
-          previous?.description || '',
-          current.description || ''
+        const parts = diffText(
+          (previous?.description || '').replaceAll('\\n', '\n'),
+          (current.description || '').replaceAll('\\n', '\n'),
+          lang,
         );
         return (
           <div className='space-y-1'>
@@ -249,9 +288,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {previous?.description ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: oldHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='before' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}
@@ -263,9 +302,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {current.description ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: newHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='after' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}
@@ -276,9 +315,10 @@ export function ProfileChangesPanel({
       }
 
       case 'url': {
-        const { oldHighlighted, newHighlighted } = highlightDiff(
+        const parts = diffText(
           previous?.url || '',
-          current.url || ''
+          current.url || '',
+          lang,
         );
         return (
           <div className='space-y-1'>
@@ -294,9 +334,9 @@ export function ProfileChangesPanel({
               </span>
               {previous?.url ? (
                 <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
-                  <span
-                    dangerouslySetInnerHTML={{ __html: oldHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='before' />
+                  </span>
                   <a
                     href={previous.url}
                     target='_blank'
@@ -316,9 +356,9 @@ export function ProfileChangesPanel({
               </span>
               {current.url ? (
                 <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
-                  <span
-                    dangerouslySetInnerHTML={{ __html: newHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='after' />
+                  </span>
                   <a
                     href={current.url}
                     target='_blank'
@@ -337,9 +377,10 @@ export function ProfileChangesPanel({
       }
 
       case 'location': {
-        const { oldHighlighted, newHighlighted } = highlightDiff(
+        const parts = diffText(
           previous?.location || '',
-          current.location || ''
+          current.location || '',
+          lang,
         );
         return (
           <div className='space-y-1'>
@@ -355,9 +396,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {previous?.location ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: oldHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='before' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>{t('noLocation')}</span>
                 )}
@@ -369,9 +410,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {current.location ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: newHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='after' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>{t('noLocation')}</span>
                 )}
@@ -381,7 +422,9 @@ export function ProfileChangesPanel({
         );
       }
 
-      case 'profile_banner_url':
+      case 'profile_banner_url': {
+        const previousUrls = profileImageUrls(previous, field);
+        const currentUrls = profileImageUrls(current, field);
         return (
           <div className='space-y-1'>
             <div className='flex items-center gap-1'>
@@ -393,64 +436,61 @@ export function ProfileChangesPanel({
               <span className='text-xs opacity-70 mb-0.5 block'>
                 {t('原来')}:
               </span>
-              <div className='text-xs theme-text-secondary break-all mb-2'>
-                {previous?.profile_banner_url || (
-                  <span className='italic opacity-50'>{t('noBanner')}</span>
-                )}
+              <div className='rounded-md overflow-hidden mt-1 border theme-border'>
+                <ProfileHistoryImage
+                  key={previousUrls.join('|')}
+                  urls={previousUrls}
+                  alt={`${t('原来')} ${getFieldDisplayName(field)}`}
+                  className='w-full h-24 object-cover'
+                  emptyFallback={
+                    <div className='p-2 text-xs theme-text-secondary italic'>
+                      {t('noBanner')}
+                    </div>
+                  }
+                  errorFallback={
+                    <div className='flex h-24 w-full items-center justify-center theme-bg-secondary'>
+                      <ImageOff
+                        aria-hidden='true'
+                        className='h-7 w-7 theme-text-tertiary'
+                      />
+                    </div>
+                  }
+                />
               </div>
-              {previous?.profile_banner_url && (
-                <div className='rounded-md overflow-hidden mt-1 border theme-border'>
-                  <img
-                    src={previous.profile_banner_url}
-                    alt='Previous Banner'
-                    className='w-full h-24 object-cover'
-                    onError={(e) => {
-                      handleBannerError(previous.profile_banner_url);
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (
-                        e.target as HTMLImageElement
-                      ).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <div className='p-2 text-xs theme-text-secondary italic hidden'>
-                    Banner image failed to load
-                  </div>
-                </div>
-              )}
             </div>
             <div className='text-xs theme-text-primary mt-3'>
               <span className='text-xs opacity-70 mb-0.5 block'>
                 {t('现在')}:
               </span>
-              <div className='text-xs theme-text-secondary break-all mb-2'>
-                {current.profile_banner_url || (
-                  <span className='italic opacity-50'>{t('noBanner')}</span>
-                )}
+              <div className='rounded-md overflow-hidden mt-1 border theme-border'>
+                <ProfileHistoryImage
+                  key={currentUrls.join('|')}
+                  urls={currentUrls}
+                  alt={`${t('现在')} ${getFieldDisplayName(field)}`}
+                  className='w-full h-24 object-cover'
+                  emptyFallback={
+                    <div className='p-2 text-xs theme-text-secondary italic'>
+                      {t('noBanner')}
+                    </div>
+                  }
+                  errorFallback={
+                    <div className='flex h-24 w-full items-center justify-center theme-bg-secondary'>
+                      <ImageOff
+                        aria-hidden='true'
+                        className='h-7 w-7 theme-text-tertiary'
+                      />
+                    </div>
+                  }
+                />
               </div>
-              {current.profile_banner_url && (
-                <div className='rounded-md overflow-hidden mt-1 border theme-border'>
-                  <img
-                    src={current.profile_banner_url}
-                    alt='Banner'
-                    className='w-full h-24 object-cover'
-                    onError={(e) => {
-                      handleBannerError(current.profile_banner_url);
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (
-                        e.target as HTMLImageElement
-                      ).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <div className='p-2 text-xs theme-text-secondary italic hidden'>
-                    {t('bannerUpdated')}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );
+      }
 
-      case 'profile_image_url':
+      case 'profile_image_url': {
+        const previousUrls = profileImageUrls(previous, field);
+        const currentUrls = profileImageUrls(current, field);
         return (
           <div className='space-y-1'>
             <div className='flex items-center gap-1'>
@@ -462,65 +502,59 @@ export function ProfileChangesPanel({
               <span className='text-xs opacity-70 mb-0.5 block'>
                 {t('原来')}:
               </span>
-              <div className='text-xs theme-text-secondary break-all mb-2'>
-                {previous?.profile_image_url || (
-                  <span className='italic opacity-50'>{t('noAvatar')}</span>
-                )}
+              <div className='flex items-center gap-2'>
+                <ProfileHistoryImage
+                  key={previousUrls.join('|')}
+                  urls={previousUrls}
+                  alt={`${t('原来')} ${getFieldDisplayName(field)}`}
+                  className='w-12 h-12 rounded-full border theme-border object-cover'
+                  emptyFallback={
+                    <span className='italic opacity-50'>{t('noAvatar')}</span>
+                  }
+                  errorFallback={
+                    <div className='flex h-12 w-12 items-center justify-center rounded-full border theme-border theme-bg-secondary'>
+                      <ImageOff
+                        aria-hidden='true'
+                        className='h-6 w-6 theme-text-tertiary'
+                      />
+                    </div>
+                  }
+                />
               </div>
-              {previous?.profile_image_url && (
-                <div className='flex items-center gap-2'>
-                  <img
-                    src={previous.profile_image_url}
-                    alt='Previous Avatar'
-                    className='w-12 h-12 rounded-full border theme-border object-cover'
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (
-                        e.target as HTMLImageElement
-                      ).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <span className='text-xs theme-text-secondary italic hidden'>
-                    Image failed to load
-                  </span>
-                </div>
-              )}
             </div>
             <div className='text-xs theme-text-primary mt-1'>
               <span className='text-xs opacity-70 mb-0.5 block'>
                 {t('现在')}:
               </span>
-              <div className='text-xs theme-text-secondary break-all mb-2'>
-                {current.profile_image_url || (
-                  <span className='italic opacity-50'>{t('noAvatar')}</span>
-                )}
+              <div className='flex items-center gap-2'>
+                <ProfileHistoryImage
+                  key={currentUrls.join('|')}
+                  urls={currentUrls}
+                  alt={`${t('现在')} ${getFieldDisplayName(field)}`}
+                  className='w-12 h-12 rounded-full border theme-border object-cover'
+                  emptyFallback={
+                    <span className='italic opacity-50'>{t('noAvatar')}</span>
+                  }
+                  errorFallback={
+                    <div className='flex h-12 w-12 items-center justify-center rounded-full border theme-border theme-bg-secondary'>
+                      <ImageOff
+                        aria-hidden='true'
+                        className='h-6 w-6 theme-text-tertiary'
+                      />
+                    </div>
+                  }
+                />
               </div>
-              {current.profile_image_url && (
-                <div className='flex items-center gap-2'>
-                  <img
-                    src={current.profile_image_url}
-                    alt='Current Avatar'
-                    className='w-12 h-12 rounded-full border theme-border object-cover'
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (
-                        e.target as HTMLImageElement
-                      ).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <span className='text-xs theme-text-secondary italic hidden'>
-                    Image failed to load
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         );
+      }
 
       case 'name': {
-        const { oldHighlighted, newHighlighted } = highlightDiff(
+        const parts = diffText(
           previous?.name || '',
-          current.name || ''
+          current.name || '',
+          lang,
         );
         return (
           <div className='space-y-1'>
@@ -535,9 +569,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {previous?.name ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: oldHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='before' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}
@@ -549,9 +583,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {current.name ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: newHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='after' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}
@@ -562,9 +596,10 @@ export function ProfileChangesPanel({
       }
 
       case 'username': {
-        const { oldHighlighted, newHighlighted } = highlightDiff(
+        const parts = diffText(
           previous?.username || '',
-          current.username || ''
+          current.username || '',
+          lang,
         );
         return (
           <div className='space-y-1'>
@@ -579,9 +614,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {previous?.username ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: oldHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='before' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}
@@ -593,9 +628,9 @@ export function ProfileChangesPanel({
               </span>
               <div className='bg-opacity-50 rounded p-1.5 theme-bg-tertiary'>
                 {current.username ? (
-                  <span
-                    dangerouslySetInnerHTML={{ __html: newHighlighted }}
-                  ></span>
+                  <span className='whitespace-pre-wrap break-words'>
+                    <DiffLine parts={parts} version='after' />
+                  </span>
                 ) : (
                   <span className='italic opacity-50'>Empty</span>
                 )}

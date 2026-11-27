@@ -9,6 +9,10 @@ import { clearPlacementInfoCache } from '~contents/hooks/usePlacementTrackingDom
  */
 export async function clearAuthState(): Promise<void> {
   try {
+    // 先使进行中的用户信息请求失效，避免旧身份响应回写。
+    try {
+      await localStorageInstance.set('@xhunt/userInfoCacheBust', Date.now());
+    } catch {}
     try {
       const currentUser: any = await localStorageInstance.get('@xhunt/user');
       const currentUserId: string | undefined =
@@ -52,10 +56,6 @@ export async function clearAuthState(): Promise<void> {
       await localStorageInstance.remove('@xhunt/placementInfoCacheV1');
       clearPlacementInfoCache();
     } catch {}
-    // Always bump cache-busting timestamp to avoid browser cache after auth reset
-    try {
-      await localStorageInstance.set('@xhunt/userInfoCacheBust', Date.now());
-    } catch {}
   } catch (e) {
     // Best-effort: ignore errors
   }
@@ -67,6 +67,10 @@ export async function clearAuthState(): Promise<void> {
  */
 export async function applyLoginState(token: string, user: any): Promise<void> {
   try {
+    // 登录身份写入前先切换缓存版本，阻止上一身份的请求回写。
+    try {
+      await localStorageInstance.set('@xhunt/userInfoCacheBust', Date.now());
+    } catch {}
     await localStorageInstance.set('@xhunt/token', token || '');
     await localStorageInstance.set('@xhunt/user', user || '');
     if (user && typeof user === 'object' && user.username) {

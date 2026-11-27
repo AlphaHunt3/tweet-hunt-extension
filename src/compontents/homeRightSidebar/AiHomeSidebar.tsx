@@ -10,11 +10,13 @@ import HotTopicVoteSection from '../HotTopicVote';
 export interface AiHomeSidebarProps {
   className?: string;
   active?: boolean;
+  fillContainer?: boolean;
 }
 
 export function AiHomeSidebar({
   className = '',
   active = true,
+  fillContainer = false,
 }: AiHomeSidebarProps) {
   const { isEnabled } = useCrossPageSettings();
   const { data: activeHunterCampaigns = [] } = useRequest(
@@ -33,7 +35,7 @@ export function AiHomeSidebar({
         borderWidth: '1px',
         borderStyle: 'solid',
         borderColor: 'var(--border-color)',
-        width: '350px',
+        width: fillContainer ? '100%' : '350px',
         height: 'auto',
         display: 'flex',
         flexDirection: 'column',

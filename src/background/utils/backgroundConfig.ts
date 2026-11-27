@@ -1,7 +1,6 @@
 // src/background/utils/backgroundConfig.ts
 import { localStorageInstance } from '~storage/index.ts';
 import { nacosCacheManager } from '~utils/nacosCacheManager.ts';
-import type { UnfollowVipCta } from '~types';
 
 export interface XHuntConfig {
   errorsReport: number;
@@ -12,7 +11,6 @@ export interface XHuntConfig {
   mantleHunterProgramGuide?: string;
   mantleHunterProgramActiveURL?: string;
   realTimeSubscriptionSSE?: boolean;
-  unfollowVipCta?: UnfollowVipCta;
 }
 
 class BackgroundConfigService {

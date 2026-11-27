@@ -1,7 +1,36 @@
 import { localStorageInstance } from '~storage';
 import type { TwitterInitialStateCurrentUser } from '~types';
+import type { StoredUserInfo } from '~types/review';
 
 export const GUEST_TWITTER_ID = '999999999';
+
+const isTwitterId = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d+$/.test(value);
+
+export function extractTwitterIdFromCookieString(cookieString: string): string {
+  const twidCookie = cookieString
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith('twid='));
+  const rawValue = twidCookie?.slice('twid='.length);
+  if (!rawValue) return '';
+
+  try {
+    const decodedValue = decodeURIComponent(rawValue).replace(
+      /^["']+|["']+$/g,
+      '',
+    );
+    const twitterId = decodedValue.match(/(?:^|=)(\d+)$/)?.[1] || '';
+    return isTwitterId(twitterId) ? twitterId : '';
+  } catch {
+    return '';
+  }
+}
+
+export function getTwitterIdFromCookie(): string {
+  if (typeof document === 'undefined') return '';
+  return extractTwitterIdFromCookieString(document.cookie || '');
+}
 
 export function sanitizeUsername(value: string | null | undefined): string {
   if (typeof value !== 'string') return '';
@@ -43,14 +72,19 @@ export async function getCurrentUserInfo(): Promise<TwitterInitialStateCurrentUs
 }
 
 export async function getCurrentTwitterId(): Promise<string> {
+  const cookieTwitterId = getTwitterIdFromCookie();
+  if (cookieTwitterId) return cookieTwitterId;
+
   try {
-    const currentUser = (await localStorageInstance.get(
-      '@xhunt/initial-state-current-user'
-    )) as TwitterInitialStateCurrentUser | null;
-    const twitterId = currentUser?.id_str || '';
-    return typeof twitterId === 'string' && /^\d+$/.test(twitterId)
-      ? twitterId
-      : GUEST_TWITTER_ID;
+    const [currentUser, storedUser] = await Promise.all([
+      localStorageInstance.get('@xhunt/initial-state-current-user') as Promise<
+        TwitterInitialStateCurrentUser | null
+      >,
+      localStorageInstance.get('@xhunt/user') as Promise<StoredUserInfo | null>,
+    ]);
+    const twitterId =
+      currentUser?.id_str || storedUser?.twitterId || storedUser?.id || '';
+    return isTwitterId(twitterId) ? twitterId : GUEST_TWITTER_ID;
   } catch {
     return GUEST_TWITTER_ID;
   }

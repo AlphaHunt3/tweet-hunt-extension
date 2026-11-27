@@ -2,15 +2,6 @@
 import packageJson from '../../package.json';
 import { nacosCacheManager } from './nacosCacheManager';
 import { localStorageInstance } from '~storage/index.ts';
-import type { UnfollowVipCta } from '~types';
-
-export const DEFAULT_UNFOLLOW_VIP_CTA: UnfollowVipCta = {
-  url: 'https://docs.google.com/document/d/example',
-  label: {
-    zh: '近 3 天的取关动态仅对 VIP 用户开放',
-    en: 'Unfollow activity from the last 3 days is VIP only',
-  },
-};
 
 // 🆕 开发环境日志函数
 const devLog = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
@@ -52,6 +43,7 @@ export interface XHuntConfig {
   bybitHunterProgramGuide?: string;
   bybitHunterProgramActiveURL?: string;
   realTimeSubscriptionSSE?: boolean; // 是否启用实时订阅的 SSE 功能
+  vipSubscribeUrl?: string; // VIP 订阅页；未配置时插件不展示升级按钮
   // 🆕 简易灰度策略配置
   testConfig?: TestConfig;
   flexibleTesting?: {
@@ -59,8 +51,6 @@ export interface XHuntConfig {
   };
   // 🆕 首页推荐位轮播配置
   featureSlots?: FeatureBannerItem[];
-  // 取关 VIP 引导按钮配置
-  unfollowVipCta?: UnfollowVipCta;
 }
 
 export interface DailyLimits {
@@ -83,13 +73,26 @@ class ConfigManager {
     bybitHunterProgramGuide: '',
     bybitHunterProgramActiveURL: '',
     realTimeSubscriptionSSE: true,
-    unfollowVipCta: DEFAULT_UNFOLLOW_VIP_CTA,
   };
   private configFetched: boolean = false;
   private isInitialized: boolean = false;
   private readonly CONFIG_CACHE_TTL = 1 * 60 * 1000; // 1分钟 cache for config
   private dailyLimitsCache: DailyLimits | null = null;
   private lastForceUpdateTimeCache: number = 0;
+  private changeListeners = new Set<() => void>();
+
+  public subscribe(listener: () => void): () => void {
+    this.changeListeners.add(listener);
+    return () => this.changeListeners.delete(listener);
+  }
+
+  private notifyChange(): void {
+    this.changeListeners.forEach((listener) => {
+      try {
+        listener();
+      } catch {}
+    });
+  }
 
   // 初始化配置管理器
   public async init(): Promise<void> {
@@ -144,6 +147,7 @@ class ConfigManager {
         // 更新内存中的配置
         this.config = remoteConfig;
         this.configFetched = true;
+        this.notifyChange();
 
         // 🆕 检查是否需要强制更新排名缓存
         await this.checkForceUpdateRankCache(remoteConfig);
@@ -242,6 +246,24 @@ class ConfigManager {
     }
 
     return this.config || this.defaultConfig;
+  }
+
+  public getVipSubscribeUrl(): string | null {
+    const value = this.getConfig().vipSubscribeUrl;
+    if (
+      typeof value !== 'string' ||
+      !value.trim() ||
+      value.trim().length > 2048
+    ) {
+      return null;
+    }
+    try {
+      const url = new URL(value.trim());
+      if (url.protocol !== 'https:' || url.username || url.password) return null;
+      return url.toString();
+    } catch {
+      return null;
+    }
   }
 
   // 验证配置格式
@@ -381,18 +403,6 @@ class ConfigManager {
     return (config as any).bybitHunterProgramActiveURL || '';
   }
 
-  public getUnfollowVipCta(): UnfollowVipCta {
-    const config = this.getConfig();
-    const cta = config.unfollowVipCta;
-    return {
-      url: cta?.url?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.url,
-      label: {
-        zh: cta?.label?.zh?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.label.zh,
-        en: cta?.label?.en?.trim() || DEFAULT_UNFOLLOW_VIP_CTA.label.en,
-      },
-    };
-  }
-
   // 增加错误上报计数
   public incrementErrorCount(): void {
     const limits = this.getDailyLimits();
@@ -437,6 +447,7 @@ class ConfigManager {
   // 重置配置缓存（用于强制重新获取）
   public resetCache(): void {
     this.config = null;
+    this.notifyChange();
 
     // Invalidate NacosCacheManager cache
     nacosCacheManager.invalidate('xhunt_config');

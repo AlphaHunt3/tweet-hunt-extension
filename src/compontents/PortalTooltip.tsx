@@ -80,6 +80,11 @@ export const PortalTooltip: React.FC<PortalTooltipProps> = ({
         setShow(true);
       }}
       onMouseLeave={() => setShow(false)}
+      onFocus={() => {
+        updatePos();
+        setShow(true);
+      }}
+      onBlur={() => setShow(false)}
     >
       {children}
       {show &&

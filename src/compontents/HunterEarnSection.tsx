@@ -17,6 +17,7 @@ export interface HunterEarnSectionProps {
 
 export function HunterEarnSection({
   activeHunterCampaigns,
+  domain = 'web3',
 }: HunterEarnSectionProps) {
   const { t } = useI18n();
   const { isEnabled } = useCrossPageSettings();

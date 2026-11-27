@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import usePresencePort from './hooks/usePresencePort.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { usePageReady } from './hooks/usePageReady.ts';
@@ -52,11 +52,11 @@ import {
   useUserDomain as useUserDomainHook,
   type UserDomainPreference,
 } from './hooks/useUserDomain.ts';
-import { useCrossPageSettings } from '~utils/settingsManager.ts';
 import SocialCircleFeature from '~compontents/SocialCircle/SocialCircleFeature.tsx';
 
 export const config = {
   matches: ['https://x.com/*'],
+  run_at: 'document_start',
 };
 
 export const getStyle = () => {
@@ -96,29 +96,33 @@ const Main = () => {
     window._xhunt_language = language;
   }
 
-  // 页面未就绪时，不渲染任何内容
-  if (
-    !isPageReady ||
-    isThemeStoreLoading ||
-    isAvatarSkinLoading ||
-    isTokenStoreLoading ||
-    isLanguageStoreLoading
-  ) {
-    return <></>;
-  }
+  const isMainContentReady =
+    isPageReady &&
+    !isThemeStoreLoading &&
+    !isAvatarSkinLoading &&
+    !isTokenStoreLoading &&
+    !isLanguageStoreLoading;
 
   return (
-    <PlacementTrackingProvider>
-      <MainDataProvider>
-        <LeaderProvider>
-          <MainContent
-            theme={theme}
-            avatarRankMode={avatarRankMode}
-            token={token}
-          />
-        </LeaderProvider>
-      </MainDataProvider>
-    </PlacementTrackingProvider>
+    <>
+      <ErrorBoundary name='SideBarIcon'>
+        <SideBarIcon />
+      </ErrorBoundary>
+
+      {isMainContentReady && (
+        <PlacementTrackingProvider>
+          <MainDataProvider>
+            <LeaderProvider>
+              <MainContent
+                theme={theme}
+                avatarRankMode={avatarRankMode}
+                token={token}
+              />
+            </LeaderProvider>
+          </MainDataProvider>
+        </PlacementTrackingProvider>
+      )}
+    </>
   );
 };
 
@@ -138,8 +142,6 @@ function MainContent({
   useVerifyLoginStatus();
   useTwitterAuthCallback();
   const { isSetupCompleted, isSetupLoading } = useUserDomainHook();
-  const { isEnabled } = useCrossPageSettings();
-  const showSidebarIcon = isEnabled('showSidebarIcon');
 
   return (
     <div
@@ -163,12 +165,6 @@ function MainContent({
       <ErrorBoundary name='UICheckSection'>
         <UICheckSection />
       </ErrorBoundary>
-
-      {showSidebarIcon && (
-        <ErrorBoundary name='SideBarIcon'>
-          <SideBarIcon />
-        </ErrorBoundary>
-      )}
 
       <ErrorBoundary name='GlobalTips'>
         <GlobalTips />
@@ -215,7 +211,6 @@ function FeatureLayer() {
           deletedTweets={mainData.deletedTweets}
           loadingTwInfo={mainData.loadingTwInfo}
           loadingDel={mainData.loadingDel}
-          error={mainData.error}
           userId={mainData.userId}
           rootData={mainData.rootData}
           loadingRootData={mainData.loadingRootData}
@@ -240,10 +235,13 @@ function FeatureLayer() {
           renameInfo={mainData.renameInfo}
           reviewInfo={mainData.reviewInfo}
           loadingRenameInfo={mainData.loadingRenameInfo}
+          loadingReviewInfo={mainData.loadingReviewInfo}
           discussionInfo={mainData.discussionInfo}
           loadingDiscussionInfo={mainData.loadingDiscussionInfo}
           projectMemberData={mainData.projectMemberData}
           loadingProjectMember={mainData.loadingProjectMember}
+          soulData={mainData.soulData}
+          loadingSoulData={mainData.loadingSoulData}
         />
       </ErrorBoundary>
 
@@ -257,6 +255,7 @@ function FeatureLayer() {
           refreshAsyncReviewInfo={mainData.refreshAsyncReviewInfo}
           refreshAsyncUserInfo={mainData.refreshAsyncUserInfo}
           loadingReviewInfo={mainData.loadingReviewInfo}
+          loadingSoulData={mainData.loadingSoulData}
         />
       </ErrorBoundary>
 

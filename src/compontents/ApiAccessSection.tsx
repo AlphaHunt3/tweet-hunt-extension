@@ -166,7 +166,7 @@ export const ApiAccessSection: React.FC<ApiAccessSectionProps> = ({
 
   // 是否已领取过积分
   const hasClaimedCredits = apiUserInfo?.alreadyGifted || false;
-  // 用户是否存在于 Pro API（有账户信息）
+  // 用户是否存在于 API 服务（有账户信息）
   const userExists = apiUserInfo?.exists || false;
   // 是否为老用户（通过绑定地址找到的，queryAddress 和 address 不一致）
   const isLegacyUser = apiUserInfo?.queryAddress && apiUserInfo?.address &&

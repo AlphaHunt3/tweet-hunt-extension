@@ -3,11 +3,19 @@ import { extractTickerOrCA } from '~contents/utils';
 import { useDebounceFn } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { subscribeToMutation } from './useGlobalMutationObserver';
+import { resolveTweetDom } from '~contents/utils/xDomAdapter';
 
 // Constants definition: excluded tag types
 const EXCLUDED_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT']);
 
-const TWEET_TEXT_SELECTOR = '[data-testid="tweetText"]';
+const TWEET_TEXT_SELECTOR =
+  '[data-testid="tweetText"], article div[dir="auto"][lang]';
+
+const isTweetTextContainer = (element: HTMLElement) => {
+  if (element.matches('[data-testid="tweetText"]')) return true;
+  const article = element.closest<HTMLElement>('article');
+  return Boolean(article && resolveTweetDom(article)?.textHost === element);
+};
 
 const getElementFromNode = (node: Node): Element | null => {
   return node.nodeType === Node.TEXT_NODE
@@ -21,7 +29,7 @@ const collectTweetTextContainers = (mutations: MutationRecord[]) => {
   const affected = new Set<HTMLElement>();
 
   const addContainer = (container: Element | null) => {
-    if (container instanceof HTMLElement) {
+    if (container instanceof HTMLElement && isTweetTextContainer(container)) {
       affected.add(container);
     }
   };
@@ -84,6 +92,7 @@ export function useTickerElements(enabled = true) {
           ) as HTMLElement[]);
 
     for (const container of containers) {
+      if (!isTweetTextContainer(container)) continue;
       const walker = document.createTreeWalker(
         container,
         NodeFilter.SHOW_TEXT,

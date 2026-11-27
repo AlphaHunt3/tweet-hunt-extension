@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Eye, LockKeyhole, RefreshCw } from 'lucide-react';
 import { TweetContent } from '~compontents/TweetContent';
+import { VipUpgradeActions } from '~compontents/VipUpgradeActions';
 import { useI18n } from '~contents/hooks/i18n';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { navigateInX } from '~contents/utils/navigateInX';
-import { openNewTab } from '~contents/utils';
 import type { EditedTweetAccess, EditedTweetChain } from '~types';
-import { configManager } from '~utils/configManager';
 import {
   buildEditedTweetTransitions,
   collapseEditedTweetDiff,
@@ -276,7 +275,6 @@ export function EditedTweetsSection({
   const { t } = useI18n();
 
   if (!access || access.detail_scope === 'count_only') {
-    const vipCtaUrl = configManager.getUnfollowVipCta().url?.trim() || '';
     return (
       <div className='w-[360px] max-w-full p-3 text-center'>
         <LockKeyhole
@@ -290,15 +288,7 @@ export function EditedTweetsSection({
         <p className='mt-1 text-xs leading-5 theme-text-secondary'>
           {t('editedTweetVipRequired')}
         </p>
-        {vipCtaUrl ? (
-          <button
-            type='button'
-            onClick={() => openNewTab(vipCtaUrl)}
-            className='mx-auto mt-2 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90'
-          >
-            {t('unfollowApplyVip')}
-          </button>
-        ) : null}
+        <VipUpgradeActions className='mt-2' />
       </div>
     );
   }

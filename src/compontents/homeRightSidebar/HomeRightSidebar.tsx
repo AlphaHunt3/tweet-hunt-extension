@@ -8,9 +8,14 @@ import { Web3HomeSidebar } from './Web3HomeSidebar';
 
 export interface HomeRightSidebarProps {
   className?: string;
+  /** 使用宿主完整宽度；新版 X 右栏需要与原生卡片对齐。 */
+  fillContainer?: boolean;
 }
 
-export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
+export function HomeRightSidebar({
+  className = '',
+  fillContainer = false,
+}: HomeRightSidebarProps) {
   const { t } = useI18n();
   const { hasBoth, hasWeb3, hasAi, primaryDomain } = useUserDomain();
 
@@ -103,9 +108,15 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
     <Web3HomeSidebar
       active={activeDomain === 'web3'}
       className={className}
+      fillContainer={fillContainer}
     />
   );
-  const aiContent = <AiHomeSidebar active={activeDomain === 'ai'} />;
+  const aiContent = (
+    <AiHomeSidebar
+      active={activeDomain === 'ai'}
+      fillContainer={fillContainer}
+    />
+  );
 
   if (!hasBoth) {
     if (hasWeb3) return web3Content;
@@ -122,7 +133,9 @@ export function HomeRightSidebar({ className = '' }: HomeRightSidebarProps) {
 
   return (
     <div
-      className={`rounded-xl ${className} relative overflow-visible flex flex-col w-[350px] ${switcherHideClasses}`}
+      className={`rounded-xl ${className} relative overflow-visible flex flex-col ${
+        fillContainer ? 'w-full' : 'w-[350px]'
+      } ${switcherHideClasses}`}
     >
       {/* 新手引导第一步：引导用户点击 Web3 / AI 领域切换 */}
       {shouldShowDomainGuide && (

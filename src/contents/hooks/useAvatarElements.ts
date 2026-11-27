@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useDebounceFn } from 'ahooks';
 import { useLocalStorage } from '~storage/useLocalStorage';
 import { subscribeToMutation } from './useGlobalMutationObserver';
+import { resolveAvatarHandle } from '~contents/utils/xDomAdapter';
 
 // Interface for tracking large avatars
 interface TrackedAvatar {
@@ -9,7 +10,8 @@ interface TrackedAvatar {
   username: string;
 }
 
-const AVATAR_SELECTOR = '[data-testid^="UserAvatar-Container-"]';
+const AVATAR_SELECTOR =
+  '[data-testid^="UserAvatar-Container-"], .x-avatar';
 
 const getElementFromNode = (node: Node): Element | null => {
   return node.nodeType === Node.TEXT_NODE
@@ -140,6 +142,10 @@ export function useAvatarElements() {
           const excludedAncestor = element.closest('[data-xhunt-exclude]');
           let shouldExclude = !!excludedAncestor;
 
+          if (!resolveAvatarHandle(element)) {
+            shouldExclude = true;
+          }
+
           // Size check via offset dimensions
           const w = (element as HTMLElement).offsetWidth;
           const h = (element as HTMLElement).offsetHeight;
@@ -157,9 +163,8 @@ export function useAvatarElements() {
 
             // Track large avatars
             if (w > 120 || h > 120) {
-              const testId = element.getAttribute('data-testid');
-              const username =
-                testId?.replace('UserAvatar-Container-', '') || '';
+              const username = resolveAvatarHandle(element);
+              if (!username) return;
               largeAvatarsRef.current.set(element, {
                 element,
                 username,

@@ -328,28 +328,6 @@ async function handleInstallOrUpdate(details: any) {
     } catch (e) {
       console.log('[App] Failed to open x.com on install:', e);
     }
-  } else if (details?.reason === 'update') {
-    // 老用户升级：自动迁移领域偏好为 web3 + ai
-    (async () => {
-      try {
-        const existing = await localStorageInstance.get(
-          '@xhunt/user-domain-preference',
-        );
-        if (!existing) {
-          await localStorageInstance.set('@xhunt/user-domain-preference', {
-            domains: ['web3', 'ai'],
-            primaryDomain: 'web3',
-          });
-          await localStorageInstance.set(
-            '@xhunt/user-domain-setup-completed',
-            true,
-          );
-          console.log('[App] Migrated legacy user domain to web3+ai');
-        }
-      } catch (e) {
-        console.log('[App] Failed to migrate user domain:', e);
-      }
-    })();
   }
 }
 

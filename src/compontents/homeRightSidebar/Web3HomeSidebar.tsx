@@ -14,7 +14,6 @@ import {
 import { TopTabNavigator } from '../TopTabNavigator';
 import { useCrossPageSettings } from '~utils/settingsManager';
 import { getActiveHunterCampaignsByDomainAsync } from '../HunterCampaign/campaignConfigs';
-import { ProRequired } from '../ProRequired';
 import { LoginRequired } from '../LoginRequired';
 import { HunterEarnSection } from '../HunterEarnSection';
 import ErrorBoundary from '../ErrorBoundary';
@@ -24,11 +23,13 @@ import HotTopicVoteSection from '../HotTopicVote';
 export interface Web3HomeSidebarProps {
   className?: string;
   active?: boolean;
+  fillContainer?: boolean;
 }
 
 export function Web3HomeSidebar({
   className = '',
   active = true,
+  fillContainer = false,
 }: Web3HomeSidebarProps) {
   const [activeTopTab, setActiveTopTab] = React.useState<
     'hot' | 'subs' | 'e2e'
@@ -159,7 +160,7 @@ export function Web3HomeSidebar({
         borderWidth: '1px',
         borderStyle: 'solid',
         borderColor: 'var(--border-color)',
-        width: '350px',
+        width: fillContainer ? '100%' : '350px',
         height: 'auto',
         display: 'flex',
         flexDirection: 'column',
@@ -197,11 +198,9 @@ export function Web3HomeSidebar({
         <div className={topTabs.length > 1 ? 'pt-2' : ''}>
           {activeTopTab === 'subs' ? (
             <LoginRequired showInCenter={true}>
-              <ProRequired enableAnimation={false} showExtraTitle={true}>
-                <ErrorBoundary name='RealTimeSubscription_1'>
-                  <RealTimeSubscription ref={realTimeSubscriptionRef} />
-                </ErrorBoundary>
-              </ProRequired>
+              <ErrorBoundary name='RealTimeSubscription_1'>
+                <RealTimeSubscription ref={realTimeSubscriptionRef} />
+              </ErrorBoundary>
             </LoginRequired>
           ) : (
             <ErrorBoundary name='HotProjectsKOLs'>

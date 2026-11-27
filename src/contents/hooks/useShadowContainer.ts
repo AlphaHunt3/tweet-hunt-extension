@@ -7,6 +7,8 @@ import { subscribeToMutation } from './useGlobalMutationObserver';
 export interface UseShadowContainerOptions {
   /** 初步查找的选择器 */
   selector: string;
+  /** 可选：复杂或多版本 DOM 下动态解析基准元素（优先于 selector/XPath） */
+  resolveBaseElement?: () => Element | null;
   /** 可选：使用 XPath 查找基准元素（优先于 selector） */
   selectorXPath?: string;
   /** 是否需要从基准元素的同级元素中筛选目标 */
@@ -131,6 +133,10 @@ const isElementInDocument = (element: HTMLElement | null): boolean => {
 
 const AUTO_CREATED_ATTR = 'data-plasmo-shadow-container-autocreated';
 const CONTAINER_KEY_ATTR = 'data-xhunt-shadow-container-key';
+// closed Shadow Root 无法通过 element.shadowRoot 再次取得。
+// 用 WeakMap 保存同一页面生命周期内创建的 Root，组件重挂载时可以安全复用，
+// WeakMap 不会阻止已经从 DOM 移除的 host 被垃圾回收。
+const shadowRootRegistry = new WeakMap<HTMLElement, ShadowRoot>();
 
 const markShadowHostAsNotTranslatable = (element: HTMLElement) => {
   element.setAttribute('translate', 'no');
@@ -210,6 +216,7 @@ const addResizeCallback = (callback: () => void) => {
  */
 export default function useShadowContainer({
   selector,
+  resolveBaseElement,
   selectorXPath,
   useSiblings = false,
   siblingsPosition = 'afterend',
@@ -236,6 +243,7 @@ export default function useShadowContainer({
     () =>
       JSON.stringify({
         selector,
+        resolveBaseElement: resolveBaseElement?.toString(),
         selectorXPath,
         useSiblings,
         siblingsPosition,
@@ -251,6 +259,7 @@ export default function useShadowContainer({
       }),
     [
       selector,
+      resolveBaseElement,
       selectorXPath,
       useSiblings,
       siblingsPosition,
@@ -352,10 +361,20 @@ export default function useShadowContainer({
     if (createdRef.current) {
       // 检查当前引用的元素是否仍在文档中
       if (isElementInDocument(currentTargetRef.current)) {
-        // 元素仍在文档中，同步主题并重新设置 z-index 管理
-        currentTargetRef.current!.setAttribute('data-theme', theme);
-        setupAutoZIndex(currentTargetRef.current!);
-        return true;
+        // 新版 X 在 SPA 切换时会让旧资料头和新资料头短暂共存。即使旧 target
+        // 还连在 document 上，只要语义解析器已经指向新节点，就必须重新挂载，
+        // 否则插件内容会在上一人的 handler 下方短暂闪现。
+        const resolvedBase =
+          resolveBaseElement && !useSiblings
+            ? resolveBaseElement()
+            : currentTargetRef.current;
+        if (resolvedBase === currentTargetRef.current) {
+          // 元素仍在文档中且仍是当前语义目标，同步主题并复用。
+          currentTargetRef.current!.setAttribute('data-theme', theme);
+          setupAutoZIndex(currentTargetRef.current!);
+          return true;
+        }
+        createdRef.current = false;
       } else {
         // 元素已不在文档中，需要重新创建
         createdRef.current = false;
@@ -402,9 +421,11 @@ export default function useShadowContainer({
       }
     };
 
-    const baseEl = selectorXPath
-      ? evaluateXPathSingle(selectorXPath)
-      : document.querySelector(selector);
+    const baseEl = resolveBaseElement
+      ? resolveBaseElement()
+      : selectorXPath
+        ? evaluateXPathSingle(selectorXPath)
+        : document.querySelector(selector);
     if (!baseEl) return false;
 
     let target: Element | null = null as unknown as Element;
@@ -481,7 +502,12 @@ export default function useShadowContainer({
     if (target.getAttribute('data-plasmo-shadow-container') === 'true') {
       // Shadow 容器已存在时也要同步主题，否则首次安装默认 dark 后切 light 会残留浅灰图标
       target.setAttribute('data-theme', theme);
-      const existingShadow = (target as HTMLElement).shadowRoot;
+      const targetElement = target as HTMLElement;
+      const existingShadow =
+        targetElement.shadowRoot || shadowRootRegistry.get(targetElement);
+      if (!existingShadow) {
+        return false;
+      }
       const styleEl = existingShadow?.querySelector('style');
       if (
         styleEl &&
@@ -491,14 +517,21 @@ export default function useShadowContainer({
         styleEl.textContent = styleText;
       }
       // 重新设置 z-index 管理
-      setupAutoZIndex(target as HTMLElement);
+      setupAutoZIndex(targetElement);
+      if (existingShadow !== shadowRoot) {
+        setShadowRoot(existingShadow);
+      }
+      createdRef.current = true;
       return true;
     }
     // 3. 获取或创建 shadowRoot，并更新 style
-    let shadow = target.shadowRoot;
+    const targetElement = target as HTMLElement;
+    let shadow =
+      targetElement.shadowRoot || shadowRootRegistry.get(targetElement) || null;
     if (!shadow) {
       try {
         shadow = target.attachShadow(<ShadowRootInit>{ mode: shadowMode });
+        shadowRootRegistry.set(targetElement, shadow);
         const styleEl = document.createElement('style');
         if (typeof styleText === 'string') {
           styleEl.textContent = styleText;
@@ -525,6 +558,7 @@ export default function useShadowContainer({
         return false;
       }
     } else {
+      shadowRootRegistry.set(targetElement, shadow);
       // 如果 shadow 已存在，检测 style 标签内容是否需要更新
       const styleEl = shadow.querySelector('style');
       if (styleEl && styleEl.textContent !== styleText) {

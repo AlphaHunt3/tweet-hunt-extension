@@ -5,6 +5,7 @@ import { useGlobalResize } from '~contents/hooks/useGlobalResize';
 import { useGlobalScroll } from '~contents/hooks/useGlobalScroll';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
+import { isOverlayInteractionLocked } from '~utils/overlayInteractionLock';
 import cssText from 'data-text:~/css/style.css';
 import { LoginRequired } from './LoginRequired';
 
@@ -501,6 +502,10 @@ export function HoverStatItem({
     clearHideTimer();
     const closeIfNeeded = () => {
       hoverTimer.current = undefined;
+      if (isOverlayInteractionLocked()) {
+        hoverTimer.current = setTimeout(closeIfNeeded, HIDE_DELAY_MS);
+        return;
+      }
       const remainingSuppressTime = suppressCloseUntilRef.current - Date.now();
 
       if (remainingSuppressTime > 0) {

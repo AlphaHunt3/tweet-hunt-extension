@@ -6,9 +6,13 @@ import {
   getProfileInitial,
   getSafeAvatarUrl,
   getSafeUsername,
+  getSocialCircleRank,
+  getSocialCircleRankDisplay,
   SOCIAL_CIRCLE_CENTER_SIZE,
   SOCIAL_CIRCLE_VIEWBOX_SIZE,
   type SocialCircleLayoutNode,
+  type SocialCircleRankMap,
+  type SocialCircleRankMode,
 } from './socialCircleLayout';
 
 type Translate = (key: string, fallback?: string) => string;
@@ -155,13 +159,47 @@ function SocialCircleTooltip({
   );
 }
 
+function SocialCircleRankBadge({
+  rank,
+  mode,
+  large = false,
+}: {
+  rank: number;
+  mode: SocialCircleRankMode;
+  large?: boolean;
+}) {
+  const display = getSocialCircleRankDisplay(rank, mode);
+
+  return (
+    <span
+      aria-hidden='true'
+      className={`xhunt-social-circle-rank-badge ${large ? 'large' : ''} ${display.value.length >= 6 ? 'long' : ''}`}
+    >
+      {display.tier === 'plain' ? (
+        <span>{display.icon}</span>
+      ) : (
+        <span
+          className={`xhunt-social-circle-rank-icon ${display.tier}-trophy`}
+        >
+          {display.icon}
+        </span>
+      )}
+      <span>{display.value}</span>
+    </span>
+  );
+}
+
 export default function SocialCircleGraph({
   data,
+  ranks,
+  avatarRankMode,
   imageUrl,
   t,
   onNavigate,
 }: {
   data: KolInteractionsData;
+  ranks: SocialCircleRankMap;
+  avatarRankMode: SocialCircleRankMode;
   imageUrl: string;
   t: Translate;
   onNavigate: () => void;
@@ -169,6 +207,7 @@ export default function SocialCircleGraph({
   const layout = useMemo(() => createSocialCircleLayout(data.items), [data]);
   const [activeRank, setActiveRank] = useState<number | null>(null);
   const activeNode = layout.find((node) => node.rank === activeRank) || null;
+  const centerRank = getSocialCircleRank(ranks, data.kol.username);
 
   const navigateToProfile = (node: SocialCircleLayoutNode) => {
     const username = getSafeUsername(node.item.kol.username);
@@ -203,20 +242,34 @@ export default function SocialCircleGraph({
             username={data.kol.username}
           />
         </span>
+        {centerRank && (
+          <SocialCircleRankBadge
+            rank={centerRank}
+            mode={avatarRankMode}
+            large
+          />
+        )}
       </div>
 
       {layout.map((node) => {
         const username = getSafeUsername(node.item.kol.username);
+        const rank = getSocialCircleRank(ranks, username);
         const accessibleLabel = replaceTokens(
-          t(
-            'socialCircleNodeLabel',
-            '@{username}, mutual interaction score {score}',
-          ),
+          rank
+            ? t(
+                'socialCircleRankedNodeLabel',
+                '@{username}, rank {rank}, mutual interaction score {score}',
+              )
+            : t(
+                'socialCircleNodeLabel',
+                '@{username}, mutual interaction score {score}',
+              ),
           {
             username:
               username ||
               node.item.kol.name ||
               t('socialCircleUnknownUser', 'Unknown user'),
+            rank: rank || '',
             score: node.item.score,
           },
         );
@@ -250,6 +303,9 @@ export default function SocialCircleGraph({
                 username={node.item.kol.username}
               />
             </span>
+            {rank && (
+              <SocialCircleRankBadge rank={rank} mode={avatarRankMode} />
+            )}
           </button>
         );
       })}

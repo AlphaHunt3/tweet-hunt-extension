@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { TwitterUser, FollowRelationData, UnfollowVipCta } from '~types';
+import { TwitterUser, FollowRelationData } from '~types';
 import { Loader2, Lock } from 'lucide-react';
+import { VipUpgradeActions } from '~compontents/VipUpgradeActions';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -8,11 +9,6 @@ import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import AvatarRankBadge from './AvatarRankBadge.tsx';
 import { rankService } from '~/utils/rankService';
 import { navigateInX } from '~contents/utils/navigateInX';
-import { openNewTab } from '~contents/utils';
-import {
-  configManager,
-  DEFAULT_UNFOLLOW_VIP_CTA,
-} from '~utils/configManager';
 
 dayjs.extend(relativeTime);
 
@@ -37,13 +33,10 @@ interface UnfollowInfoPanelProps {
     vip_masked?: boolean;
     masked_unfollowed_count?: number;
     masked_unfollowing_count?: number;
-    vip_cta?: UnfollowVipCta;
   };
-  isPro?: boolean;
   isVip?: boolean;
   maskedUnfollowingCount?: number;
   maskedUnfollowedCount?: number;
-  vipCta?: UnfollowVipCta;
 }
 
 interface FollowRelationItemProps {
@@ -126,13 +119,11 @@ function FollowRelationItem({
 export function UnfollowInfoPanel({
   userId,
   followRelationData,
-  isPro = false,
   isVip,
   maskedUnfollowingCount,
   maskedUnfollowedCount,
-  vipCta,
 }: UnfollowInfoPanelProps) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
   const [activeSubTab, setActiveSubTab] = useState<UnfollowSubTab>('active');
 
@@ -147,30 +138,11 @@ export function UnfollowInfoPanel({
   const unfollowingActions = followRelationData?.unfollowing_action || [];
   const unfollowedActions = followRelationData?.unfollowed_action || [];
 
-  const effectiveIsVip =
-    isVip ?? followRelationData?.is_vip ?? isPro ?? false;
+  const effectiveIsVip = isVip ?? followRelationData?.is_vip ?? false;
   const effectiveMaskedUnfollowingCount =
     maskedUnfollowingCount ?? followRelationData?.masked_unfollowing_count ?? 0;
   const effectiveMaskedUnfollowedCount =
     maskedUnfollowedCount ?? followRelationData?.masked_unfollowed_count ?? 0;
-  const nacosVipCta = configManager.getUnfollowVipCta();
-  const rawVipCta = vipCta ?? followRelationData?.vip_cta ?? nacosVipCta;
-  const effectiveVipCta: UnfollowVipCta = {
-    url:
-      rawVipCta?.url?.trim() ||
-      nacosVipCta.url ||
-      DEFAULT_UNFOLLOW_VIP_CTA.url,
-    label: {
-      zh:
-        rawVipCta?.label?.zh?.trim() ||
-        nacosVipCta.label.zh ||
-        DEFAULT_UNFOLLOW_VIP_CTA.label.zh,
-      en:
-        rawVipCta?.label?.en?.trim() ||
-        nacosVipCta.label.en ||
-        DEFAULT_UNFOLLOW_VIP_CTA.label.en,
-    },
-  };
 
   // 使用排名服务获取排名
   useEffect(() => {
@@ -280,16 +252,6 @@ export function UnfollowInfoPanel({
   const currentTab =
     subTabs.find((tab) => tab.id === activeSubTab) || subTabs[0];
 
-  const ctaUrl = effectiveVipCta?.url?.trim() || '';
-  const bannerLabel =
-    lang === 'zh'
-      ? effectiveVipCta?.label?.zh ||
-        effectiveVipCta?.label?.en ||
-        t('unfollowRecentVipOnlyTitle')
-      : effectiveVipCta?.label?.en ||
-        effectiveVipCta?.label?.zh ||
-        t('unfollowRecentVipOnlyTitle');
-
   return (
     <div className='relative'>
       {/* 子 Tab 切换栏 + VIP 提示条 - 粘性定位 */}
@@ -316,22 +278,18 @@ export function UnfollowInfoPanel({
         </div>
 
         {currentTab.hasMasked && (
-          <div className='flex items-center justify-between gap-3 px-4 py-2 border-b theme-border bg-amber-500/[0.05] dark:bg-amber-500/[0.08]'>
-            <div className='flex items-center gap-1.5 min-w-0 flex-1'>
-              <Lock className='w-3.5 h-3.5 text-amber-500 flex-shrink-0' />
-              <span className='text-xs font-medium theme-text-primary truncate'>
-                {bannerLabel}
-              </span>
+          <div className='border-b border-amber-200/60 bg-amber-50/60 dark:border-amber-800/40 dark:bg-amber-950/25'>
+            <div className='flex items-center justify-between gap-3 px-4 py-2'>
+              <div className='flex min-w-0 items-center gap-1.5'>
+                <Lock className='w-3.5 h-3.5 flex-shrink-0 text-amber-500 dark:text-amber-400' />
+                <span className='truncate text-xs font-medium text-amber-800 dark:text-amber-200'>
+                  {t('unfollowRecentVipOnlyTitle')}
+                </span>
+              </div>
             </div>
-            {ctaUrl && (
-              <button
-                type='button'
-                onClick={() => openNewTab(ctaUrl)}
-                className='px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-medium hover:opacity-90 transition-opacity whitespace-nowrap flex-shrink-0'
-              >
-                {t('unfollowApplyVip')}
-              </button>
-            )}
+            <VipUpgradeActions
+              className='px-4 pb-3'
+            />
           </div>
         )}
       </div>

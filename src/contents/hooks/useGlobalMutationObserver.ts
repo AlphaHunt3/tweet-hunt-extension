@@ -35,6 +35,7 @@ interface Subscription {
 let globalObserver: MutationObserver | null = null;
 let subscriptions: Set<Subscription> = new Set();
 let isObserverActive = false;
+let observerInitRetryId: number | null = null;
 
 // 合并所有订阅者需要的配置选项（取并集）
 let mergedOptions: MutationObserverInit = {
@@ -60,6 +61,43 @@ const subscriberDebounceStates = new Map<string, SubscriberDebounceState>();
 // 全局的 requestAnimationFrame ID（用于无防抖/节流的订阅者）
 let globalThrottleId: number | null = null;
 let pendingMutations: MutationRecord[] = [];
+
+/**
+ * 全局 observer 使用所有订阅配置的并集，但分发时仍必须恢复每个订阅者自己的范围。
+ * 否则只订阅 childList 的挂载逻辑也会收到 attributes 变化，回写属性后可能形成反馈循环。
+ */
+const filterMutationsForSubscription = (
+  sub: Subscription,
+  mutations: MutationRecord[],
+): MutationRecord[] => {
+  const options = sub.observerOptions;
+  return mutations.filter((mutation) => {
+    if (!options.subtree && mutation.target !== document.documentElement) {
+      return false;
+    }
+    if (mutation.type === 'childList' && !options.childList) return false;
+    if (mutation.type === 'attributes') {
+      if (!options.attributes) return false;
+      if (
+        options.attributeFilter?.length &&
+        (!mutation.attributeName ||
+          !options.attributeFilter.includes(mutation.attributeName))
+      ) {
+        return false;
+      }
+    }
+    if (mutation.type === 'characterData' && !options.characterData) {
+      return false;
+    }
+    if (
+      sub.subscriptionOptions?.filter &&
+      !sub.subscriptionOptions.filter(mutation)
+    ) {
+      return false;
+    }
+    return true;
+  });
+};
 
 /**
  * 合并配置选项（取并集）
@@ -116,16 +154,8 @@ const notifySingleSubscriber = (
   mutations: MutationRecord[]
 ): void => {
   try {
-    // 应用自定义过滤
-    let filteredMutations = mutations;
-    if (sub.subscriptionOptions?.filter) {
-      filteredMutations = mutations.filter((mutation) =>
-        sub.subscriptionOptions!.filter!(mutation)
-      );
-      if (filteredMutations.length === 0) {
-        return;
-      }
-    }
+    const filteredMutations = filterMutationsForSubscription(sub, mutations);
+    if (filteredMutations.length === 0) return;
 
     sub.callback(filteredMutations);
   } catch (error) {
@@ -158,18 +188,7 @@ const notifySubscribersImmediate = (mutations: MutationRecord[]): void => {
       return;
     }
 
-    // 应用自定义过滤
-    let filteredMutations = mutations;
-    if (sub.subscriptionOptions?.filter) {
-      filteredMutations = mutations.filter((mutation) =>
-        sub.subscriptionOptions!.filter!(mutation)
-      );
-      if (filteredMutations.length === 0) {
-        return;
-      }
-    }
-
-    notifySingleSubscriber(sub, filteredMutations);
+    notifySingleSubscriber(sub, mutations);
   });
 };
 
@@ -183,6 +202,14 @@ const handleDebouncedSubscribers = (
   subscriptions.forEach((sub) => {
     const debounceTime = sub.subscriptionOptions?.debounce;
     if (debounceTime === undefined) return;
+
+    // 必须先过滤再重置防抖计时器。否则 X 的无关 DOM 更新会持续覆盖真正相关的
+    // mutation，最后一次又可能被 filter 丢弃，表现为挂载点偶发永远收不到通知。
+    const relevantMutations = filterMutationsForSubscription(
+      sub,
+      mutationsSnapshot,
+    );
+    if (relevantMutations.length === 0) return;
 
     // 获取或创建该订阅者的防抖状态
     let state = subscriberDebounceStates.get(sub.id);
@@ -204,7 +231,7 @@ const handleDebouncedSubscribers = (
     // 设置新的防抖定时器
     const currentState = state; // 保存引用
     state.debounceId = window.setTimeout(() => {
-      notifySingleSubscriber(sub, mutationsSnapshot);
+      notifySingleSubscriber(sub, relevantMutations);
       if (currentState) {
         currentState.debounceId = null;
       }
@@ -222,6 +249,13 @@ const handleThrottledSubscribers = (
   subscriptions.forEach((sub) => {
     const throttleTime = sub.subscriptionOptions?.throttle;
     if (throttleTime === undefined) return;
+
+    // 无关 mutation 不应占用该订阅者的节流窗口，否则紧随其后的有效变化会被跳过。
+    const relevantMutations = filterMutationsForSubscription(
+      sub,
+      mutationsSnapshot,
+    );
+    if (relevantMutations.length === 0) return;
 
     // 获取或创建该订阅者的节流状态
     let state = subscriberDebounceStates.get(sub.id);
@@ -243,7 +277,7 @@ const handleThrottledSubscribers = (
       state.lastThrottleTime = now;
       const currentState = state; // 保存引用
       state.throttleId = window.requestAnimationFrame(() => {
-        notifySingleSubscriber(sub, mutationsSnapshot);
+        notifySingleSubscriber(sub, relevantMutations);
         if (currentState) {
           currentState.throttleId = null;
         }
@@ -287,18 +321,33 @@ const handleMutations = (mutations: MutationRecord[]): void => {
 /**
  * 初始化全局 MutationObserver
  */
-const initGlobalObserver = (options: MutationObserverInit): void => {
+const initGlobalObserver = (): void => {
+  // content script 在 document_start 执行，极早期 documentElement 可能尚未建立。
+  // 延迟到下一任务重试，不能静默放弃，否则之后不会再有 DOM mutation 来唤醒观察器。
+  const observeTarget = document.documentElement;
+  if (!(observeTarget instanceof Node)) {
+    if (observerInitRetryId === null && subscriptions.size > 0) {
+      observerInitRetryId = window.setTimeout(() => {
+        observerInitRetryId = null;
+        if (subscriptions.size > 0) initGlobalObserver();
+      }, 0);
+    }
+    return;
+  }
+  if (observerInitRetryId !== null) {
+    window.clearTimeout(observerInitRetryId);
+    observerInitRetryId = null;
+  }
+
   if (isObserverActive && globalObserver) {
     // 如果配置变化，需要重新观察
     globalObserver.disconnect();
     // 观察 documentElement 而不是 body，这样可以同时监听到 documentElement 本身和 body 子树的变化
-    globalObserver.observe(document.documentElement, mergedOptions);
+    globalObserver.observe(observeTarget, mergedOptions);
     return;
   }
 
   if (globalObserver) return;
-
-
 
   globalObserver = new MutationObserver((mutations) => {
     if (mutations.length === 0) return;
@@ -321,7 +370,7 @@ const initGlobalObserver = (options: MutationObserverInit): void => {
 
   // 观察 documentElement 而不是 body，这样可以同时监听到 documentElement 本身和 body 子树的变化
   // 因为 body 是 documentElement 的子元素，设置 subtree: true 后可以监听到所有变化
-  globalObserver.observe(document.documentElement, mergedOptions);
+  globalObserver.observe(observeTarget, mergedOptions);
   isObserverActive = true;
 };
 
@@ -329,11 +378,11 @@ const initGlobalObserver = (options: MutationObserverInit): void => {
  * 清理全局 MutationObserver
  */
 const cleanupGlobalObserver = (): void => {
-  if (!globalObserver || !isObserverActive) return;
-
-
-
-  globalObserver.disconnect();
+  if (observerInitRetryId !== null) {
+    window.clearTimeout(observerInitRetryId);
+    observerInitRetryId = null;
+  }
+  globalObserver?.disconnect();
   globalObserver = null;
   isObserverActive = false;
 
@@ -458,7 +507,7 @@ export const subscribeToMutation = (
   mergeOptions(observerOptions);
 
   // 初始化或更新观察器
-  initGlobalObserver(mergedOptions);
+  initGlobalObserver();
 
   // 返回取消订阅函数
   return () => {
@@ -484,7 +533,10 @@ export const subscribeToMutation = (
       // 更新观察器配置
       if (globalObserver && isObserverActive) {
         globalObserver.disconnect();
-        globalObserver.observe(document.documentElement, mergedOptions);
+        const observeTarget = document.documentElement;
+        if (observeTarget instanceof Node) {
+          globalObserver.observe(observeTarget, mergedOptions);
+        }
       }
     } else {
       // 没有订阅者了，清理观察器

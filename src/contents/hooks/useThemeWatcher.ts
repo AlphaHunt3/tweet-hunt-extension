@@ -42,8 +42,14 @@ function syncXhuntWebBg(theme: 'light' | 'dark') {
 
 function detectSystemTheme(): 'light' | 'dark' | '' {
   try {
-    // 首先尝试通过 color-scheme 检测
-    const scheme = (document?.documentElement?.style as any)?.['color-scheme'];
+    // 新版 X 直接在 html 上维护 data-theme，优先使用这一明确状态。
+    const dataTheme = document.documentElement.getAttribute('data-theme');
+    if (dataTheme === 'light' || dataTheme === 'dark') {
+      return dataTheme;
+    }
+
+    // 兼容旧版 X 的 color-scheme。
+    const scheme = document.documentElement.style.colorScheme;
     if (scheme) {
       return scheme === 'light' ? 'light' : 'dark';
     }
@@ -124,22 +130,22 @@ export function useThemeWatcher() {
       },
       {
         attributes: true,
-        attributeFilter: ['style'],
-        subtree: true, // 需要 subtree: true 才能监听到 documentElement 本身的变化（当观察目标是 documentElement 时）
+        attributeFilter: ['data-theme', 'style'],
+        subtree: false,
         childList: false, // 不需要监听子元素变化
       },
       {
         // 不在 subscriptionOptions 中设置 debounce，因为已经使用 useDebounceFn 处理了
         filter: (mutation) => {
-          // 只关注 documentElement 的 style 属性变化
-          // 因为 color-scheme 是设置在 <html> 元素的 style 属性中的
+          // 新版监听 data-theme，旧版继续兼容 style.color-scheme。
           const target = mutation.target;
           const isDocumentElement = target === document.documentElement;
-          const isStyleAttribute =
+          const isThemeAttribute =
             mutation.type === 'attributes' &&
-            mutation.attributeName === 'style';
+            (mutation.attributeName === 'data-theme' ||
+              mutation.attributeName === 'style');
 
-          return isDocumentElement && isStyleAttribute;
+          return isDocumentElement && isThemeAttribute;
         },
         debugName: 'useThemeWatcher',
       }

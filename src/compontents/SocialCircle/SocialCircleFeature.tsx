@@ -7,21 +7,24 @@ import React, {
 } from 'react';
 import ReactDOM from 'react-dom';
 import { LockKeyhole, Network, X } from 'lucide-react';
+import { useLockFn } from 'ahooks';
 import cssText from 'data-text:~/css/style.css';
+import { VipUpgradeActions } from '~compontents/VipUpgradeActions';
 import useShadowContainer from '~contents/hooks/useShadowContainer';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useI18n } from '~contents/hooks/i18n';
-import { openNewTab } from '~contents/utils';
 import { useCrossPageSettings } from '~utils/settingsManager';
 import { useLocalStorage } from '~storage/useLocalStorage';
-import { configManager } from '~utils/configManager';
 import {
   FloatingContainer,
   type FloatingContainerRef,
 } from '~compontents/FloatingContainer';
 import useKolSocialCircle from './useKolSocialCircle';
 import SocialCircleDialog from './SocialCircleDialog';
+import { resolveProfileDom } from '~contents/utils/xDomAdapter';
+import { getTwitterAuthUrl } from '~contents/services/api';
+import { openNewTab } from '~contents/utils';
 
 const PROFILE_ACTION_SELECTOR =
   'div[data-testid="placementTracking"], a[data-testid="editProfileButton"]';
@@ -38,10 +41,16 @@ const getOrCreateFloatingPortal = () => {
     host = document.createElement('div');
     host.id = FLOATING_HOST_ID;
     host.style.cssText =
-      'position:fixed;inset:0;width:0;height:0;z-index:2147483000;';
+      'position:fixed;inset:0;width:0;height:0;z-index:2147483000;pointer-events:none;overflow:visible;';
     host.setAttribute('translate', 'no');
     host.classList.add('notranslate');
-    document.documentElement.appendChild(host);
+    if (document.body?.parentNode) {
+      // 新版 X 会清理追加在 body 后面的 html 直属节点；放在 body 前可避免
+      // Portal 宿主脱离 DOM 后 React 仍渲染、但用户完全看不到弹窗。
+      document.body.parentNode.insertBefore(host, document.body);
+    } else {
+      document.documentElement.appendChild(host);
+    }
 
     const shadowRoot = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
@@ -69,8 +78,6 @@ function SocialCircleLimitDialog({
   t: (key: string, fallback?: string) => string;
   onClose: () => void;
 }) {
-  const vipCtaUrl = configManager.getUnfollowVipCta().url?.trim() || '';
-
   return (
     <div
       role='dialog'
@@ -105,15 +112,7 @@ function SocialCircleLimitDialog({
               'Upgrade to VIP for a higher daily view limit.',
             )}
           </p>
-          {vipCtaUrl ? (
-            <button
-              type='button'
-              onClick={() => openNewTab(vipCtaUrl)}
-              className='mx-auto mt-2 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500'
-            >
-              {t('unfollowApplyVip', 'Apply VIP')}
-            </button>
-          ) : null}
+          <VipUpgradeActions className='mt-2' />
         </>
       ) : null}
     </div>
@@ -123,14 +122,19 @@ function SocialCircleLimitDialog({
 export default function SocialCircleFeature() {
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage<'light' | 'dark'>('@xhunt/theme', 'dark');
+  const [token, , { isLoading: isTokenLoading }] = useLocalStorage(
+    '@xhunt/token',
+    '',
+  );
+  const isLoggedIn = Boolean(token);
   const { isEnabled } = useCrossPageSettings();
   const enabled = isEnabled('showKolSocialCircleButton');
   const { urlUid, twitterId, handler, displayName, avatar, loading } =
     usePlacementTracking();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const floatingContainerRef = useRef<FloatingContainerRef>(null);
-  const [floatingPortal, setFloatingPortal] = useState<HTMLElement | null>(
-    null,
+  const [floatingPortal, setFloatingPortal] = useState<HTMLElement | null>(() =>
+    getOrCreateFloatingPortal(),
   );
   const [isOpen, setIsOpen] = useState(false);
   const closeDialog = useCallback(() => {
@@ -152,6 +156,7 @@ export default function SocialCircleFeature() {
 
   const shadowRoot = useShadowContainer({
     selector: PROFILE_ACTION_SELECTOR,
+    resolveBaseElement: () => resolveProfileDom().actionHost,
     useSiblings: true,
     siblingsPosition: 'beforebegin',
     styleText: cssText,
@@ -162,8 +167,15 @@ export default function SocialCircleFeature() {
   const portalHost = usePersistentPortalHost(shadowRoot);
 
   useEffect(() => {
-    setFloatingPortal(getOrCreateFloatingPortal());
-  }, []);
+    if (!isOpen || !floatingPortal) return;
+
+    // Portal 重新创建时，需等本轮 React commit 把 FloatingContainer 的 ref
+    // 挂好后再显示，避免 isOpen 已为 true、实际浮层仍保持 display:none。
+    const frame = requestAnimationFrame(() => {
+      floatingContainerRef.current?.show();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [floatingPortal, isOpen]);
 
   const { data, isAvailable, isLoading, limitExceeded, loadDetails } =
     useKolSocialCircle({
@@ -174,13 +186,28 @@ export default function SocialCircleFeature() {
       enabled,
     });
 
-  const openDialog = useCallback(() => {
-    void loadDetails().then((hasDialogContent) => {
-      if (!hasDialogContent) return;
-      setIsOpen(true);
-      floatingContainerRef.current?.show();
-    });
-  }, [loadDetails]);
+  const openDialog = useLockFn(async () => {
+    // 详情接口需要 XHunt 身份。旧逻辑未登录时请求失败后静默 return，
+    // 用户看到的表现就是按钮没有反应；这里与 AI 分身、推文分析保持一致。
+    if (isTokenLoading) return;
+    if (!isLoggedIn) {
+      const auth = await getTwitterAuthUrl();
+      if (auth?.url) openNewTab(auth.url);
+      return;
+    }
+
+    // 新版 X 可能在自身 DOM 更新时移除额外的 html 直属节点。每次点击都重新
+    // 确认 Portal 仍连接在文档中，必要时创建新的宿主并让 React 重新挂载。
+    const nextFloatingPortal = getOrCreateFloatingPortal();
+    if (!nextFloatingPortal) return;
+    setFloatingPortal((current) =>
+      current === nextFloatingPortal ? current : nextFloatingPortal,
+    );
+
+    const hasDialogContent = await loadDetails();
+    if (!hasDialogContent) return;
+    setIsOpen(true);
+  });
 
   const displayData = useMemo(() => {
     if (!data) return null;
@@ -207,7 +234,7 @@ export default function SocialCircleFeature() {
         <div data-theme={theme} style={{ display: 'contents' }}>
           <div
             data-xhunt-testid='kol-social-circle-button'
-            className='theme-bg-primary'
+            className='bg-transparent'
             style={{
               width: 36,
               height: 36,

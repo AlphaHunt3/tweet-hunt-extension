@@ -4,11 +4,11 @@ import {
   fetchRootDataInfo,
   fetchProjectMember,
   fetchTwitterInfoNew,
+  getSoulInfo,
   convertNewDataToKolData,
   convertNewDataToPopularityInfo,
-
 } from '~contents/services/api.ts';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   AccountsResponse,
   DeletedTweet,
@@ -17,6 +17,7 @@ import {
   NewTwitterUserData,
   PopularityInfoType,
   ProjectMemberData,
+  SoulDensityData,
 } from '~types';
 import {
   getHandeReviewInfo,
@@ -51,6 +52,8 @@ export interface MainData {
   projectMemberData: ProjectMemberData | null;
   loadingProjectMember: boolean;
   newTwitterData: NewTwitterUserData | null;
+  soulData: SoulDensityData | null;
+  loadingSoulData: boolean;
 }
 
 const defaultRequestConfig = {
@@ -66,21 +69,35 @@ const useMainData = (): MainData => {
   const [token] = useLocalStorage('@xhunt/token', '');
   const {
     currentUrl,
+    urlUid,
     twitterId,
-    handler: userId,
+    handler: resolvedUserId,
     loading: isLoadingHtml,
   } = usePlacementTracking();
-  const isProfileHtmlReady =
-    !isLoadingHtml && Boolean(twitterId) && Boolean(userId);
+  // X 新版资料 DOM 后到时，handler 可能只发生大小写变化（例如 URL 中的小写
+  // handle 变为页面展示大小写）。业务接口均不区分大小写，统一使用 URL 身份，
+  // 避免同一个人被当成两个请求身份而再次进入 loading。
+  const userId = String(urlUid || resolvedUserId || '')
+    .trim()
+    .toLocaleLowerCase();
+  // 身份一确认即可提前请求；X 自身资料头完成切换前，结果继续由 loading 隔离。
+  const isProfileRequestReady = Boolean(twitterId) && Boolean(userId);
+  const isProfileHtmlReady = !isLoadingHtml && isProfileRequestReady;
+  const [isRouteTransitioning, setIsRouteTransitioning] = useState(
+    Boolean(urlUid),
+  );
+  const [routeLoadingTimedOut, setRouteLoadingTimedOut] = useState(false);
 
   //删推信息,已改成twid查询
   const {
     data: deletedData,
     run: fetchDelData,
-    loading: loadingDel,
+    loading: requestLoadingDel,
+    cancel: cancelDelData,
+    mutate: mutateDelData,
   } = useRequest(() => fetchDelTwitterInfo(twitterId), {
-    refreshDeps: [twitterId, isProfileHtmlReady],
-    ready: isProfileHtmlReady,
+    refreshDeps: [twitterId, isProfileRequestReady],
+    ready: isProfileRequestReady,
     ...defaultRequestConfig,
   });
   const deletedTweets = deletedData?.tweets ?? [];
@@ -90,18 +107,48 @@ const useMainData = (): MainData => {
   const {
     data: newTwitterData = null,
     run: fetchTwitterData,
-    loading: loadingTwInfo,
-    error,
+    loading: requestLoadingTwInfo,
+    error: requestError,
+    cancel: cancelTwitterData,
+    mutate: mutateTwitterData,
   } = useRequest(() => fetchTwitterInfoNew(twitterId), {
-    refreshDeps: [twitterId, isProfileHtmlReady],
-    ready: isProfileHtmlReady,
+    refreshDeps: [twitterId, isProfileRequestReady],
+    ready: isProfileRequestReady,
     debounceWait: 50,
     debounceMaxWait: 50,
     manual: true,
     debounceLeading: true,
     debounceTrailing: true,
     retryCount: 3,
+    onFinally: () => setIsRouteTransitioning(false),
   });
+
+  // 灵魂指数也绑定 twitterId。ahooks 会暂存上一轮 data，附带请求身份后，
+  // 切换人物期间旧结果不会参与新人物的摘要渲染。
+  const {
+    data: soulResult,
+    run: fetchSoulData,
+    loading: requestLoadingSoulData,
+    cancel: cancelSoulData,
+    mutate: mutateSoulData,
+  } = useRequest(
+    async () => {
+      const requestTwitterId = String(twitterId || '');
+      if (!requestTwitterId) return undefined;
+      return {
+        twitterId: requestTwitterId,
+        data: await getSoulInfo(requestTwitterId),
+      };
+    },
+    {
+      refreshDeps: [twitterId, isProfileRequestReady],
+      ready: isProfileRequestReady,
+      ...defaultRequestConfig,
+    },
+  );
+  const isSoulDataCurrent =
+    Boolean(twitterId) && soulResult?.twitterId === String(twitterId);
+  const soulData = isSoulDataCurrent ? soulResult?.data || null : null;
 
   // 🆕 转换新数据为旧格式
   const twInfo = useMemo(() => {
@@ -119,10 +166,12 @@ const useMainData = (): MainData => {
   const {
     data: rootData = null,
     run: fetchRootData,
-    loading: loadingRootData,
+    loading: requestLoadingRootData,
+    cancel: cancelRootData,
+    mutate: mutateRootData,
   } = useRequest(() => fetchRootDataInfo(userId), {
-    refreshDeps: [userId, isProfileHtmlReady],
-    ready: isProfileHtmlReady,
+    refreshDeps: [userId, isProfileRequestReady],
+    ready: isProfileRequestReady,
     ...defaultRequestConfig,
   });
 
@@ -130,10 +179,12 @@ const useMainData = (): MainData => {
   const {
     data: renameInfo = null,
     run: fetchRenameInfo,
-    loading: loadingRenameInfo,
+    loading: requestLoadingRenameInfo,
+    cancel: cancelRenameInfo,
+    mutate: mutateRenameInfo,
   } = useRequest(() => fetchTwRenameInfo(userId), {
-    refreshDeps: [userId, isProfileHtmlReady],
-    ready: isProfileHtmlReady,
+    refreshDeps: [userId, isProfileRequestReady],
+    ready: isProfileRequestReady,
     ...defaultRequestConfig,
   });
 
@@ -141,11 +192,13 @@ const useMainData = (): MainData => {
   const {
     data: reviewInfo = null,
     run: fetchReviewInfo,
-    loading: loadingReviewInfo,
+    loading: requestLoadingReviewInfo,
+    cancel: cancelReviewInfo,
+    mutate: mutateReviewInfo,
     refreshAsync: refreshAsyncReviewInfo,
   } = useRequest(() => getHandeReviewInfo(userId, reviewOnlyKol), {
-    refreshDeps: [userId, isProfileHtmlReady, reviewOnlyKol],
-    ready: isProfileHtmlReady,
+    refreshDeps: [userId, isProfileRequestReady, reviewOnlyKol],
+    ready: isProfileRequestReady,
     ...defaultRequestConfig,
   });
 
@@ -164,9 +217,11 @@ const useMainData = (): MainData => {
   const {
     data: projectMemberData = null,
     run: fetchProjectMemberData,
-    loading: loadingProjectMember,
+    loading: requestLoadingProjectMember,
+    cancel: cancelProjectMemberData,
+    mutate: mutateProjectMemberData,
   } = useRequest(() => fetchProjectMember(twitterId), {
-    refreshDeps: [twitterId, isProfileHtmlReady],
+    refreshDeps: [twitterId, isProfileRequestReady],
     ...defaultRequestConfig,
   });
 
@@ -176,7 +231,7 @@ const useMainData = (): MainData => {
       fetchTwitterData();
       fetchRootData();
       fetchRenameInfo();
-      fetchReviewInfo();
+      fetchSoulData();
     },
     {
       wait: 20,
@@ -185,92 +240,177 @@ const useMainData = (): MainData => {
     },
   );
 
-  useEffect(() => {
-    if (!isProfileHtmlReady) return;
-    fetchReviewInfo();
-    refreshAsyncUserInfo().then((r) => r);
-  }, [reviewOnlyKol, token, isProfileHtmlReady]);
+  // SPA profile 切换时，绘制前取消旧请求并清空上一位用户的数据。
+  useLayoutEffect(() => {
+    cancelDelData();
+    cancelTwitterData();
+    cancelRootData();
+    cancelRenameInfo();
+    cancelReviewInfo();
+    cancelProjectMemberData();
+    cancelSoulData();
+    mutateDelData(undefined);
+    mutateTwitterData(undefined);
+    mutateRootData(undefined);
+    mutateRenameInfo(undefined);
+    mutateReviewInfo(undefined);
+    mutateProjectMemberData(undefined);
+    mutateSoulData(undefined);
+    setRouteLoadingTimedOut(false);
+    setIsRouteTransitioning(Boolean(urlUid));
+  }, [urlUid]);
 
   useEffect(() => {
-    if (!isProfileHtmlReady) return;
+    if (!urlUid || !isRouteTransitioning) return;
+
+    const timer = window.setTimeout(() => {
+      setRouteLoadingTimedOut(true);
+      setIsRouteTransitioning(false);
+    }, 15_000);
+
+    return () => window.clearTimeout(timer);
+  }, [isRouteTransitioning, urlUid]);
+
+  useEffect(() => {
+    if (!isLoadingHtml && !isProfileHtmlReady) {
+      setIsRouteTransitioning(false);
+    }
+  }, [isLoadingHtml, isProfileHtmlReady]);
+
+  const loadingTwInfo =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingTwInfo);
+  const loadingDel =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingDel);
+  const loadingRootData =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingRootData);
+  const loadingRenameInfo =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingRenameInfo);
+  const loadingReviewInfo =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingReviewInfo);
+  const loadingProjectMember =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml || isRouteTransitioning || requestLoadingProjectMember);
+  // Profile DOM 就绪到 useEffect 真正发起请求之间会有一帧空档，
+  // 这时 ahooks.loading 仍为 false。当前人物还没有对应结果时继续视为 loading，
+  // 避免“无灵魂指数内容 -> 骨架 -> 完整内容”的双重闪动。
+  const loadingSoulData =
+    !routeLoadingTimedOut &&
+    (isLoadingHtml ||
+      isRouteTransitioning ||
+      requestLoadingSoulData ||
+      (isProfileHtmlReady && !isSoulDataCurrent));
+  const error = isRouteTransitioning ? undefined : requestError;
+
+  useEffect(() => {
+    if (!isProfileRequestReady) return;
+    fetchReviewInfo();
+    refreshAsyncUserInfo().then((r) => r);
+  }, [reviewOnlyKol, token, isProfileRequestReady, twitterId, userId]);
+
+  useEffect(() => {
+    if (!isProfileRequestReady) return;
     loadData();
-  }, [isProfileHtmlReady]);
+  }, [isProfileRequestReady, twitterId, userId]);
 
   // 单独处理项目成员数据请求 - 只有当用户是项目时才请求
   useEffect(() => {
-    if (!isProfileHtmlReady) return;
+    if (!isProfileRequestReady) return;
     if (!twInfo) return; // 等待 twInfo 加载完成
 
     // 只有当 classification 是 'project' 时才请求项目成员数据
     if (twInfo?.basicInfo?.classification === 'project') {
       fetchProjectMemberData();
     }
-  }, [twInfo?.basicInfo?.classification, isProfileHtmlReady]);
+  }, [twInfo?.basicInfo?.classification, isProfileRequestReady]);
   useEffect(() => {
     fetchUserInfo();
   }, []);
 
   // 将 newTwitterData 暴露给其他组件使用
   const projectMemberDataProxy = useMemo(() => {
-    if (twInfo?.basicInfo?.classification === 'project' && isProfileHtmlReady) {
+    if (
+      twInfo?.basicInfo?.classification === 'project' &&
+      isProfileRequestReady
+    ) {
       return projectMemberData;
     }
     return null;
   }, [
     twInfo?.basicInfo?.classification,
     projectMemberData,
-    isProfileHtmlReady,
+    isProfileRequestReady,
   ]);
+  const visibleDeletedTweets = loadingDel ? [] : deletedTweets;
+  const visibleTwInfo = loadingTwInfo ? null : twInfo;
+  const visibleRootData = loadingRootData ? null : rootData;
+  const visibleRenameInfo = loadingRenameInfo ? null : renameInfo;
+  const visibleReviewInfo = loadingReviewInfo ? null : reviewInfo;
+  const visibleDiscussionInfo = loadingTwInfo ? null : discussionInfo;
+  const visibleProjectMemberData = loadingProjectMember
+    ? null
+    : projectMemberDataProxy;
+  const visibleNewTwitterData = loadingTwInfo ? null : newTwitterData;
+  const visibleSoulData =
+    loadingSoulData || !isSoulDataCurrent ? null : soulData;
 
   return useMemo(
     () => ({
       currentUrl,
       userId,
-      deletedTweets,
+      deletedTweets: visibleDeletedTweets,
       deletedTweetsIsVip,
-      twInfo,
+      twInfo: visibleTwInfo,
       loadingTwInfo,
       loadingDel,
       error,
-      rootData,
+      rootData: visibleRootData,
       loadingRootData,
-      renameInfo,
+      renameInfo: visibleRenameInfo,
       loadingRenameInfo,
-      reviewInfo,
+      reviewInfo: visibleReviewInfo,
       loadingReviewInfo,
       refreshAsyncReviewInfo,
       userInfo,
       loadingUserInfo,
       refreshAsyncUserInfo,
-      discussionInfo,
+      discussionInfo: visibleDiscussionInfo,
       loadingDiscussionInfo: loadingTwInfo,
-      projectMemberData: projectMemberDataProxy,
+      projectMemberData: visibleProjectMemberData,
       loadingProjectMember,
-      newTwitterData,
+      newTwitterData: visibleNewTwitterData,
+      soulData: visibleSoulData,
+      loadingSoulData,
     }),
     [
       currentUrl,
       userId,
-      deletedTweets,
+      visibleDeletedTweets,
       deletedTweetsIsVip,
-      twInfo,
+      visibleTwInfo,
       loadingTwInfo,
       loadingDel,
       error,
-      rootData,
+      visibleRootData,
       loadingRootData,
-      renameInfo,
+      visibleRenameInfo,
       loadingRenameInfo,
-      reviewInfo,
+      visibleReviewInfo,
       loadingReviewInfo,
       refreshAsyncReviewInfo,
       userInfo,
       loadingUserInfo,
       refreshAsyncUserInfo,
-      discussionInfo,
-      projectMemberDataProxy,
+      visibleDiscussionInfo,
+      visibleProjectMemberData,
       loadingProjectMember,
-      newTwitterData,
+      visibleNewTwitterData,
+      visibleSoulData,
+      loadingSoulData,
     ],
   );
 };

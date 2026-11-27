@@ -166,4 +166,6 @@ tests/e2e/reports/latest/*
 # AI code review generated latest report
 reports/code-review/latest/*
 !reports/code-review/latest/.gitkeep
+# Local Chrome extension signing key
+/.extension-key/
 /$HOME/

@@ -1,8 +1,19 @@
+import { useCallback, useEffect, useState } from 'react';
+
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { localStorageInstance } from '~storage/index.ts';
-import { configManager } from '~utils/configManager.ts';
-import { useState, useEffect } from 'react';
-import { sanitizeUsername } from '~contents/utils/helpers.ts';
+import {
+  getCurrentTwitterId,
+  sanitizeUsername,
+} from '~contents/utils/helpers.ts';
+import {
+  fetchFeatureAccess,
+  type FeatureAccessResponse,
+} from '~contents/services/api.ts';
+import {
+  isSettingForcedDisabled,
+  REALTIME_SUBSCRIPTION_SETTING_KEY,
+} from '~shared/runtimeFeaturePolicy';
 
 // 设置配置
 export const settingsConfig = {
@@ -21,7 +32,10 @@ export const settingsConfig = {
     { key: 'showHunterCampaign', label: 'showHunterCampaign' },
     { key: 'showNotes', label: 'showNotes' },
     { key: 'showOfficialTags', label: 'showOfficialTags' },
-    { key: 'showRealtimeSubscription', label: 'showRealtimeSubscription' },
+    {
+      key: REALTIME_SUBSCRIPTION_SETTING_KEY,
+      label: REALTIME_SUBSCRIPTION_SETTING_KEY,
+    },
     { key: 'enableBnbFeeds', label: 'enableBnbFeeds' },
     { key: 'enableGossip', label: 'enableGossip' },
     { key: 'enableListing', label: 'enableListing' },
@@ -71,7 +85,6 @@ const ALL_SETTING_KEYS = [
   'showAnnualReport',
   'showFeatureSlot',
   'showHotVote',
-  'showHotVote',
   'showHotTrendingWeb3',
   'showReplyAlpha',
   'showReplyAlphaCn_web3',
@@ -82,7 +95,7 @@ const ALL_SETTING_KEYS = [
   'showHunterCampaign',
   'showNotes',
   'showOfficialTags',
-  'showRealtimeSubscription',
+  REALTIME_SUBSCRIPTION_SETTING_KEY,
   'enableBnbFeeds',
   'enableGossip',
   'enableListing',
@@ -126,7 +139,7 @@ const ALL_SETTING_KEYS = [
 const DEFAULT_SETTING_VALUES: Partial<
   Record<(typeof ALL_SETTING_KEYS)[number], boolean>
 > = {
-  showRealtimeSubscription: false,
+  [REALTIME_SUBSCRIPTION_SETTING_KEY]: false,
 };
 
 const getDefaultSettingValue = (key: string): boolean =>
@@ -240,10 +253,12 @@ export class SettingsManager {
   }
 
   public isEnabled(settingKey: string): boolean {
+    if (isSettingForcedDisabled(settingKey)) return false;
     return this.settings.get(settingKey) ?? getDefaultSettingValue(settingKey);
   }
 
   public async updateSetting(settingKey: string, value: boolean) {
+    if (isSettingForcedDisabled(settingKey)) return;
     this.settings.set(settingKey, value);
 
     try {
@@ -299,6 +314,7 @@ export const useAllSettings = () => {
 
   // 更新单个设置
   const updateSetting = async (key: string, value: boolean) => {
+    if (isSettingForcedDisabled(key)) return;
     try {
       await localStorageInstance.set(`@settings/${key}`, value);
       setSettings((prev) => {
@@ -315,6 +331,7 @@ export const useAllSettings = () => {
 
   // 获取设置值
   const getSetting = (key: string): boolean => {
+    if (isSettingForcedDisabled(key)) return false;
     return settings.get(key) ?? getDefaultSettingValue(key);
   };
 
@@ -346,6 +363,8 @@ interface CrossPageSettingsSnapshot {
   settings: Map<string, boolean>;
   currentUsername: string;
   disableTesting: boolean;
+  featureAccess: FeatureAccessResponse | null;
+  featureAccessLoaded: boolean;
 }
 
 const crossPageSettingsSubscribers = new Set<() => void>();
@@ -353,9 +372,19 @@ let crossPageSettingsSnapshot: CrossPageSettingsSnapshot = {
   settings: new Map(),
   currentUsername: '',
   disableTesting: false,
+  featureAccess: null,
+  featureAccessLoaded: false,
 };
 let crossPageSettingsStarted = false;
 let crossPageSettingsInitPromise: Promise<void> | null = null;
+let featureAccessRequestId = 0;
+let featureAccessLoadedIdentity = '';
+let featureAccessInFlight: {
+  identity: string;
+  requestId: number;
+  promise: Promise<FeatureAccessResponse | undefined>;
+} | null = null;
+let identityAccessRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 const emitCrossPageSettingsChange = () => {
   crossPageSettingsSubscribers.forEach((callback) => callback());
@@ -369,6 +398,18 @@ const setCrossPageSettingsSnapshot = (
   crossPageSettingsSnapshot =
     typeof next === 'function' ? next(crossPageSettingsSnapshot) : next;
   emitCrossPageSettingsChange();
+};
+
+// 权限身份可能已经变化。在新身份的 feature-access 明确返回前，
+// 立即退回基础功能，不能继续使用游客或上一账号的高级功能权限。
+const markFeatureAccessPending = (invalidateInFlight = false) => {
+  if (invalidateInFlight) featureAccessRequestId += 1;
+  featureAccessLoadedIdentity = '';
+  setCrossPageSettingsSnapshot((prev) => ({
+    ...prev,
+    featureAccess: null,
+    featureAccessLoaded: false,
+  }));
 };
 
 const loadCrossPageCurrentUser = async (): Promise<string> => {
@@ -429,13 +470,100 @@ const loadCrossPageSettings = async () => {
   }));
 };
 
+const loadCrossPageFeatureAccess = async (cacheBust?: number) => {
+  const requestedTwitterId = await getCurrentTwitterId();
+  const requestedIdentity = [
+    requestedTwitterId,
+    crossPageSettingsSnapshot.currentUsername.toLowerCase(),
+  ].join(':');
+  const forceRefresh = typeof cacheBust === 'number';
+
+  // 老版 X 初始化会连续写入当前用户的两个 storage key。它们可以同时触发
+  // feature-access 刷新；同一登录身份已有结果或请求在途时直接复用。
+  if (
+    !forceRefresh &&
+    crossPageSettingsSnapshot.featureAccessLoaded &&
+    featureAccessLoadedIdentity === requestedIdentity
+  ) {
+    return;
+  }
+  if (
+    !forceRefresh &&
+    featureAccessInFlight?.identity === requestedIdentity &&
+    featureAccessInFlight.requestId === featureAccessRequestId
+  ) {
+    await featureAccessInFlight.promise;
+    return;
+  }
+
+  const requestId = ++featureAccessRequestId;
+
+  markFeatureAccessPending();
+
+  const request = fetchFeatureAccess(cacheBust);
+  featureAccessInFlight = {
+    identity: requestedIdentity,
+    requestId,
+    promise: request,
+  };
+  let access: FeatureAccessResponse | undefined;
+  try {
+    access = await request;
+  } finally {
+    if (featureAccessInFlight?.promise === request) {
+      featureAccessInFlight = null;
+    }
+  }
+  const currentTwitterId = await getCurrentTwitterId();
+  if (
+    requestId !== featureAccessRequestId ||
+    currentTwitterId !== requestedTwitterId ||
+    (access && access.twitterId !== requestedTwitterId)
+  ) {
+    return;
+  }
+
+  featureAccessLoadedIdentity = requestedIdentity;
+  setCrossPageSettingsSnapshot((prev) => ({
+    ...prev,
+    featureAccess: access || null,
+    featureAccessLoaded: true,
+  }));
+};
+
+const refreshCrossPageCurrentUserAccess = async () => {
+  await loadCrossPageCurrentUser();
+  await loadCrossPageFeatureAccess();
+};
+
+const getStoredUserAccessIdentity = (value: unknown): string => {
+  if (!value || typeof value !== 'object') return '';
+  const user = value as { id_str?: unknown; screen_name?: unknown };
+  return [
+    String(user.id_str || '').trim(),
+    sanitizeUsername(String(user.screen_name || '')).toLowerCase(),
+  ].join(':');
+};
+
+// initial-state-current-user 和 current-username 通常会在同一轮初始化中连续写入。
+// 先立即收紧权限，再把刷新合并到一个任务，避免两个 watcher 互相废弃在途请求。
+const scheduleCurrentUserAccessRefresh = () => {
+  markFeatureAccessPending(true);
+  if (identityAccessRefreshTimer) {
+    clearTimeout(identityAccessRefreshTimer);
+  }
+  identityAccessRefreshTimer = setTimeout(() => {
+    identityAccessRefreshTimer = null;
+    void refreshCrossPageCurrentUserAccess();
+  }, 50);
+};
+
 const startCrossPageSettingsStore = () => {
   if (crossPageSettingsInitPromise) return crossPageSettingsInitPromise;
 
   crossPageSettingsInitPromise = (async () => {
-    await loadCrossPageSettings();
-    await loadCrossPageCurrentUser();
-
+    // 身份可能在初始化请求期间写入，因此监听必须先就位；监听触发时会立即
+    // 清空旧权限，新身份的 feature-access 返回前始终只开放基础功能。
     if (crossPageSettingsStarted) return;
     crossPageSettingsStarted = true;
 
@@ -451,11 +579,29 @@ const startCrossPageSettingsStore = () => {
 
     localStorageInstance.watch({
       ...handleStorageChange,
-      '@xhunt/initial-state-current-user': () => {
-        void loadCrossPageCurrentUser();
+      '@xhunt/initial-state-current-user': (change: {
+        oldValue?: unknown;
+        newValue?: unknown;
+      }) => {
+        if (
+          getStoredUserAccessIdentity(change.oldValue) ===
+          getStoredUserAccessIdentity(change.newValue)
+        ) {
+          return;
+        }
+        scheduleCurrentUserAccessRefresh();
       },
-      '@xhunt/current-username': () => {
-        void loadCrossPageCurrentUser();
+      '@xhunt/current-username': (change: {
+        oldValue?: unknown;
+        newValue?: unknown;
+      }) => {
+        if (
+          sanitizeUsername(String(change.oldValue || '')).toLowerCase() ===
+          sanitizeUsername(String(change.newValue || '')).toLowerCase()
+        ) {
+          return;
+        }
+        scheduleCurrentUserAccessRefresh();
       },
     });
 
@@ -477,6 +623,9 @@ const startCrossPageSettingsStore = () => {
         });
       },
     );
+
+    await loadCrossPageSettings();
+    await refreshCrossPageCurrentUserAccess();
   })();
 
   return crossPageSettingsInitPromise;
@@ -498,113 +647,66 @@ export const useCrossPageSettings = () => {
     };
   }, []);
 
-  const { settings, currentUsername, disableTesting } = snapshot;
+  const {
+    settings,
+    currentUsername,
+    disableTesting,
+    featureAccess,
+    featureAccessLoaded,
+  } = snapshot;
 
-  const isEnabled = (settingKey: string): boolean => {
-    const cfg: any = configManager.getConfig();
-
-    /** 没加载出来配置，并且不在基础feature里面的功能一律不展示 */
-    if (
-      (!cfg ||
-        !cfg?.testConfig ||
-        !cfg?.canaryConfig ||
-        !cfg?.flexibleTesting) &&
-      !BASE_SETTING_KEYS.includes(settingKey)
-    ) {
-      return false;
-    }
-    const { flexibleTesting } = cfg;
-    // 优先检查 flexibleTesting（优先级最高）
-    if (flexibleTesting && flexibleTesting[settingKey]) {
-      const allowedUsers = flexibleTesting[settingKey].map((u: string) =>
-        typeof u === 'string' ? u.toLowerCase() : u,
-      );
-      const uname =
-        typeof currentUsername === 'string'
-          ? currentUsername.toLowerCase()
-          : '';
-      // 如果功能在 flexibleTesting 中，直接展示给用户
-      if (uname && allowedUsers.includes(uname)) {
-        return settings.get(settingKey) ?? getDefaultSettingValue(settingKey);
+  const isAvailable = useCallback(
+    (settingKey: string): boolean => {
+      const isBaseFeature = BASE_SETTING_KEYS.includes(settingKey);
+      if (!featureAccessLoaded || !featureAccess) return isBaseFeature;
+      if (
+        !featureAccess.features ||
+        typeof featureAccess.features !== 'object'
+      ) {
+        return isBaseFeature;
       }
-      return false; // 用户没在列表中，不展示给用户
-    }
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          featureAccess.features,
+          settingKey,
+        )
+      ) {
+        // features 只包含受限制功能；缺少 key 表示该功能不受限制。
+        return true;
+      }
+      return featureAccess.features[settingKey] === true;
+    },
+    [featureAccess, featureAccessLoaded],
+  );
 
-    const testFeatures = cfg?.testConfig?.features || [];
-    if (testFeatures.includes(settingKey) && !isTesterFor(settingKey)) {
-      return false;
-    }
+  const isEnabled = useCallback(
+    (settingKey: string): boolean => {
+      if (isSettingForcedDisabled(settingKey)) return false;
+      if (!isAvailable(settingKey)) return false;
+      return settings.get(settingKey) ?? getDefaultSettingValue(settingKey);
+    },
+    [isAvailable, settings],
+  );
 
-    const canaryFeatures = cfg?.canaryConfig?.features || [];
-    if (canaryFeatures.includes(settingKey) && !isCanaryFor(settingKey)) {
-      return false;
-    }
+  const isTesterFor = useCallback(
+    (settingKey: string): boolean =>
+      featureAccess?.entitlements.internalTest === true &&
+      isAvailable(settingKey),
+    [featureAccess?.entitlements.internalTest, isAvailable],
+  );
 
-    return settings.get(settingKey) ?? getDefaultSettingValue(settingKey);
-  };
+  const isCanaryFor = useCallback(
+    (settingKey: string): boolean =>
+      featureAccess?.entitlements.canary === true && isAvailable(settingKey),
+    [featureAccess?.entitlements.canary, isAvailable],
+  );
 
-  const isTesterFor = (settingKey: string): boolean => {
-    const { testConfig } = configManager.getConfig(); //只和testConfig有关，与flexibleTesting和canaryConfig无关
-    /** 没加载出来配置，并且不在基础feature里面的功能一律不展示 */
-    if (!testConfig && !BASE_SETTING_KEYS.includes(settingKey)) {
-      return false;
-    }
-    const features = testConfig?.features || [];
-    const testers = (testConfig?.testers || []).map((u: string) =>
-      typeof u === 'string' ? u.toLowerCase() : u,
-    );
-    if (!features.includes(settingKey)) return false;
-    const uname =
-      typeof currentUsername === 'string' ? currentUsername.toLowerCase() : '';
-    const isTester = uname ? testers.includes(uname) : false;
-    return isTester;
-  };
+  const isCanaryUser = featureAccess?.entitlements.canary === true;
 
-  const isCanaryFor = (settingKey: string): boolean => {
-    const cfg: any = configManager.getConfig(); //只和canaryConfig有关，与testConfig和flexibleTesting无关
-    /** 没加载出来配置，并且不在基础feature里面的功能一律不展示 */
-    if (!cfg && !BASE_SETTING_KEYS.includes(settingKey)) {
-      return false;
-    }
-    const features = cfg?.canaryConfig?.features || [];
-    const canaries = (cfg?.canaryConfig?.canaries || []).map((u: string) =>
-      typeof u === 'string' ? u.toLowerCase() : u,
-    );
-    if (!features.includes(settingKey)) return false;
-    const uname =
-      typeof currentUsername === 'string' ? currentUsername.toLowerCase() : '';
-    const isCanary = uname ? canaries.includes(uname) : false;
-    return isCanary;
-  };
-
-  // Whether current user is in canaries list
-  const isCanaryUser = (() => {
-    const cfg: any = configManager.getConfig();
-    const canaries = (cfg?.canaryConfig?.canaries || []).map((u: string) =>
-      typeof u === 'string' ? u.toLowerCase() : u,
-    );
-    const uname =
-      typeof currentUsername === 'string' ? currentUsername.toLowerCase() : '';
-    return uname ? canaries.includes(uname) : false;
-  })();
-
-  // Whether current user is in testers list (ignores disableTesting)
-  const isTesterOnly = (() => {
-    const { testConfig } = configManager.getConfig();
-    const testers = (testConfig?.testers || []).map((u: string) =>
-      typeof u === 'string' ? u.toLowerCase() : u,
-    );
-    const uname =
-      typeof currentUsername === 'string' ? currentUsername.toLowerCase() : '';
-    return uname ? testers.includes(uname) : false;
-  })();
+  const isTesterOnly = featureAccess?.entitlements.internalTest === true;
 
   // Comma-joined testers list string for UI display
-  const testersListStr = (() => {
-    const { testConfig } = configManager.getConfig();
-    const testers = testConfig?.testers || [];
-    return testers.length ? testers.join(', ') : '-';
-  })();
+  const testersListStr = '-';
 
   const updateDisableTesting = async (value: boolean) => {
     setCrossPageSettingsSnapshot((prev) => ({
@@ -621,6 +723,7 @@ export const useCrossPageSettings = () => {
 
   return {
     isEnabled,
+    isAvailable,
     settings,
     isTesterFor,
     isCanaryFor,
@@ -629,5 +732,6 @@ export const useCrossPageSettings = () => {
     setDisableTesting: updateDisableTesting,
     isTesterOnly,
     testersListStr,
+    refreshFeatureAccess: loadCrossPageFeatureAccess,
   };
 };

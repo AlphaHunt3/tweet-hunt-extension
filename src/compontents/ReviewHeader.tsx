@@ -5,7 +5,7 @@ import { Avatar } from '~/compontents/UserAuthPanel.tsx';
 import { ReviewSection } from '~/compontents/ReviewSection.tsx';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { openNewTab } from '~contents/utils';
-import { useDebounceEffect, useLockFn } from 'ahooks';
+import { useLockFn } from 'ahooks';
 import ErrorBoundary from '~/compontents/ErrorBoundary.tsx';
 import TokenWordCloud from '~/compontents/TokenWordCloud.tsx';
 import { useI18n } from '~contents/hooks/i18n.ts';
@@ -18,7 +18,6 @@ interface ReviewHeaderProps {
   handler: string;
   refreshAsyncReviewInfo: () => Promise<ReviewStats | undefined>;
   refreshAsyncUserInfo: () => Promise<UserInfo | undefined>;
-  loadingReviewInfo: boolean;
 }
 
 export const getRatingColor = (rating: number) => {
@@ -34,7 +33,6 @@ function _ReviewHeader({
   handler,
   refreshAsyncReviewInfo,
   refreshAsyncUserInfo,
-  loadingReviewInfo,
 }: ReviewHeaderProps) {
   const [reviewOnlyKol] = useLocalStorage('@xhunt/reviewOnlyKol', true);
   const [token] = useLocalStorage('@xhunt/token', '');
@@ -43,7 +41,6 @@ function _ReviewHeader({
   const isLoggedIn = !!token;
   const targetRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<FloatingContainerRef>(null);
-  const [preHandler, setPreHandler] = useState('');
   const maxTgaShow = 5;
   const moreTagCount = (stats?.tagCloud?.length || 0) - maxTgaShow;
   const isShowMoreTag = moreTagCount > 0;
@@ -68,31 +65,6 @@ function _ReviewHeader({
     }
     return false;
   }, [user, handler]);
-
-  useDebounceEffect(
-    () => {
-      if (!loadingReviewInfo && handler) {
-        setPreHandler(handler);
-      }
-    },
-    [loadingReviewInfo, handler],
-    {
-      wait: 100,
-      maxWait: 300,
-      leading: true,
-    }
-  );
-
-  if (preHandler !== handler) {
-    return (
-      <div
-        style={{
-          display: 'contents',
-        }}
-        key={`${handler}-review-none`}
-      />
-    );
-  }
 
   return (
     <div

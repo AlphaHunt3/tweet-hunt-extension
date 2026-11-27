@@ -30,10 +30,8 @@ import {
   updateEvmAddresses,
 } from '~contents/services/review.ts';
 import { UserInfo } from '~types/review.ts';
-import { configManager } from '~utils/configManager.ts';
 import { useInterceptShortcuts } from '~contents/hooks/useInterceptShortcuts.ts';
 import { cleanErrorMessage } from '~utils/dataValidation';
-import { getCurrentUsername } from '~contents/utils/helpers.ts';
 import { avatarSkins } from '../../contents/constants/avatarSkins';
 import { useAvatarSkinState } from '~contents/hooks/useAvatarSkin';
 import { ApiAccessSection } from '~/compontents/ApiAccessSection';
@@ -82,7 +80,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const { skin: currentSkin, setSkinCustomized } = useAvatarSkinState();
   const { navigateTo } = useNavigation();
   const { settingStates, isLoading } = useAllSettings();
-  const { isCanaryUser, isEnabled } = useCrossPageSettings();
+  const { isAvailable } = useCrossPageSettings();
   // 本地缓存音频（单键存储）：{ url, data }
   const [sound, setSound, { isLoading: isSoundStoreLoading }] =
     useLocalStorage<{
@@ -242,32 +240,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setPanelWidthTemp(clampSnap(panelWidth));
   }, [panelWidth]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [currentUsername, setCurrentUsername] = useState<string>('');
-
-  useEffect(() => {
-    getCurrentUsername()
-      .then((name) => setCurrentUsername(name || ''))
-      .catch(() => setCurrentUsername(''));
-  }, []);
-
   // 分组设置配置
   const groupedSettings = useMemo(() => {
-    const cfg: any = configManager.getConfig();
-    const features: string[] =
-      (cfg && cfg.testConfig && cfg.testConfig.features) || [];
-    const testers: string[] =
-      (cfg && cfg.testConfig && cfg.testConfig.testers) || [];
-    const username = currentUsername || undefined;
-    const isTester = username ? testers.includes(username) : false;
-
-    const gated = new Set(features);
-    const shouldShow = (k: string) => {
-      if (!gated.has(k)) return true;
-      return isTester;
-    };
-
     const filterItems = (items: Array<{ key: string; label: string }>) =>
-      items.filter((it) => shouldShow(it.key));
+      items.filter((it) => isAvailable(it.key));
 
     const movedToWeb3Only = new Set([
       'show90dMention',
@@ -303,7 +279,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showHotVote', label: 'showHotVote' },
         { key: 'showFeatureSlot', label: 'showFeatureSlot' },
         { key: 'showHunterCampaign', label: 'showHunterCampaign' },
-        { key: 'showRealtimeSubscription', label: 'showRealtimeSubscription' },
         { key: 'enableBnbFeeds', label: 'enableBnbFeeds' },
         { key: 'enableGossip', label: 'enableGossip' },
         { key: 'enableListing', label: 'enableListing' },
@@ -338,7 +313,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { key: 'showAiDetectButton', label: 'showAiDetectButton' },
       ]),
     };
-  }, [currentUsername]);
+  }, [isAvailable]);
 
   // 分组展开状态管理
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
@@ -447,6 +422,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       const PRESERVED_KEYS = [
         '@xhunt/user-domain-preference',
         '@xhunt/user-domain-setup-completed',
+        '@xhunt/user-domain-selection-confirmed',
         '@xhunt/domain-setup-visible',
       ];
       const preserved: Record<string, any> = {};
@@ -511,12 +487,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setting.key === 'enableBnbFeeds' ||
       setting.key === 'enableGossip' ||
       setting.key === 'enableListing';
+    const isRealtimeSubscription = setting.key === 'showRealtimeSubscription';
     if (isSubOption && !settingStates.showRealtimeSubscription.get) {
       return null;
     }
 
     // 特殊处理BNB Feeds、Gossip和Listing的限制逻辑
     const handleChange = (checked: boolean) => {
+      // 实时订阅暂时只允许关闭；一旦关闭，不允许在设置中重新开启。
+      if (isRealtimeSubscription && checked) return;
+
       if (
         setting.key === 'enableBnbFeeds' ||
         setting.key === 'enableGossip' ||
@@ -572,9 +552,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         return false;
       })();
 
-    // 是否为"显示实时订阅"设置项
-    const isRealtimeSubscription = setting.key === 'showRealtimeSubscription';
-
     return (
       <div
         key={setting.key}
@@ -605,13 +582,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </span>
           )}
         </span>
-        <label className={`relative inline-flex items-center shrink-0`}>
+        <label
+          className={`relative inline-flex items-center shrink-0 ${
+            isRealtimeSubscription && !state.get
+              ? 'cursor-not-allowed opacity-60'
+              : ''
+          }`}
+        >
           <input
             type='checkbox'
             data-xhunt-testid={`settings-toggle-${setting.key}`}
             className='sr-only peer'
             checked={state.get}
-            disabled={isLastEnabled || groupDisabled}
+            disabled={
+              isLastEnabled ||
+              groupDisabled ||
+              (isRealtimeSubscription && !state.get)
+            }
             onChange={(e) => handleChange(e.target.checked)}
           />
           {isSubOption ? (
@@ -1291,8 +1278,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </div>
               <div className='h-2' />
 
-              {/* EVM 地址绑定 - 仅登录时显示 */}
-              {token && (
+              {/* 之后的活动全部在 echohunt 这里不需要了 */}
+              {Boolean(false) && token && (
                 <div className='theme-bg-tertiary/70 ml-1 mr-1 rounded-xl mb-2 overflow-hidden'>
                   {/* 分组标题 */}
                   <div className='flex items-center justify-between py-2 px-3'>

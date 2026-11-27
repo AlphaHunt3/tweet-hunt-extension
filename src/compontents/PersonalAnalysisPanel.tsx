@@ -31,7 +31,6 @@ import { localStorageInstance } from '~storage/index.ts';
 import { useCrossPageSettings } from '~utils/settingsManager';
 import { CloseConfirmDialog } from './CloseConfirmDialog';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
-import { ProRequired } from './ProRequired';
 import { StoredUserInfo } from '~types/review.ts';
 import { isLegacyUserActive } from '~/utils/legacyUserCheck.ts';
 
@@ -40,6 +39,13 @@ export interface PersonalAnalysisPanelProps {
   newTwitterData: any;
   loadingTwInfo: boolean;
   className?: string;
+}
+
+// ahooks 会在 refreshDeps 变化时保留上一轮 data；携带请求身份，确保旧用户
+// 的结果即使仍在 state 中，也不会参与当前用户的计数或列表渲染。
+interface ScopedRequestResult<T> {
+  key: string;
+  data: T;
 }
 
 export function PersonalAnalysisPanel({
@@ -62,6 +68,7 @@ export function PersonalAnalysisPanel({
   const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
   const ghostButtonRef = useRef<HTMLButtonElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
+  const stableContentHeightRef = useRef(240);
 
   const redirectToLogin = useLockFn(async () => {
     try {
@@ -79,7 +86,6 @@ export function PersonalAnalysisPanel({
     if (!currentUsername || !userId) return false;
     return currentUsername.toLowerCase() === userId.toLowerCase();
   }, [currentUsername, userId]);
-  // const isPro = (userObj?.isPro ?? false) || isLegacyUser;
   const [activeTab, setActiveTab] = useState<
     | 'follows'
     | 'followers'
@@ -97,26 +103,49 @@ export function PersonalAnalysisPanel({
   const [hasInteractionRankData, setHasInteractionRankData] = useState(false);
 
   const placementCtx = usePlacementTrackingContext();
+  const hookUrlUid = placementCtx?.urlUid || '';
   const hookUsername = placementCtx?.handler || '';
+  // URL 是 SPA 切换时最先且只变化一次的身份来源；DOM/Schema 的 handler 会
+  // 分阶段到达，不能用来驱动整块面板重复进入过渡态。
+  const profileRequestKey = (hookUrlUid || hookUsername).toLocaleLowerCase();
   const hookName = placementCtx?.displayName || '';
   const hookAvatar = placementCtx?.avatar || '';
   const hookLoading = placementCtx?.loading || false;
   const twitterId = placementCtx?.twitterId;
   const isEmptyState = placementCtx?.isEmptyState || false;
+  // SPA 切换时 newTwitterData 可能短暂保留旧用户，只允许用户名匹配的数据参与兜底。
+  const apiUserMatchesHook =
+    Boolean(hookUsername) &&
+    String(newTwitterData?.username || '').toLocaleLowerCase() ===
+      hookUsername.toLocaleLowerCase();
   const domUserInfo = useMemo(
     () =>
       hookUsername
         ? {
           username: hookUsername,
-          name: hookName,
-          avatar: hookAvatar,
+          name:
+            hookName ||
+            (apiUserMatchesHook ? newTwitterData?.name || '' : '') ||
+            hookUsername,
+          avatar:
+            hookAvatar ||
+            (apiUserMatchesHook
+              ? newTwitterData?.profile?.profile_image_url || ''
+              : ''),
           source: 'data-testid' as const,
         }
         : null,
-    [hookUsername, hookName, hookAvatar]
+    [
+      apiUserMatchesHook,
+      hookUsername,
+      hookName,
+      hookAvatar,
+      newTwitterData?.name,
+      newTwitterData?.profile?.profile_image_url,
+    ]
   );
   const domUserInfoLoading = hookLoading;
-  const domUserInfoKey = domUserInfo?.username || '';
+  const domUserInfoKey = profileRequestKey;
   const [isDomUserInfoSettling, setIsDomUserInfoSettling] = useState(false);
 
   useEffect(() => {
@@ -144,65 +173,139 @@ export function PersonalAnalysisPanel({
   }, [currentUrl]);
 
   // Fetch data to get counts
-  const { data: followRelationData, loading: loadingFollowRelation } =
-    useRequest<
-      FollowRelationData | undefined,
-      []
-    >(() => fetchFollowRelation(twitterId), {
-      refreshDeps: [twitterId],
+  const { data: followRelationResult } = useRequest<
+    ScopedRequestResult<FollowRelationData | undefined> | undefined,
+    []
+  >(
+    async () => {
+      const requestTwitterId = twitterId;
+      const requestProfileKey = profileRequestKey;
+      if (!requestTwitterId || !requestProfileKey) return undefined;
+      return {
+        key: requestProfileKey,
+        data: await fetchFollowRelation(requestTwitterId),
+      };
+    },
+    {
+      // 新版 X 的 twitterId 会晚于 URL 到达；ID 未准备好时不能发空参数请求。
+      ready: !!twitterId && !!profileRequestKey,
+      refreshDeps: [twitterId, profileRequestKey],
       debounceWait: 300,
-    });
+    },
+  );
+  const isFollowRelationCurrent =
+    Boolean(profileRequestKey) &&
+    followRelationResult?.key === profileRequestKey;
+  const followRelationData = isFollowRelationCurrent
+    ? followRelationResult?.data
+    : undefined;
+  // 同一用户的后台刷新继续展示已归属当前身份的数据；只有身份不匹配时才
+  // 回到 loading，保证一次切换严格保持 loading → ready 的单向过渡。
+  const loadingFollowRelation =
+    Boolean(profileRequestKey) &&
+    (hookLoading || (Boolean(twitterId) && !isFollowRelationCurrent));
 
   // Fetch unfollow relation data
-  const { data: unfollowRelationData, loading: loadingUnfollowRelation } =
-    useRequest(
-      () =>
-        twitterId
-          ? fetchUnfollowRelation(twitterId, 30, 0)
-          : Promise.resolve(undefined),
-      {
-        ready: !!twitterId,
-        refreshDeps: [twitterId],
-        debounceWait: 300,
-      }
-    );
+  const { data: unfollowRelationResult } = useRequest(
+    async () => {
+      const requestTwitterId = twitterId;
+      const requestProfileKey = profileRequestKey;
+      if (!requestTwitterId || !requestProfileKey) return undefined;
+      return {
+        key: requestProfileKey,
+        data: await fetchUnfollowRelation(requestTwitterId, 30, 0),
+      } satisfies ScopedRequestResult<
+        Awaited<ReturnType<typeof fetchUnfollowRelation>>
+      >;
+    },
+    {
+      ready: !!twitterId && !!profileRequestKey,
+      refreshDeps: [twitterId, profileRequestKey],
+      debounceWait: 300,
+    },
+  );
+  const isUnfollowRelationCurrent =
+    Boolean(profileRequestKey) &&
+    unfollowRelationResult?.key === profileRequestKey;
+  const unfollowRelationData = isUnfollowRelationCurrent
+    ? unfollowRelationResult?.data
+    : undefined;
+  const loadingUnfollowRelation =
+    Boolean(profileRequestKey) &&
+    (hookLoading || (Boolean(twitterId) && !isUnfollowRelationCurrent));
 
   // Fetch historical tweets when tab is active
-  const { data: historicalTweets, loading: loadingHistoricalTweets } =
-    useRequest(
-      () =>
-        twitterId
-          ? fetchHistoricalTweets(twitterId, 20, 0)
-          : Promise.resolve(undefined),
-      {
-        ready: activeTab === 'deletedTweets' && !!twitterId,
-        refreshDeps: [activeTab, twitterId],
-        debounceWait: 300,
-      }
-    );
+  const { data: historicalTweetsResult } = useRequest(
+    async () => {
+      const requestTwitterId = twitterId;
+      const requestProfileKey = profileRequestKey;
+      if (!requestTwitterId || !requestProfileKey) return undefined;
+      return {
+        key: requestProfileKey,
+        data: await fetchHistoricalTweets(requestTwitterId, 20, 0),
+      } satisfies ScopedRequestResult<
+        Awaited<ReturnType<typeof fetchHistoricalTweets>>
+      >;
+    },
+    {
+      ready:
+        activeTab === 'deletedTweets' && !!twitterId && !!profileRequestKey,
+      refreshDeps: [activeTab, twitterId, profileRequestKey],
+      debounceWait: 300,
+    },
+  );
+  const isHistoricalTweetsCurrent =
+    Boolean(profileRequestKey) &&
+    historicalTweetsResult?.key === profileRequestKey;
+  const historicalTweets = isHistoricalTweetsCurrent
+    ? historicalTweetsResult?.data
+    : undefined;
+  const loadingHistoricalTweets =
+    activeTab === 'deletedTweets' &&
+    Boolean(profileRequestKey) &&
+    (hookLoading || (Boolean(twitterId) && !isHistoricalTweetsCurrent));
 
   // Fetch interaction rank data - always fetch to check if data exists (for tab visibility)
   // Use 7 days for initial check, then use interactionRankDays when tab is active
   const daysToFetch =
     activeTab === 'interactionRank' ? interactionRankDays : '7';
-  const { data: interactionRankData, loading: loadingInteractionRank } =
-    useRequest(
-      () =>
-        twitterId
-          ? fetchFansRank(twitterId, daysToFetch)
-          : Promise.resolve(undefined),
-      {
-        ready: !!twitterId,
-        refreshDeps: [twitterId, daysToFetch],
-        debounceWait: 300,
-      }
-    );
+  const interactionRankRequestKey = profileRequestKey
+    ? `${profileRequestKey}:${daysToFetch}`
+    : '';
+  const { data: interactionRankResult } = useRequest(
+    async () => {
+      const requestTwitterId = twitterId;
+      const requestProfileKey = profileRequestKey;
+      const requestDays = daysToFetch;
+      if (!requestTwitterId || !requestProfileKey) return undefined;
+      return {
+        key: `${requestProfileKey}:${requestDays}`,
+        data: await fetchFansRank(requestTwitterId, requestDays),
+      } satisfies ScopedRequestResult<
+        Awaited<ReturnType<typeof fetchFansRank>>
+      >;
+    },
+    {
+      ready: !!twitterId && !!profileRequestKey,
+      refreshDeps: [twitterId, profileRequestKey, daysToFetch],
+      debounceWait: 300,
+    },
+  );
+  const isInteractionRankCurrent =
+    Boolean(interactionRankRequestKey) &&
+    interactionRankResult?.key === interactionRankRequestKey;
+  const interactionRankData = isInteractionRankCurrent
+    ? interactionRankResult?.data
+    : undefined;
+  const loadingInteractionRank =
+    Boolean(interactionRankRequestKey) &&
+    (hookLoading || (Boolean(twitterId) && !isInteractionRankCurrent));
 
   // Reset hasInteractionRankData and interactionRankDays when username changes
   useEffect(() => {
     setHasInteractionRankData(false);
     setInteractionRankDays('7');
-  }, [domUserInfo?.username]);
+  }, [profileRequestKey]);
 
   // Track if we've ever had interaction rank data
   useEffect(() => {
@@ -278,7 +381,6 @@ export function PersonalAnalysisPanel({
       vip_masked: unfollowRelationData?.vipMasked,
       masked_unfollowing_count: maskedUnfollowingCount,
       masked_unfollowed_count: maskedUnfollowedCount,
-      vip_cta: unfollowRelationData?.vipCta,
     };
   }, [
     followRelationData,
@@ -360,8 +462,6 @@ export function PersonalAnalysisPanel({
     domUserInfoLoading ||
     loadingFollowRelation ||
     loadingUnfollowRelation ||
-    loadingTwInfo ||
-    loadingInteractionRank ||
     isDomUserInfoSettling;
 
   const rawContentLoading = useMemo(() => {
@@ -393,6 +493,21 @@ export function PersonalAnalysisPanel({
     loadingUnfollowRelation,
   ]);
   const isContentLoading = rawContentLoading;
+
+  useEffect(() => {
+    const contentElement = contentScrollRef.current;
+    if (isContentLoading || !contentElement) return;
+
+    // ResizeObserver 在浏览器完成布局后提供尺寸，避免每次 React render 都用
+    // getBoundingClientRect 强制同步回流；loading 时停止采样，保留上一帧高度。
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const height = entry?.contentRect.height || 0;
+      if (height > 0) stableContentHeightRef.current = height;
+    });
+    resizeObserver.observe(contentElement);
+
+    return () => resizeObserver.disconnect();
+  }, [activeTab, isContentLoading, profileRequestKey]);
 
   // 检查用户分析是否启用
   if (!isEnabled('showSearchPanel')) {
@@ -551,6 +666,11 @@ export function PersonalAnalysisPanel({
         ref={contentScrollRef}
         className={`relative max-h-[340px] overflow-y-auto custom-scrollbar ${isContentLoading ? 'xhunt-personal-analysis-content-loading' : ''
           }`}
+        style={
+          isContentLoading
+            ? { minHeight: `${stableContentHeightRef.current}px` }
+            : undefined
+        }
       >
         <div>
           {activeTab === 'follows' && (
@@ -558,7 +678,7 @@ export function PersonalAnalysisPanel({
               userId={userId}
               type='following'
               followRelationData={followRelationData}
-              isPro={true}
+              loading={loadingFollowRelation}
             />
           )}
 
@@ -567,7 +687,7 @@ export function PersonalAnalysisPanel({
               userId={userId}
               type='followers'
               followRelationData={followRelationData}
-              isPro={true}
+              loading={loadingFollowRelation}
             />
           )}
 
@@ -575,40 +695,26 @@ export function PersonalAnalysisPanel({
             <UnfollowInfoPanel
               userId={userId}
               followRelationData={mergedUnfollowData}
-              isPro={isUnfollowVip}
               isVip={isUnfollowVip}
               maskedUnfollowingCount={maskedUnfollowingCount}
               maskedUnfollowedCount={maskedUnfollowedCount}
-              vipCta={unfollowRelationData?.vipCta}
             />
           )}
 
           {activeTab === 'profile' && (
-            <ProRequired
-              showInCenter={true}
-              enableAnimation={false}
-              showExtraTitle={true}
-            >
-              <ProfileChangesPanel
-                userId={userId}
-                profileHistoryData={newTwitterData}
-                loading={loadingTwInfo}
-              />
-            </ProRequired>
+            <ProfileChangesPanel
+              userId={userId}
+              profileHistoryData={newTwitterData}
+              loading={loadingTwInfo}
+            />
           )}
 
           {activeTab === 'deletedTweets' && (
-            <ProRequired
-              showInCenter={true}
-              enableAnimation={false}
-              showExtraTitle={true}
-            >
-              <DeletedTweetsSection
-                deletedTweets={enrichedHistoricalTweets}
-                loadingDel={loadingHistoricalTweets}
-                isHoverPanel={true}
-              />
-            </ProRequired>
+            <DeletedTweetsSection
+              deletedTweets={enrichedHistoricalTweets}
+              loadingDel={loadingHistoricalTweets}
+              isHoverPanel={true}
+            />
           )}
 
           {activeTab === 'interactionRank' && (

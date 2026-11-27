@@ -8,6 +8,9 @@ export const SOCIAL_CIRCLE_INNER_RADIUS = 230;
 export const SOCIAL_CIRCLE_OUTER_RADIUS = 410;
 
 export type SocialCircleScoreTier = 'large' | 'medium' | 'small';
+export type SocialCircleRankMap = Record<string, number>;
+export type SocialCircleRankMode = 'web3' | 'ai';
+export type SocialCircleRankTier = 'gold' | 'silver' | 'bronze' | 'plain';
 
 export interface SocialCircleLayoutNode {
   item: KolInteractionItem;
@@ -94,4 +97,34 @@ export const getSafeUsername = (username?: string | null): string => {
     .trim()
     .replace(/^@+/, '');
   return /^[A-Za-z0-9_]{1,15}$/.test(normalized) ? normalized : '';
+};
+
+export const getSocialCircleRank = (
+  ranks: SocialCircleRankMap,
+  username?: string | null,
+): number | undefined => {
+  const safeUsername = getSafeUsername(username);
+  if (!safeUsername) return undefined;
+  const rank = ranks[safeUsername.toLowerCase()];
+  return Number.isFinite(rank) && rank > 0 ? rank : undefined;
+};
+
+export const getSocialCircleRankDisplay = (
+  rank: number,
+  mode: SocialCircleRankMode,
+) => {
+  const tier: SocialCircleRankTier =
+    rank < 2000
+      ? 'gold'
+      : rank < 10000
+        ? 'silver'
+        : rank < 100000
+          ? 'bronze'
+          : 'plain';
+
+  return {
+    icon: tier === 'plain' ? '#' : mode === 'ai' ? '🏅' : '🏆',
+    value: rank.toLocaleString('en-US'),
+    tier,
+  };
 };

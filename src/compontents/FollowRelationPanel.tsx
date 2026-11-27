@@ -7,7 +7,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { formatRank } from '~js/utils.ts';
 import { rankService } from '~/utils/rankService';
-import { ProPanel } from './ProPanel.tsx';
 import AvatarRankBadge from './AvatarRankBadge.tsx';
 import { navigateInX } from '~contents/utils/navigateInX';
 
@@ -17,14 +16,15 @@ interface FollowRelationPanelProps {
   userId: string;
   type: 'following' | 'followers' | 'unfollowing';
   followRelationData?: FollowRelationData;
-  isPro?: boolean;
+  // data 为空既可能是“请求中”，也可能是“请求结束但无数据”，必须由父组件明确区分。
+  loading?: boolean;
 }
 
 export function FollowRelationPanel({
   userId,
   type,
   followRelationData,
-  isPro = false,
+  loading = false,
 }: FollowRelationPanelProps) {
   const { t } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -82,7 +82,6 @@ export function FollowRelationPanel({
 
   // Use passed data instead of fetching
   const data = followRelationData;
-  const loading = !data;
   const error = null;
 
   if (loading) {
@@ -131,27 +130,9 @@ export function FollowRelationPanel({
     );
   }
 
-  const BLUR_COUNT = 5; // 需要遮挡的前几条数据
-  const hasBlurredItems = !isPro && actions.length > 0;
-
   return (
     <div className='space-y-2 py-2 relative'>
-      {/* 如果不是 Pro 且有至少 5 条数据，显示一条 ProPanel */}
-      {hasBlurredItems && (
-        <div className='mb-2'>
-          <ProPanel
-            isPro={false}
-            show={true}
-            className='border border-gray-200 dark:border-gray-800 rounded-md'
-            enableAnimation={false}
-            showExtraTitle={t('proRequiredViewFirst5')}
-            showBenefits={false}
-          />
-        </div>
-      )}
-
-      {/* 渲染数据：如果不是 Pro，跳过前 5 条；如果是 Pro，显示所有数据 */}
-      {actions.map((action, index) => {
+      {actions.map((action) => {
         const targetId =
           type === 'following'
             ? action.following_id
@@ -161,11 +142,6 @@ export function FollowRelationPanel({
         const user = data.twitter_users[targetId];
 
         if (!user) return null;
-
-        // 如果不是 Pro 且是前 5 条，跳过不渲染
-        if (!isPro && index < BLUR_COUNT) {
-          return null;
-        }
 
         const username = user.username_raw;
         const userRank = userRanks[username] || -1;

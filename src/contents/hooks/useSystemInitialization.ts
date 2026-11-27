@@ -21,8 +21,9 @@ export interface SystemInitializationStats {
  * 包括：配置管理器、可见性管理器、官方标签管理器、消息管理器等
  */
 export function useSystemInitialization() {
-  // 等待页面主要内容加载完成后再初始化
-  const mainElement = useWaitForElement('main[role]', [], 10000);
+  // 新版 X 的 main 不再保证带 role；使用语义标签本身兼容新旧版，
+  // 否则系统初始化不会启动，远程配置会永久停留在默认值。
+  const mainElement = useWaitForElement('main', [], 10000);
   const isInitializedRef = useRef(false);
   const [username] = useLocalStorage('@xhunt/current-username', '');
   // const userNameRef = useLatest(username);

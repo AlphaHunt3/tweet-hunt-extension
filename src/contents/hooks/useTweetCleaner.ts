@@ -23,10 +23,16 @@ import type { CleanerMode } from '~contents/utils/cleaner/types';
 import { isCleanerIgnoredUrl, isNotificationInteractionOnOwnPost } from '~contents/utils/cleaner/urlFilter';
 import { kolFollowerCacheManager } from '~contents/utils/cleaner/kolFollowerCacheManager';
 import { kolFollowerBatchService } from '~contents/utils/cleaner/kolFollowerBatchService';
-const TWEET_SELECTOR = 'article[data-testid="tweet"], article[role="article"], article';
+import {
+  resolveTweetCards,
+  resolveTweetDom,
+} from '~contents/utils/xDomAdapter';
 
 // 从推文节点中提取作者真实 handle（优先从作者个人链接与独立 handle 容器提取，避免 DisplayName 内夹带 @ 误识别）
 const extractTweetHandle = (article: HTMLElement): string => {
+  const resolved = resolveTweetDom(article);
+  if (resolved?.handler) return resolved.handler;
+
   const userNameEl = article.querySelector(
     "div[data-testid='User-Name'], div[data-testid='UserName']"
   );
@@ -85,7 +91,11 @@ interface TweetAuthorInfo {
 }
 
 const extractTweetAuthor = (article: HTMLElement): TweetAuthorInfo => {
-  const handle = extractTweetHandle(article);
+  const resolved = resolveTweetDom(article);
+  const handle = resolved?.handler || extractTweetHandle(article);
+  if (resolved?.authorNameHost) {
+    return { handle, name: resolved.displayName };
+  }
   const userNameEl = article.querySelector(
     "div[data-testid='User-Name'], div[data-testid='UserName']"
   );
@@ -256,9 +266,8 @@ function EnabledTweetCleaner({
       if (!enabledRef.current || isCleanerIgnoredUrl(window.location.href)) return;
 
       // 提取作者 handle 与名字
-      const userNameEl = article.querySelector(
-        "div[data-testid='User-Name'], div[data-testid='UserName']"
-      );
+      const tweetDom = resolveTweetDom(article);
+      if (!tweetDom) return;
       const { handle, name } = extractTweetAuthor(article);
 
       // 免死白名单校验
@@ -281,9 +290,11 @@ function EnabledTweetCleaner({
       // 2. 若作者名字未命中，再检测推文正文内容
       if (!detectResult.matched) {
         // 提取正文文本（兼容多段文本、引用推文及不同标签形态）
-        const textEls = article.querySelectorAll<HTMLElement>(
-          "[data-testid='tweetText']"
-        );
+        const textEls = tweetDom.textHost
+          ? [tweetDom.textHost]
+          : Array.from(
+            article.querySelectorAll<HTMLElement>("[data-testid='tweetText']"),
+          );
         if (textEls.length === 0) return;
 
         const texts: string[] = [];
@@ -349,9 +360,11 @@ function EnabledTweetCleaner({
         // 记录被拦截的账号信息（加入名单列表供用户查看与手动屏蔽）
         if (handle) {
           let avatar = '';
-          const avatarImg = article.querySelector<HTMLImageElement>(
-            "div[data-testid='Tweet-User-Avatar'] img, [data-testid='avatar'] img"
-          );
+          const avatarImg =
+            tweetDom.avatarImg ||
+            article.querySelector<HTMLImageElement>(
+              "div[data-testid='Tweet-User-Avatar'] img, [data-testid='avatar'] img",
+            );
           if (avatarImg?.src) {
             avatar = avatarImg.src;
           }
@@ -526,10 +539,7 @@ function EnabledTweetCleaner({
   useEffect(() => {
     if (isCleanerIgnoredUrl(currentUrl)) return;
     // 全量扫描当前已渲染的推文
-    const tweetArticles = document.querySelectorAll<HTMLElement>(TWEET_SELECTOR);
-    tweetArticles.forEach((article) => {
-      inspectArticle(article);
-    });
+    resolveTweetCards().forEach(({ article }) => inspectArticle(article));
   }, [effectiveMode, whitelist, customKeywords, inspectArticle, currentUrl]);
 
   // 订阅 DOM Mutation
@@ -558,21 +568,23 @@ function EnabledTweetCleaner({
               ? mutation.target
               : mutation.target.parentElement;
           if (targetEl) {
-            const host = targetEl.closest(TWEET_SELECTOR);
-            if (host instanceof HTMLElement) {
+            const host = targetEl.closest<HTMLElement>('article');
+            if (host && resolveTweetDom(host)) {
               affectedArticles.add(host);
             }
           }
           mutation.addedNodes.forEach((node) => {
             if (!(node instanceof HTMLElement)) return;
             // 新增节点本身是推文
-            if (node.matches(TWEET_SELECTOR)) {
+            if (node.matches('article') && resolveTweetDom(node)) {
               affectedArticles.add(node);
             }
             // 新增节点内部包含的推文（如整条推文单元格挂载）
             node
-              .querySelectorAll<HTMLElement>(TWEET_SELECTOR)
-              .forEach((article) => affectedArticles.add(article));
+              .querySelectorAll<HTMLElement>('article')
+              .forEach((article) => {
+                if (resolveTweetDom(article)) affectedArticles.add(article);
+              });
           });
         }
 

@@ -1,17 +1,21 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { X, Send, Pause, Trash2, Copy, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import cssText from 'data-text:~/css/style.css';
+
 import {
   FloatingContainer,
   FloatingContainerRef,
 } from '~/compontents/FloatingContainer';
-import { X, Send, Pause, Trash2, Copy, Check } from 'lucide-react';
+import { useGlobalMutationObserver } from '~contents/hooks/useGlobalMutationObserver';
 import { fetchKolChat } from '~/contents/services/api';
-
 import { chatHistoryManager } from '~/storage/chatHistoryManager';
 import { ChatMessage } from '~/types';
 import type { StoredUserInfo } from '~types/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import { acquireOverlayInteractionLock } from '~utils/overlayInteractionLock';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
 // 简单的Markdown处理函数
 const simpleMarkdownToHtml = (text: string): string => {
@@ -103,6 +107,96 @@ export interface AiChatDetail {
   perspectiveName?: string;
 }
 
+const AI_CHAT_SHADOW_HOST_ID = 'xhunt-ai-chat-shadow-host';
+const AI_CHAT_PORTAL_HOST_ID = 'xhunt-ai-chat-portal-host';
+
+const placeAiChatHost = (shadowHost: HTMLElement) => {
+  if (document.body?.parentNode) {
+    if (shadowHost.nextElementSibling !== document.body) {
+      document.body.parentNode.insertBefore(shadowHost, document.body);
+    }
+    return;
+  }
+  if (!shadowHost.isConnected) document.documentElement.appendChild(shadowHost);
+};
+
+const getOrCreateAiChatPortalHost = (): HTMLElement | null => {
+  if (typeof document === 'undefined') return null;
+
+  let shadowHost = document.getElementById(
+    AI_CHAT_SHADOW_HOST_ID,
+  ) as HTMLElement | null;
+  if (!shadowHost) {
+    shadowHost = document.createElement('div');
+    shadowHost.id = AI_CHAT_SHADOW_HOST_ID;
+    shadowHost.style.cssText =
+      'position:fixed;inset:0;width:0;height:0;z-index:2147483647;pointer-events:none;overflow:visible;';
+    shadowHost.setAttribute('translate', 'no');
+    shadowHost.classList.add('notranslate');
+    placeAiChatHost(shadowHost);
+
+    const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = cssText;
+    shadowRoot.appendChild(style);
+
+    const portalHost = document.createElement('div');
+    portalHost.id = AI_CHAT_PORTAL_HOST_ID;
+    portalHost.style.cssText =
+      'position:fixed;inset:0;pointer-events:none;overflow:visible;';
+    portalHost.setAttribute('translate', 'no');
+    portalHost.classList.add('notranslate');
+    shadowRoot.appendChild(portalHost);
+    return portalHost;
+  }
+
+  placeAiChatHost(shadowHost);
+  const shadowRoot = shadowHost.shadowRoot;
+  if (!shadowRoot) {
+    shadowHost.remove();
+    return getOrCreateAiChatPortalHost();
+  }
+
+  let portalHost = shadowRoot.getElementById(
+    AI_CHAT_PORTAL_HOST_ID,
+  ) as HTMLElement | null;
+  if (!portalHost) {
+    portalHost = document.createElement('div');
+    portalHost.id = AI_CHAT_PORTAL_HOST_ID;
+    portalHost.style.cssText =
+      'position:fixed;inset:0;pointer-events:none;overflow:visible;';
+    portalHost.setAttribute('translate', 'no');
+    portalHost.classList.add('notranslate');
+    shadowRoot.appendChild(portalHost);
+  }
+  return portalHost;
+};
+
+const useAiChatPortalHost = (isOpen: boolean) => {
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) setPortalHost(getOrCreateAiChatPortalHost());
+  }, [isOpen]);
+
+  useGlobalMutationObserver(
+    () => {
+      if (!isOpen || portalHost?.isConnected) return;
+      setPortalHost(getOrCreateAiChatPortalHost());
+    },
+    { childList: true, subtree: false },
+    {
+      filter: (mutation) =>
+        isOpen &&
+        mutation.target === document.documentElement &&
+        !portalHost?.isConnected,
+    },
+    [isOpen, portalHost],
+  );
+
+  return portalHost;
+};
+
 export function KolAiChatDialog() {
   const { t, lang } = useI18n();
   const { displayName, avatar } = usePlacementTracking();
@@ -111,6 +205,8 @@ export function KolAiChatDialog() {
   const [perspectiveName, setPerspectiveName] = useState<string>('');
   const targetRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<FloatingContainerRef>(null);
+  const releaseInteractionLockRef = useRef<(() => void) | null>(null);
+  const previousBodyOverflowRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isResponding, setIsResponding] = useState(false);
@@ -138,17 +234,32 @@ export function KolAiChatDialog() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastScrollTimeRef = useRef<number>(0); // 上次滚动时间，用于节流
   const sessionIdRef = useRef<number>(0);
+  const portalHost = useAiChatPortalHost(Boolean(chatDetail));
+  const [theme] = useLocalStorage<'light' | 'dark'>('@xhunt/theme', 'dark');
+
+  useEffect(() => {
+    if (portalHost) portalHost.dataset.theme = theme;
+  }, [portalHost, theme]);
 
   // 添加禁止滚动的函数
   const disableBodyScroll = useCallback(() => {
     const body = document.body;
+    if (previousBodyOverflowRef.current === null) {
+      previousBodyOverflowRef.current = body.style.overflow;
+    }
     body.style.overflow = 'hidden';
   }, []);
 
   // 恢复滚动的函数
   const enableBodyScroll = useCallback(() => {
-    const body = document.body;
-    body.style.overflow = '';
+    if (previousBodyOverflowRef.current === null) return;
+    document.body.style.overflow = previousBodyOverflowRef.current;
+    previousBodyOverflowRef.current = null;
+  }, []);
+
+  const releaseInteractionLock = useCallback(() => {
+    releaseInteractionLockRef.current?.();
+    releaseInteractionLockRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -306,12 +417,15 @@ export function KolAiChatDialog() {
 
   // 监听 chatDetail 变化，确保状态更新后再显示
   useEffect(() => {
-    if (chatDetail && targetRef.current) {
+    if (chatDetail && targetRef.current && portalHost) {
+      if (!releaseInteractionLockRef.current) {
+        releaseInteractionLockRef.current = acquireOverlayInteractionLock();
+      }
       containerRef.current?.show();
       // 弹框显示时禁止页面滚动
       disableBodyScroll();
     }
-  }, [chatDetail, disableBodyScroll]);
+  }, [chatDetail, portalHost, disableBodyScroll]);
 
   const resetChatState = useCallback(() => {
     setIsResponding(false);
@@ -340,11 +454,12 @@ export function KolAiChatDialog() {
     resetChatState();
     // 恢复页面滚动
     enableBodyScroll();
+    releaseInteractionLock();
     // 清理状态
     setChatDetail(null);
     setMessages([]);
     setCopiedMessageIndex(null);
-  }, [resetChatState, enableBodyScroll]);
+  }, [resetChatState, enableBodyScroll, releaseInteractionLock]);
 
   useEffect(() => {
     const eventHandler = (event: Event) => {
@@ -359,15 +474,25 @@ export function KolAiChatDialog() {
     };
   }, [handleChatEvent]);
 
-  const handleClose = useCallback(async () => {
-    sessionIdRef.current = 0;
-    resetChatState();
-
+  const handleClose = useCallback(() => {
     containerRef.current?.hide();
-    setChatDetail(null);
-    setMessages([]);
-    setCopiedMessageIndex(null);
-  }, [resetChatState]);
+    handleContainerClose();
+  }, [handleContainerClose]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      if (typingTimerRef.current) {
+        if (isAnimationFrameRef.current) {
+          window.cancelAnimationFrame(typingTimerRef.current);
+        } else {
+          window.clearTimeout(typingTimerRef.current);
+        }
+      }
+      enableBodyScroll();
+      releaseInteractionLock();
+    };
+  }, [enableBodyScroll, releaseInteractionLock]);
 
   // 内容过滤函数
   const filterInputContent = (content: string): string => {
@@ -655,7 +780,9 @@ export function KolAiChatDialog() {
     setTimeout(() => scrollToBottom(), 100);
   };
 
-  return (
+  if (!portalHost) return null;
+
+  return createPortal(
     <FloatingContainer
       ref={containerRef}
       targetRef={targetRef}
@@ -668,6 +795,7 @@ export function KolAiChatDialog() {
       onClose={handleContainerClose}
     >
       <div
+        data-theme={theme}
         data-xhunt-testid='kol-ai-chat-dialog'
         className='lato-font w-[680px] h-[550px] flex flex-col theme-bg-secondary backdrop-blur-sm rounded-lg shadow-xl border theme-border relative overflow-hidden theme-text-primary'
       >
@@ -924,6 +1052,7 @@ export function KolAiChatDialog() {
           </div>
         </div>
       </div>
-    </FloatingContainer>
+    </FloatingContainer>,
+    portalHost,
   );
 }

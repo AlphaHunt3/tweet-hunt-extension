@@ -46,10 +46,14 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
       }
     );
 
-    // 等待存储加载完成后再初始化位置
-    const [position, setPosition] = useState<{ x: number; y: number } | null>(
-      null
-    );
+    // 先用安全默认位置渲染，不能让面板可见性依赖异步存储 hydration。
+    // 存储稍后加载完成时会再按用户保存的右边距校准一次。
+    const [position, setPosition] = useState<{ x: number; y: number }>(() => ({
+      x: Math.max(16, window.innerWidth - width - 30),
+      y: Math.max(16, Math.min(50, window.innerHeight - 100)),
+    }));
+    const hasHydratedPositionRef = useRef(false);
+    const appliedWidthRef = useRef(width);
 
     // 防抖保存位置 - 拖拽停止1秒后才写入存储
     const { run: debouncedSavePosition } = useDebounceFn(
@@ -108,7 +112,8 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
 
     // 当存储加载完成后，初始化位置
     useEffect(() => {
-      if (!isLoading && !position) {
+      const widthChanged = appliedWidthRef.current !== width;
+      if (!isLoading && (!hasHydratedPositionRef.current || widthChanged)) {
         // 根据保存的右侧距离计算 x 坐标
         const targetX = calculateXFromRightOffset(savedPosition.rightOffset);
         const targetY = savedPosition.y;
@@ -117,6 +122,8 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
         const adjustedPosition = adjustPositionForBoundaries(targetX, targetY);
 
         setPosition(adjustedPosition);
+        hasHydratedPositionRef.current = true;
+        appliedWidthRef.current = width;
 
         // 如果位置需要调整，立即保存调整后的位置
         const newRightOffset = window.innerWidth - adjustedPosition.x - width;
@@ -232,11 +239,6 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
         window.removeEventListener(RESET_EVENT, handler as EventListener);
     }, [storageKey, width, setSavedPosition]);
 
-    // 如果位置还未初始化（存储还在加载），不渲染面板
-    if (!position) {
-      return null;
-    }
-
     // 🎯 动态计算边界，确保拖拽时不会超出
     const dragBounds = {
       top: 16,
@@ -262,6 +264,7 @@ export const DraggablePanel = forwardRef<HTMLDivElement, DraggablePanelProps>(
             visibility: 'visible',
             zIndex: 1000,
             width: `${width}px`,
+            pointerEvents: 'auto',
           }}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}

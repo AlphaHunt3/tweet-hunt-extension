@@ -1,6 +1,12 @@
+import { resolveXDomVariant } from '~contents/utils/xDomAdapter';
+import {
+  cancelNewXNavigationTask,
+  navigateInNewX,
+} from '~contents/utils/navigateInNewX';
+
 const X_MAIN_HOSTS = new Set(['x.com', 'twitter.com']);
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
-const LOG_PREFIX = '[XHunt navigateInX]';
+const LOG_PREFIX = '[XHunt Navigation]';
 const RETRY_DELAY = 1000;
 const VERIFY_DELAY = 3000;
 const LOADING_VERIFY_DELAY = 1000;
@@ -172,7 +178,7 @@ function notifyRouteChangeWithRetryAndVerify(params: {
   task.verifyTimer = window.setTimeout(() => verify(), VERIFY_DELAY);
 }
 
-export function navigateInX(url: string) {
+function navigateInLegacyX(url: string) {
   try {
     const targetUrl = new URL(url, window.location.href);
 
@@ -212,4 +218,28 @@ export function navigateInX(url: string) {
     cancelActiveNavigationTask();
     console.log(LOG_PREFIX, 'navigate failed, blocked raw fallback', { url, error });
   }
+}
+
+export function navigateInX(url: string) {
+  cancelNewXNavigationTask();
+  const variant = resolveXDomVariant();
+
+  console.log(LOG_PREFIX, 'strategy selected', {
+    variant,
+    strategy: variant === 'new' ? 'new-internal-router-first' : 'legacy',
+    target: url,
+    current: window.location.href,
+  });
+
+  if (variant === 'new') {
+    cancelActiveNavigationTask();
+    navigateInNewX(url, navigateInLegacyX);
+    return;
+  }
+
+  console.log(LOG_PREFIX, 'legacy strategy: pushState + route events', {
+    reason: variant === 'legacy' ? 'legacy-dom' : 'variant-unknown',
+    target: url,
+  });
+  navigateInLegacyX(url);
 }

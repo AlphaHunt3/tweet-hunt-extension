@@ -1,13 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Loader2, X } from 'lucide-react';
 import type { KolInteractionsData } from '~contents/services/api';
 import { useLocalStorage } from '~storage/useLocalStorage';
+import { rankService } from '~utils/rankService';
 import SocialCircleGraph from './SocialCircleGraph';
 import { renderSocialCirclePoster } from './renderSocialCirclePoster';
-import { getProfileInitial, getSafeAvatarUrl } from './socialCircleLayout';
+import {
+  getProfileInitial,
+  getSafeAvatarUrl,
+  getSafeUsername,
+  type SocialCircleRankMap,
+} from './socialCircleLayout';
 
 type Translate = (key: string, fallback?: string) => string;
 const SOCIAL_CIRCLE_DIALOG_SCALE = 0.85;
+const EMPTY_RANKS: SocialCircleRankMap = {};
 
 const replaceTokens = (
   template: string,
@@ -69,6 +76,8 @@ export default function SocialCircleDialog({
   onClose: () => void;
 }) {
   const [theme] = useLocalStorage<'light' | 'dark'>('@xhunt/theme', 'dark');
+  const [avatarRankMode, , { isLoading: isAvatarRankModeLoading }] =
+    useLocalStorage<'web3' | 'ai'>('@settings/avatarRankMode', 'web3');
   const dialogRef = useRef<HTMLDivElement>(null);
   const exportingRef = useRef(false);
   const [exporting, setExporting] = useState(false);
@@ -83,6 +92,11 @@ export default function SocialCircleDialog({
   } | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [rankState, setRankState] = useState<{
+    data: KolInteractionsData;
+    mode: 'web3' | 'ai';
+    ranks: SocialCircleRankMap;
+  } | null>(null);
 
   const profileName = data.kol.name || data.kol.username || 'XHunt';
   const title = replaceTokens(
@@ -94,10 +108,54 @@ export default function SocialCircleDialog({
     lang,
   )}`;
   const madeBy = t('socialCircleMadeBy', 'Made by XHunt');
+  const rankUsernames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [data.kol, ...data.items.map((item) => item.kol)]
+            .map((kol) => getSafeUsername(kol.username))
+            .filter(Boolean),
+        ),
+      ),
+    [data],
+  );
+  const ranks =
+    rankState?.data === data && rankState.mode === avatarRankMode
+      ? rankState.ranks
+      : EMPTY_RANKS;
   const preview =
     poster?.data === data && poster.theme === theme && poster.madeBy === madeBy
       ? poster
       : null;
+
+  useEffect(() => {
+    if (!isOpen || isAvatarRankModeLoading || rankUsernames.length === 0) {
+      return;
+    }
+
+    let disposed = false;
+    void rankService.getRanks(rankUsernames, avatarRankMode).then((result) => {
+      if (disposed) return;
+
+      const normalizedRanks = Object.fromEntries(
+        Object.entries(result).map(([username, rank]) => [
+          username.toLowerCase(),
+          rank,
+        ]),
+      );
+      setRankState({ data, mode: avatarRankMode, ranks: normalizedRanks });
+    });
+
+    return () => {
+      disposed = true;
+    };
+  }, [
+    avatarRankMode,
+    data,
+    isAvatarRankModeLoading,
+    isOpen,
+    rankUsernames,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -110,6 +168,8 @@ export default function SocialCircleDialog({
     const createPosters = async () => {
       const previewBlob = await renderSocialCirclePoster({
         data,
+        ranks,
+        avatarRankMode,
         theme,
         labels: { madeBy },
         signal: controller.signal,
@@ -131,6 +191,8 @@ export default function SocialCircleDialog({
 
       const completeBlob = await renderSocialCirclePoster({
         data,
+        ranks,
+        avatarRankMode,
         theme,
         labels: { madeBy },
         signal: controller.signal,
@@ -166,7 +228,7 @@ export default function SocialCircleDialog({
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
       setPoster(null);
     };
-  }, [data, isOpen, madeBy, theme]);
+  }, [avatarRankMode, data, isOpen, madeBy, ranks, theme]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -295,6 +357,8 @@ export default function SocialCircleDialog({
           {preview ? (
             <SocialCircleGraph
               data={data}
+              ranks={ranks}
+              avatarRankMode={avatarRankMode}
               imageUrl={preview.url}
               t={t}
               onNavigate={onClose}

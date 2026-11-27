@@ -8,6 +8,10 @@ import usePlacementTracking from './usePlacementTracking';
 import { useDebounceEffect } from 'ahooks';
 import { formatRank } from '~js/utils';
 import { sanitizeHtml } from '~utils/sanitizeHtml';
+import {
+  isTweetAvatarHost,
+  resolveAvatarHandle,
+} from '~contents/utils/xDomAdapter';
 
 const HIGH_RANK_THRESHOLD = 10000;
 const avatarShapeCache = new WeakMap<
@@ -91,7 +95,6 @@ class AvatarStyler {
     rank: number,
     isLoading: boolean,
     avatarRankMode: 'web3' | 'ai',
-    isSpecialCase: boolean = false,
     isLarge: boolean = false,
     username: string = '',
     theme: string,
@@ -106,11 +109,11 @@ class AvatarStyler {
         badge = document.createElement('div');
         badge.className = 'xhunt-avatar-rank-badge';
 
-        if (isSpecialCase) {
-          badge.style.zIndex = '9999';
-        }
         container.appendChild(badge);
       }
+
+      // 清理旧版本写入的内联高层级，避免徽章穿透 X 的 sticky header/浮层。
+      badge.style.removeProperty('z-index');
 
       badge.setAttribute('data-theme', theme);
       badge.classList.toggle('loading', isLoading);
@@ -179,7 +182,6 @@ class AvatarStyler {
 
 function getAvatarDomMeta(
   el: HTMLElement,
-  parent: HTMLElement,
   currentUrl: string,
 ) {
   const cachedMeta = avatarDomMetaCache.get(el);
@@ -187,15 +189,7 @@ function getAvatarDomMeta(
     return cachedMeta;
   }
 
-  let hasTweetUserAvatar = false;
-  let ancestor: HTMLElement | null = parent;
-  while (ancestor) {
-    if (ancestor.getAttribute('data-testid') === 'Tweet-User-Avatar') {
-      hasTweetUserAvatar = true;
-      break;
-    }
-    ancestor = ancestor.parentElement;
-  }
+  const hasTweetUserAvatar = isTweetAvatarHost(el);
 
   const isSquareShape = AvatarStyler.findAvatarImage(el, currentUrl);
   const meta = {
@@ -373,8 +367,7 @@ export function useAvatarRanks() {
 
       // First pass: extract usernames and prepare for batch cache check
       for (const el of matchedElements) {
-        const testId = el.getAttribute('data-testid');
-        let username = testId?.replace('UserAvatar-Container-', '') || '';
+        let username = resolveAvatarHandle(el);
 
         // Handle unknown username
         if (username === 'unknown') {
@@ -416,7 +409,6 @@ export function useAvatarRanks() {
 
         const { hasTweetUserAvatar, borderRadius } = getAvatarDomMeta(
           el,
-          parent,
           currentUrl,
         );
 
@@ -452,7 +444,6 @@ export function useAvatarRanks() {
                 rank,
                 isLoading,
                 avatarRankMode,
-                false,
                 isLarge,
                 username,
                 theme,
@@ -460,6 +451,12 @@ export function useAvatarRanks() {
               );
             }
           } else {
+            // 只有新版 .x-avatar 缺少徽章定位上下文；老版容器自带定位，
+            // 强制改成 relative 会破坏 UserAvatar-Container-* 的原有布局。
+            el.classList.toggle(
+              'xhunt-avatar-rank-host',
+              el.classList.contains('x-avatar'),
+            );
             if (el.style.backgroundColor !== 'transparent') {
               el.style.backgroundColor = 'transparent';
             }
@@ -477,7 +474,6 @@ export function useAvatarRanks() {
               rank,
               isLoading,
               avatarRankMode,
-              true,
               isLarge,
               username,
               theme,

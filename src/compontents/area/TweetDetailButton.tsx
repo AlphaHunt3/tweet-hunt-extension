@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import useTweetDetail from '~contents/hooks/useTweetDetail.ts';
-import useCurrentUrl from '~contents/hooks/useCurrentUrl.ts';
 import ReactDOM from 'react-dom';
 import cssText from 'data-text:~/css/style.css';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
@@ -11,6 +10,10 @@ import { fetchAiContent, getTwitterAuthUrl } from '~contents/services/api';
 import { AiContentResponse } from '~types';
 import { AI_ANALYSIS_EVENT, AiAnalysisDetail } from '../AiAnalysisTips.tsx';
 import { openNewTab } from '~contents/utils';
+import {
+  resolveTweetDetailDom,
+  resolveTweetDetailMoreButton,
+} from '~contents/utils/xDomAdapter';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 
 interface TweetDetailButtonProps {
@@ -21,6 +24,7 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
   const shadowRoot = useShadowContainer({
     selector:
       "article[data-testid='tweet'][tabindex='-1'] button[data-testid='caret']",
+    resolveBaseElement: resolveTweetDetailMoreButton,
     styleText: cssText,
     useSiblings: true,
     siblingsPosition: 'beforebegin',
@@ -32,7 +36,7 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
   const [token] = useLocalStorage('@xhunt/token', '');
   const isLoggedIn = !!token;
   const { tweetId, isTweetDetail } = useTweetDetail();
-  const currentUrl = useCurrentUrl();
+  const isNewX = resolveTweetDetailDom(tweetId)?.variant === 'new';
 
   // AI 分析相关状态
   const [aiData, setAiData] = useState<AiContentResponse | null>(null);
@@ -62,17 +66,6 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
     setButtonRadius(
       Number.isFinite(rTopLeft) && rTopLeft > 0 ? rTopLeft : rect.height / 2
     );
-  };
-
-  // 从URL中提取推文ID
-  const extractTweetIdFromUrl = (url: string): string | null => {
-    try {
-      // 匹配类似 https://x.com/username/status/1963660907017605191 的URL
-      const match = url.match(/\/status\/(\d+)/);
-      return match ? match[1] : null;
-    } catch (error) {
-      return null;
-    }
   };
 
   // 使用 useLockFn 防止重复请求
@@ -344,30 +337,12 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
       return;
     }
 
-    // 查找所有推文文本元素
-    const tweetTextElements = document.querySelectorAll(
-      "article[data-testid='tweet'] div[data-testid='tweetText']"
-    );
-
-    let textContent = '';
-
-    if (tweetTextElements.length > 0) {
-      // 优先使用推文文本元素
-      const firstTweetElement = tweetTextElements[0];
-      textContent = firstTweetElement.textContent?.trim() || '';
-    } else {
-      // 退而求其次，查找整个 article 标签
-      const articleElements = document.querySelectorAll(
-        "article[data-testid='tweet']"
-      );
-
-      if (articleElements.length > 0) {
-        const firstArticleElement = articleElements[0];
-        textContent = firstArticleElement.textContent?.trim() || '';
-      } else {
-        return;
-      }
-    }
+    const tweetDom = resolveTweetDetailDom(tweetId);
+    if (!tweetDom) return;
+    let textContent =
+      tweetDom.textHost?.textContent?.trim() ||
+      tweetDom.article.textContent?.trim() ||
+      '';
 
     // 设置文本内容上限（例如 5000 字符）
     const MAX_TEXT_LENGTH = 5000;
@@ -379,12 +354,8 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
       return;
     }
 
-    // 提取推文ID
-    const tweetIdFromUrl = extractTweetIdFromUrl(currentUrl);
-
-    if (!tweetIdFromUrl) {
-      return;
-    }
+    const tweetIdFromUrl = tweetDom.tweetId || tweetId;
+    if (!tweetIdFromUrl) return;
 
     try {
       await analyzeContent(textContent, tweetIdFromUrl);
@@ -433,9 +404,19 @@ function _TweetDetailButton({ }: TweetDetailButtonProps) {
         onMouseEnter={handleMouseEnter}
         disabled={isLoading}
         aria-label={getButtonText()}
-        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer min-w-[36px] mr-3 shadow-sm hover:opacity-90 overflow-hidden ${
+        className={`relative group flex items-center justify-center rounded-full font-semibold text-xs transition-all duration-200 cursor-pointer shadow-sm hover:opacity-90 overflow-hidden ${
+          isNewX
+            ? 'p-1.5 min-w-[28px] mr-1.5'
+            : 'px-3.5 py-1.5 min-w-[36px] mr-3'
+        } ${
           isLoading ? 'cursor-not-allowed pointer-events-none' : ''
-        } ${isLoading && hasProgressStarted ? 'pr-10' : ''}`}
+        } ${
+          isLoading && hasProgressStarted
+            ? isNewX
+              ? 'pr-8'
+              : 'pr-10'
+            : ''
+        }`}
         style={{
           overflow: 'hidden',
           color: 'var(--xhunt-avatar-rank-text-color)',

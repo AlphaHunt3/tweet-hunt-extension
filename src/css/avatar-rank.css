@@ -16,6 +16,25 @@
   border: 3px solid var(--xhunt-avatar-outer-border-color) !important;
   border-radius: 50%;
   position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+/* 新版 X 的 .x-avatar 默认不是定位容器，徽章会相对整行内容错位。 */
+.xhunt-avatar-rank-host {
+  position: relative !important;
+  z-index: 0;
+  isolation: isolate;
+  overflow: visible !important;
+}
+
+.xhunt-avatar-rank-host > img {
+  border-radius: inherit;
+}
+
+/* 新版搜索下拉把整项内容包在 truncate span 中，会裁掉头像底部外扩的排名徽章。 */
+[role='grid'] [role='gridcell'] > span:has(.xhunt-avatar-rank-host) {
+  overflow: visible !important;
 }
 
 /* Avatar rank badge */
@@ -24,7 +43,7 @@
   bottom: 0;
   left: 50%;
   transform: translate(-50%, 60%);
-  z-index: 9999;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,7 +64,7 @@
   bottom: unset !important;
   top: 0 !important;
   transform: translate(-50%, -40%) !important;
-  z-index: 9100002;
+  z-index: 2;
 }
 
 /* Subtle golden accents for high-ranked badges */

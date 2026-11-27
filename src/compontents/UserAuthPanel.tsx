@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
-import { Info, LogOut, MoreVertical } from 'lucide-react';
-import { userLogout } from '~contents/services/review.ts';
+import React, { useRef, useState } from 'react';
+import { Github, LogOut, MoreVertical } from 'lucide-react';
 import { useLockFn } from 'ahooks';
-import { UserInfo, StoredUserInfo } from '~types/review.ts';
+
+import { VipPanel } from '~/compontents/VipPanel.tsx';
+import { getTwitterAuthUrl } from '~contents/services/api.ts';
+import { userLogout } from '~contents/services/review.ts';
 import { useI18n } from '~contents/hooks/i18n.ts';
+import { UserInfo, StoredUserInfo } from '~types/review.ts';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { openNewTab } from '~contents/utils';
-import { useUserDomain } from '~contents/hooks/useUserDomain';
 import { clearAuthState } from '~contents/utils/auth.ts';
-import { Github } from 'lucide-react';
-import { getTwitterAuthUrl } from '~contents/services/api.ts';
-// import { ProPanel } from './ProPanel.tsx';
 
 function _UserAuthPanel({
   userInfo,
@@ -18,20 +17,31 @@ function _UserAuthPanel({
   userInfo: UserInfo | undefined | null;
 }) {
   const [showLogout, setShowLogout] = useState(false);
-  const [showProPanel, setShowProPanel] = useState(false);
-  const [inviteCode, setInviteCode] = useState('');
-  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+  const [showVipPanel, setShowVipPanel] = useState(false);
+  const isInviteDialogOpenRef = useRef(false);
   const [, setToken] = useLocalStorage('@xhunt/token', '');
-  // const [showPointsInfo, setShowPointsInfo] = useState(false);
-  const [user, setUser] = useLocalStorage<StoredUserInfo | null | ''>(
+  const [user] = useLocalStorage<StoredUserInfo | null | ''>(
     '@xhunt/user',
     null
   );
-  const { t, lang } = useI18n();
-  const { domains, primaryDomain } = useUserDomain();
+  const { t } = useI18n();
 
-  // const isPro = userInfo?.isPro ?? false;
-  // const proExpiryTime = userInfo?.proExpiryTime;
+  const isVip =
+    user && typeof user === 'object'
+      ? (user.isVip ?? userInfo?.isVip ?? false)
+      : (userInfo?.isVip ?? false);
+  const vipExpiresAt =
+    user && typeof user === 'object'
+      ? (user.vipExpiresAt ?? userInfo?.vipExpiresAt ?? undefined)
+      : (userInfo?.vipExpiresAt ?? undefined);
+  const vipInviteCode =
+    user && typeof user === 'object'
+      ? (user.vipInviteCode ?? userInfo?.vipInviteCode ?? undefined)
+      : (userInfo?.vipInviteCode ?? undefined);
+  const vipInviteStats =
+    user && typeof user === 'object'
+      ? (user.vipInviteStats ?? userInfo?.vipInviteStats ?? undefined)
+      : (userInfo?.vipInviteStats ?? undefined);
   const logout = useLockFn(async () => {
     await userLogout();
     await clearAuthState();
@@ -49,24 +59,6 @@ function _UserAuthPanel({
       }
     } catch (e) { }
   });
-
-  // const handleInviteCodeSubmit = useLockFn(async () => {
-  //   if (!inviteCode.trim()) return;
-  //   setIsSubmittingInvite(true);
-  //   try {
-  //     // TODO: 调用邀请码开通API
-  //     // await activateProWithInviteCode(inviteCode);
-  //     console.log('Submitting invite code:', inviteCode);
-  //     // 成功后刷新用户信息
-  //     setTimeout(() => {
-  //       setIsSubmittingInvite(false);
-  //       setInviteCode('');
-  //       window.location.reload();
-  //     }, 1000);
-  //   } catch (e) {
-  //     setIsSubmittingInvite(false);
-  //   }
-  // });
 
   // 未登录视图：底部显示图标 + 登录按钮
   if (!user || typeof user !== 'object' || !user?.username) {
@@ -131,28 +123,23 @@ function _UserAuthPanel({
   return (
     <div
       data-xhunt-testid='auth-logged-in-panel'
-      className='sticky bottom-0 theme-bg-secondary backdrop-blur-sm theme-border border-t'
+      className='sticky bottom-0 theme-bg-secondary theme-border border-t'
       onMouseEnter={() => {
         if (!showLogout) {
-          setShowProPanel(true);
+          setShowVipPanel(true);
           setShowLogout(false);
         }
       }}
       onMouseLeave={() => {
-        setShowProPanel(false);
+        if (!isInviteDialogOpenRef.current) setShowVipPanel(false);
       }}
     >
-      {/* Pro 金色装饰 */}
-      {/* {isPro && ( */}
-      {/* <div className='absolute inset-0 pointer-events-none overflow-hidden rounded-t-lg'> */}
-      {/* 顶部左侧金色光晕 */}
-      {/* <div className='absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-amber-500/20 via-yellow-400/15 to-transparent dark:from-amber-500/15 dark:via-yellow-400/10 blur-sm' /> */}
-      {/* 顶部右侧金色线条 */}
-      {/* <div className='absolute top-0 right-0 w-20 h-px bg-gradient-to-l from-amber-500/60 via-yellow-400/40 to-transparent dark:from-amber-400/50 dark:via-yellow-300/30' /> */}
-      {/* 左侧底部金色装饰点 */}
-      {/* <div className='absolute bottom-2 left-2 w-1 h-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 dark:from-amber-400 dark:to-yellow-300 shadow-sm shadow-amber-500/50' /> */}
-      {/* </div> */}
-      {/* )} */}
+      {isVip && (
+        <div className='absolute inset-0 pointer-events-none overflow-hidden rounded-t-lg'>
+          <div className='absolute top-0 right-0 w-20 h-px bg-gradient-to-l from-amber-500/60 via-yellow-400/40 to-transparent dark:from-amber-400/50 dark:via-yellow-300/30' />
+          <div className='absolute bottom-2 left-2 w-1 h-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 dark:from-amber-400 dark:to-yellow-300 shadow-sm shadow-amber-500/50' />
+        </div>
+      )}
       <div className='p-2 flex items-center justify-between relative z-10'>
         <div className='flex items-center gap-2'>
           <div className='relative'>
@@ -165,17 +152,17 @@ function _UserAuthPanel({
               <span className='text-xs font-medium leading-tight theme-text-primary'>
                 {user.displayName}
               </span>
-              {/* {isPro && (
+              {isVip && (
                 <span
                   onClick={() => {
-                    setShowProPanel(true);
+                    setShowVipPanel(true);
                     setShowLogout(false);
                   }}
                   className='cursor-pointer -translate-y-0.5 inline-flex items-center px-0.5 py-0.5 rounded text-[8px] font-bold leading-none bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 dark:from-amber-600 dark:via-yellow-500 dark:to-amber-600 text-amber-900 dark:text-amber-100 border border-amber-300/60 dark:border-amber-500/40'
                 >
-                  {t('proBadge')}
+                  {t('vipBadge')}
                 </span>
-              )} */}
+              )}
             </div>
             <span className='text-[10px] theme-text-secondary leading-tight'>
               @{user.username}
@@ -219,7 +206,7 @@ function _UserAuthPanel({
           onClick={() => {
             setShowLogout(!showLogout);
             if (!showLogout) {
-              setShowProPanel(false);
+              setShowVipPanel(false);
             }
           }}
           className='p-1.5 theme-hover rounded-full transition-colors'
@@ -246,22 +233,25 @@ function _UserAuthPanel({
         )}
       </div>
 
-      {/* Pro Panel */}
-      {/* {showProPanel && (
-        <div className='absolute bottom-full left-0 right-0 z-[9999]'>
-          <ProPanel
-            isPro={isPro}
-            proExpiryTime={proExpiryTime}
-            isLegacyPro={userInfo?.isLegacyPro}
-            inviteCode={inviteCode}
-            setInviteCode={setInviteCode}
-            isSubmittingInvite={isSubmittingInvite}
-            onInviteCodeSubmit={handleInviteCodeSubmit}
-            show={showProPanel}
-            showBenefits={true}
+      {showVipPanel && (
+        <div
+          className='absolute bottom-full left-0 right-0 z-[9999]'
+          data-xhunt-testid='settings-vip-panel'
+        >
+          <VipPanel
+            isVip={isVip}
+            vipExpiresAt={vipExpiresAt || undefined}
+            vipInviteCode={vipInviteCode}
+            vipInviteStats={vipInviteStats}
+            isLegacyVip={userInfo?.isLegacyPro}
+            show={showVipPanel}
+            onInviteDialogOpenChange={(isOpen) => {
+              isInviteDialogOpenRef.current = isOpen;
+              setShowVipPanel(isOpen);
+            }}
           />
         </div>
-      )} */}
+      )}
     </div>
   );
 }

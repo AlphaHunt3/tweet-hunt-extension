@@ -34,6 +34,7 @@ import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { getTwitterAuthUrl } from '~contents/services/api.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
+import { resolveProfileDom } from '~contents/utils/xDomAdapter';
 
 type FollowedRightDataProps = Pick<
   MainData,
@@ -45,6 +46,7 @@ type FollowedRightDataProps = Pick<
   | 'refreshAsyncReviewInfo'
   | 'refreshAsyncUserInfo'
   | 'loadingReviewInfo'
+  | 'loadingSoulData'
 >;
 
 const renderRankChange = (change: number | undefined | null) => {
@@ -67,7 +69,11 @@ const renderRankChange = (change: number | undefined | null) => {
   }
 };
 
-function FollowStatsSkeleton() {
+function FollowStatsSkeleton({
+  showLeadingSpacer = true,
+}: {
+  showLeadingSpacer?: boolean;
+}) {
   const items = [
     { label: 'w-9', value: 'w-12' },
     { label: 'w-10', value: 'w-11' },
@@ -77,7 +83,7 @@ function FollowStatsSkeleton() {
 
   return (
     <>
-      <div className='mr-6' />
+      {showLeadingSpacer && <div className='mr-6' />}
       {items.map((item, index) => (
         <div
           key={index}
@@ -286,6 +292,7 @@ function _FollowedRightData({
   refreshAsyncReviewInfo,
   refreshAsyncUserInfo,
   loadingReviewInfo,
+  loadingSoulData,
 }: FollowedRightDataProps) {
   const [isGhostPanelOpen, setIsGhostPanelOpen] = useState(false);
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -343,15 +350,22 @@ function _FollowedRightData({
 
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
-    siblingsXPath:
-      ".//*[ (contains(., 'Following') and contains(., 'Followers')) or (contains(., '正在关注') and contains(., '关注者')) or (contains(., '個跟隨中') and contains(., '位跟隨者')) or (contains(., 'フォロワー') and contains(., 'フォロー中')) ]",
+    resolveBaseElement: () => resolveProfileDom().statsHost,
     styleText: cssText,
-    useSiblings: true,
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
+  const isNewProfile = resolveProfileDom().variant === 'new';
 
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
+  const showReviews = isEnabled('showReviews');
+  const showSoulIndex = isEnabled('showSoulIndex');
+  // 排名、点评和人物摘要属于同一个首屏区域。等待点评和灵魂指数都完成，
+  // 再一次性从骨架切换到真实内容，避免后到数据推动下方内容。
+  const isProfileSummaryLoading =
+    loadingTwInfo ||
+    (showReviews && loadingReviewInfo) ||
+    (showSoulIndex && loadingSoulData);
 
   if (!shadowRoot) return null;
 
@@ -360,12 +374,16 @@ function _FollowedRightData({
   }
 
   return ReactDOM.createPortal(
-    <div data-xhunt-testid='followed-right-data' style={{ display: 'contents' }}>
-      {loadingTwInfo ? (
-        <FollowStatsSkeleton />
+    <div
+      data-xhunt-testid='followed-right-data'
+      data-xhunt-profile-variant={isNewProfile ? 'new' : 'legacy'}
+      className='contents'
+    >
+      {isProfileSummaryLoading ? (
+        <FollowStatsSkeleton showLeadingSpacer={!isNewProfile} />
       ) : twInfo && (
         <>
-          <div className={'mr-6'} />
+          {!isNewProfile && <div className='mr-6' />}
           {(() => {
             const web3Items: React.ReactNode[] = [];
             const aiItems: React.ReactNode[] = [];
@@ -800,7 +818,11 @@ function _FollowedRightData({
                 ))}
                 {/* 领域指示器（放在数据末尾，双选时可切换） */}
                 {(hasWeb3 || hasAi) && (
-                  <div data-theme={theme} className='contents'>
+                  <div
+                    data-theme={theme}
+                    data-xhunt-domain-indicator='true'
+                    className='contents'
+                  >
                     <button
                       type='button'
                       onClick={
@@ -862,8 +884,8 @@ function _FollowedRightData({
         </>
       )}
 
-      {isEnabled('showReviews') &&
-        (loadingTwInfo || loadingReviewInfo ? (
+      {showReviews &&
+        (isProfileSummaryLoading ? (
           <ReviewHeaderSkeleton />
         ) : (
           <ErrorBoundary name='ReviewHeader'>
@@ -887,7 +909,6 @@ function _FollowedRightData({
               handler={userId}
               refreshAsyncReviewInfo={refreshAsyncReviewInfo}
               refreshAsyncUserInfo={refreshAsyncUserInfo}
-              loadingReviewInfo={loadingReviewInfo}
             />
           </ErrorBoundary>
         ))}

@@ -3,8 +3,12 @@ import {
   createSocialCircleLayout,
   getProfileInitial,
   getSafeAvatarUrl,
+  getSocialCircleRank,
+  getSocialCircleRankDisplay,
   SOCIAL_CIRCLE_CENTER_SIZE,
   SOCIAL_CIRCLE_VIEWBOX_SIZE,
+  type SocialCircleRankMap,
+  type SocialCircleRankMode,
 } from './socialCircleLayout';
 
 const POSTER_SIZE = SOCIAL_CIRCLE_VIEWBOX_SIZE;
@@ -156,6 +160,73 @@ const drawCircleAvatar = ({
   context.stroke();
 };
 
+const drawRankBadge = ({
+  context,
+  x,
+  y,
+  avatarSize,
+  rank,
+  mode,
+}: {
+  context: CanvasRenderingContext2D;
+  x: number;
+  y: number;
+  avatarSize: number;
+  rank?: number;
+  mode: SocialCircleRankMode;
+}) => {
+  if (!rank) return;
+
+  const display = getSocialCircleRankDisplay(rank, mode);
+  const isLarge = avatarSize >= SOCIAL_CIRCLE_CENTER_SIZE;
+  const isLong = display.value.length >= 6;
+  const fontSize = isLarge ? (isLong ? 23 : 24) : isLong ? 18 : 19;
+  const iconFontSize = display.tier === 'plain' ? fontSize : isLarge ? 20 : 16;
+  const iconGap = display.tier === 'plain' ? 0 : isLarge ? 3 : 2;
+  const height = isLarge ? 36 : 26;
+  context.save();
+  context.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  const valueWidth = context.measureText(display.value).width;
+  context.font = `700 ${iconFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", sans-serif`;
+  const iconWidth = context.measureText(display.icon).width;
+  const contentWidth = iconWidth + iconGap + valueWidth;
+  const width = Math.ceil(contentWidth) + (isLarge ? 22 : 14);
+  const left = x - width / 2;
+  const bottomInset = isLarge ? 7 : 5;
+  const top = y + avatarSize / 2 - height - bottomInset;
+  const radius = height / 2;
+  const gradient = context.createLinearGradient(left, top, left + width, top);
+  gradient.addColorStop(0, 'rgba(38, 123, 178, 0.88)');
+  gradient.addColorStop(1, 'rgba(103, 71, 176, 0.88)');
+
+  context.beginPath();
+  context.roundRect(left, top, width, height, radius);
+  context.fillStyle = gradient;
+  context.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  context.shadowBlur = 5;
+  context.shadowOffsetY = 2;
+  context.fill();
+  context.shadowColor = 'transparent';
+  context.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  context.lineWidth = 2;
+  context.stroke();
+  context.fillStyle = 'rgba(255, 255, 255, 0.98)';
+  const contentLeft = x - contentWidth / 2;
+  context.textAlign = 'left';
+  context.textBaseline = 'middle';
+  context.font = `700 ${iconFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI Emoji", sans-serif`;
+  context.globalAlpha = display.tier === 'plain' ? 1 : 0.68;
+  context.fillText(display.icon, contentLeft, top + height / 2 + 1);
+  context.globalAlpha = 1;
+  context.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  context.fillText(
+    display.value,
+    contentLeft + iconWidth + iconGap,
+    top + height / 2 + 1,
+  );
+  context.restore();
+};
+
 const canvasToBlob = (canvas: HTMLCanvasElement) =>
   new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -166,12 +237,16 @@ const canvasToBlob = (canvas: HTMLCanvasElement) =>
 
 export const renderSocialCirclePoster = async ({
   data,
+  ranks,
+  avatarRankMode,
   labels,
   theme,
   signal,
   includeAvatars = true,
 }: {
   data: KolInteractionsData;
+  ranks: SocialCircleRankMap;
+  avatarRankMode: SocialCircleRankMode;
   labels: SocialCirclePosterLabels;
   theme: 'light' | 'dark';
   signal?: AbortSignal;
@@ -226,6 +301,14 @@ export const renderSocialCirclePoster = async ({
           : 'rgba(0, 0, 0, 0.28)'
         : undefined,
     });
+    drawRankBadge({
+      context,
+      x: node.x,
+      y: node.y,
+      avatarSize: node.size,
+      rank: getSocialCircleRank(ranks, node.item.kol.username),
+      mode: avatarRankMode,
+    });
   }
 
   const centerAvatar = getSafeAvatarUrl(data.kol.avatar);
@@ -241,11 +324,19 @@ export const renderSocialCirclePoster = async ({
     borderColor,
     borderWidth: 4,
   });
+  drawRankBadge({
+    context,
+    x: POSTER_SIZE / 2,
+    y: POSTER_SIZE / 2,
+    avatarSize: SOCIAL_CIRCLE_CENTER_SIZE,
+    rank: getSocialCircleRank(ranks, data.kol.username),
+    mode: avatarRankMode,
+  });
 
   // Keep a few visible marks so on-screen captures carry branding without visual noise.
   context.fillStyle = isLight
-    ? 'rgba(71, 85, 105, 0.12)'
-    : 'rgba(255, 255, 255, 0.12)';
+    ? 'rgba(71, 85, 105, 0.08)'
+    : 'rgba(255, 255, 255, 0.07)';
   context.font =
     '700 56px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   context.textAlign = 'center';

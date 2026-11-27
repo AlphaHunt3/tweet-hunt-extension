@@ -56,7 +56,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
   const { isEnabled } = useCrossPageSettings();
   const currentUrl = useCurrentUrl();
 
-  // // 从 localStorage 读取用户信息以检查 Pro 状态
+  // // 从存储读取用户信息以检查 VIP 状态
   // const [user] = useLocalStorage<StoredUserInfo | null | ''>(
   //   '@xhunt/user',
   //   null
@@ -65,7 +65,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
   // TODO: 暂时测试用，后续需要改为实际的登录状态
   const isLoggedIn = true;
   // const userObj = user && typeof user === 'object' ? user : null;
-  const isPro = true;
+  const isVip = true;
   // 稳定保存 getTargetElement 的引用，避免父组件每次渲染导致回调身份变化
   const getTargetElementRef = useRef<typeof getTargetElement>(getTargetElement);
   useEffect(() => {
@@ -142,8 +142,8 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
             return;
           }
 
-          // 播放声音：需要是 leader 且用户配置了声音，并且用户已登录且是 Pro 用户
-          if (isLeader && userSettings.playSound && isLoggedIn && isPro) {
+          // 播放声音：需要是 leader 且用户配置了声音，并且用户已登录且是 VIP 用户
+          if (isLeader && userSettings.playSound && isLoggedIn && isVip) {
             try {
               window.dispatchEvent(
                 new CustomEvent(PLAY_CONFIGURED_SOUND_EVENT)
@@ -153,8 +153,8 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
             }
           }
 
-          // 显示弹框：用户配置了弹框，并且用户已登录且是 Pro 用户（所有页面都显示，不仅仅是 leader）
-          if (userSettings.showNotification && isLoggedIn && isPro) {
+          // 显示弹框：用户配置了弹框，并且用户已登录且是 VIP 用户（所有页面都显示，不仅仅是 leader）
+          if (userSettings.showNotification && isLoggedIn && isVip) {
             const notification = {
               id: `notification_${Date.now()}_${Math.random()
                 .toString(36)
@@ -204,7 +204,7 @@ export const RealtimeNotification: React.FC<RealtimeNotificationProps> = ({
         'xhunt:realtime_notification': handler,
       });
     };
-  }, [settings, isLeader, isLoggedIn, isPro, isEnabled, t]);
+  }, [settings, isLeader, isLoggedIn, isVip, isEnabled, t]);
 
   // 处理通知点击
   const handleNotificationClick = (notification: any) => {

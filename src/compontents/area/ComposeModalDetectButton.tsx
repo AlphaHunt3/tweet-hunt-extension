@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import useShadowContainer from '~contents/hooks/useShadowContainer.ts';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import useCurrentUrl from '~contents/hooks/useCurrentUrl';
@@ -13,10 +20,34 @@ import { fetchAiDetect, fetchAiDetectQuota, getTwitterAuthUrl } from '~contents/
 import { AiDetectResponse } from '~types';
 import { AI_DETECT_EVENT, AiDetectDetail } from '../AiDetectTips.tsx';
 import { openNewTab } from '~contents/utils';
+import {
+  getComposeModalText,
+  getComposeText,
+  getHomeComposerText,
+  resolveComposeModalBase,
+  resolveComposeModalEditor,
+  resolveHomeComposerBase,
+  resolveHomeComposerEditor,
+} from '~contents/utils/xDomAdapter';
 
 const COMPOSE_MODAL_SELECTOR = "div[data-viewportview] button[data-testid='unsentButton']";
 const INLINE_REPLY_SELECTOR = "div[data-testid='inline_reply_offscreen']";
 const HOME_TIMELINE_SELECTOR = "div[data-testid='primaryColumn'] div.css-175oi2r.r-1h8ys4a";
+const LEGACY_HOME_TARGET_STYLE = {
+  direction: 'rtl',
+  height: '0px',
+  marginTop: '8px',
+  marginRight: '8px',
+};
+const NEW_HOME_TARGET_STYLE = {
+  direction: 'ltr',
+  width: 'auto',
+  height: 'auto',
+  maxWidth: '100%',
+  margin: '0px',
+  flex: '0 0 auto',
+  alignSelf: 'center',
+};
 
 // 从编辑器获取引用内容（attachments）
 const getQuotedContent = (): string => {
@@ -25,58 +56,29 @@ const getQuotedContent = (): string => {
   return attachments.textContent?.trim() || '';
 };
 
-// 从编辑器获取内容
-const getComposeContent = (): string => {
-  // 获取 Draft.js 编辑器根元素
-  const editor = document.querySelector(
-    "div[data-testid='tweetTextarea_0RichTextInputContainer'] div[class~='DraftEditor-root']"
-  ) as HTMLElement | null;
-
-  if (!editor) {
-    return '';
-  }
-
-  // 获取所有文本块
-  const contentBlocks = editor.querySelectorAll('div[data-block="true"]');
-  const lines: string[] = [];
-
-  contentBlocks.forEach((block) => {
-    // 检查是否是空行（有 <br> 标签）
-    const hasBr = block.querySelector('br[data-text="true"]');
-    if (hasBr) {
-      lines.push('');
-      return;
-    }
-
-    // 提取该行的所有文本节点
-    const textSpans = block.querySelectorAll('span[data-text="true"]');
-    let lineText = '';
-
-    textSpans.forEach((span) => {
-      // 对于 emoji，背景图有内容的说明是emoji，但文本本身是emoji字符
-      // 我们直接取 textContent，浏览器会正确处理
-      const text = span.textContent || '';
-      lineText += text;
-    });
-
-    lines.push(lineText);
-  });
-
-  // 拼接所有行，保留换行
-  return lines.join('\n').trim();
-};
-
 // 通用的检测按钮组件 props
 interface DetectButtonProps {
   selector: string;
+  resolveBaseElement?: () => Element | null;
+  resolveContent?: () => string;
+  resolveContentEventTarget?: () => HTMLElement | null;
   targetStyle?: string;
   disabledOpacity?: string;
   componentType: 'compose' | 'inlineReply' | 'homeTimeline';
 }
 
-function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', componentType }: DetectButtonProps) {
+function _DetectButton({
+  selector,
+  resolveBaseElement,
+  resolveContent = getComposeText,
+  resolveContentEventTarget,
+  targetStyle,
+  disabledOpacity = 'opacity-40',
+  componentType,
+}: DetectButtonProps) {
   const shadowRoot = useShadowContainer({
     selector: selector,
+    resolveBaseElement,
     styleText: cssText,
     useSiblings: true,
     siblingsPosition: 'beforebegin',
@@ -84,6 +86,29 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
   });
 
   const portalHost = usePersistentPortalHost(shadowRoot);
+  const isNewHomeActionRow =
+    componentType === 'homeTimeline' &&
+    shadowRoot?.host.nextElementSibling?.matches(
+      'button[data-slot="xds-button"]',
+    );
+
+  useLayoutEffect(() => {
+    if (componentType !== 'homeTimeline' || !shadowRoot) return;
+
+    const host = shadowRoot.host as HTMLElement;
+    if (isNewHomeActionRow) {
+      Object.assign(host.style, NEW_HOME_TARGET_STYLE);
+      return;
+    }
+
+    // 旧版首页仍依赖零高度占位定位；清掉仅属于新版 flex item 的属性。
+    host.style.width = '';
+    host.style.maxWidth = '';
+    host.style.margin = '';
+    host.style.flex = '';
+    host.style.alignSelf = '';
+    Object.assign(host.style, LEGACY_HOME_TARGET_STYLE);
+  }, [componentType, isNewHomeActionRow, shadowRoot]);
 
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
@@ -120,7 +145,7 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
     if (!shadowRoot) return;
 
     const handleContentChange = () => {
-      const currentContent = getComposeContent();
+      const currentContent = resolveContent();
       const hasContent = currentContent.length > 0;
 
       // 更新按钮可用状态
@@ -142,6 +167,10 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
     // 初始检查
     handleContentChange();
 
+    // 新版编辑器是原生 textarea，value 变化不会触发 MutationObserver。
+    const contentEventTarget = resolveContentEventTarget?.();
+    contentEventTarget?.addEventListener('input', handleContentChange);
+
     // 订阅编辑器内容变化
     const unsubscribe = subscribeToMutation(
       () => {
@@ -158,8 +187,16 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
       }
     );
 
-    return unsubscribe;
-  }, [shadowRoot]);
+    return () => {
+      contentEventTarget?.removeEventListener('input', handleContentChange);
+      unsubscribe();
+    };
+  }, [
+    componentType,
+    resolveContent,
+    resolveContentEventTarget,
+    shadowRoot,
+  ]);
 
   // 使用 useLockFn 防止重复请求
   const analyzeContent = useLockFn(async (content: string, quotedContent?: string) => {
@@ -382,7 +419,7 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
       return;
     }
 
-    const content = getComposeContent();
+    const content = resolveContent();
     if (!content) {
       setError(t('noContentToAnalyze'));
       if (buttonRef.current) {
@@ -440,7 +477,11 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
       data-theme={theme}
       data-xhunt-testid={`${componentType}-detect-button`}
       className='inline-flex items-center'
-      style={{ marginRight: '8px', direction: 'ltr' }}
+      style={{
+        // 新版首页操作栏本身使用 flex gap；额外 margin 会与 gap 叠加。
+        marginRight: isNewHomeActionRow ? 0 : '8px',
+        direction: 'ltr',
+      }}
     >
       <button
         ref={buttonRef}
@@ -448,22 +489,30 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
         onMouseEnter={handleMouseEnter}
         disabled={isLoading || !canDetect}
         aria-label={getButtonText()}
-        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 min-w-[36px] text-white shadow-sm overflow-hidden ${isLoading && hasProgressStarted
-          ? 'bg-slate-500'
-          : 'bg-gradient-to-r from-blue-500 to-purple-500'
-          } ${isLoading || !canDetect ? 'cursor-not-allowed pointer-events-none' : 'cursor-pointer hover:opacity-90'} ${isLoading && hasProgressStarted ? 'pr-10' : ''} ${!canDetect ? disabledOpacity : ''}
+        className={`relative group flex items-center justify-center px-3.5 py-1.5 rounded-full font-semibold text-xs transition-all duration-200 min-w-[36px] shadow-sm overflow-hidden ${isLoading || !canDetect ? 'cursor-not-allowed pointer-events-none' : 'cursor-pointer hover:opacity-90'} ${isLoading && hasProgressStarted ? 'pr-10' : ''} ${!canDetect ? disabledOpacity : ''}
           `}
-        style={{ overflow: 'hidden' }}
+        style={{
+          overflow: 'hidden',
+          color: 'var(--xhunt-avatar-rank-text-color)',
+          background:
+            isLoading && hasProgressStarted
+              ? 'rgba(100, 116, 139, 0.55)'
+              : 'var(--xhunt-avatar-rank-bg)',
+          border: '1px solid var(--xhunt-avatar-rank-border)',
+          boxShadow:
+            '0 1px 2px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.16)',
+        }}
       >
         {/* Progress fill */}
         {isLoading && hasProgressStarted ? (
           <span
             aria-hidden
-            className='absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-purple-500'
+            className='absolute left-0 top-0 h-full'
             style={{
               width: `${Math.round(Math.min(progress, 0.99) * 100)}%`,
               transition: 'width 120ms linear',
               zIndex: 1,
+              background: 'var(--xhunt-avatar-rank-bg)',
             }}
           />
         ) : null}
@@ -472,7 +521,7 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
           style={{ zIndex: 4 }}
         >
           <svg
-            className='h-4 w-4 text-white'
+            className='h-4 w-4 text-current'
             viewBox='0 0 1024 1024'
             xmlns='http://www.w3.org/2000/svg'
             aria-hidden='true'
@@ -500,7 +549,7 @@ function _DetectButton({ selector, targetStyle, disabledOpacity = 'opacity-40', 
           <span
             className='pointer-events-none absolute right-2 text-xs font-semibold'
             style={{
-              color: '#f8fafc',
+              color: 'var(--xhunt-avatar-rank-text-color)',
               zIndex: 5,
             }}
           >
@@ -525,7 +574,18 @@ function _ComposeModalDetectButton() {
     return null;
   }
 
-  return <_DetectButton selector={COMPOSE_MODAL_SELECTOR} componentType='compose' />;
+  return (
+    <_DetectButton
+      selector={COMPOSE_MODAL_SELECTOR}
+      resolveBaseElement={resolveComposeModalBase}
+      resolveContent={getComposeModalText}
+      resolveContentEventTarget={resolveComposeModalEditor}
+      componentType='compose'
+      targetStyle={
+        'width:auto;height:auto;max-width:100%;margin-left:auto;flex:0 0 auto;align-self:center;'
+      }
+    />
+  );
 }
 
 // 内联回复检测按钮 - 只在帖子详情页显示 (/status/)
@@ -566,7 +626,20 @@ function _HomeTimelineDetectButton() {
     return null;
   }
 
-  return <_DetectButton selector={HOME_TIMELINE_SELECTOR} componentType='homeTimeline' targetStyle={"direction: rtl; height:0; margin-top: 8px; margin-right:8px;"} disabledOpacity='opacity-0' />;
+  return (
+    <_DetectButton
+      selector={HOME_TIMELINE_SELECTOR}
+      resolveBaseElement={resolveHomeComposerBase}
+      resolveContent={getHomeComposerText}
+      resolveContentEventTarget={resolveHomeComposerEditor}
+      componentType='homeTimeline'
+      targetStyle={
+        // 新版首页发帖操作栏是 36px 高的 flex 行，零高度宿主会按基线下沉。
+        'width:auto;height:auto;max-width:100%;margin:0;flex:0 0 auto;align-self:center;direction:ltr;'
+      }
+      disabledOpacity='opacity-0'
+    />
+  );
 }
 
 export const ComposeModalDetectButton = React.memo(_ComposeModalDetectButton);

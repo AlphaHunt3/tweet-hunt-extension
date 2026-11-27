@@ -8,6 +8,11 @@ import { extractUsernameFromUrl } from '~contents/utils';
 import { specialMarkersManager } from '~utils/specialMarkersManager';
 import type { SpecialMarkerItem } from '~types';
 import specialMarkersCss from 'data-text:~/css/special-markers.css';
+import {
+  resolveProfileDom,
+  resolveTweetCards,
+  resolveTweetDom,
+} from '~contents/utils/xDomAdapter';
 
 // 标记 tooltip 文案（createSpecialMarkerNode 为纯 DOM 函数无法调用 hook，
 // 由 useSpecialUserMarkers 内根据当前语言更新此模块级副本）
@@ -106,7 +111,11 @@ function extractTweetHandle(userNameEl: HTMLElement): string {
   for (const link of links) {
     if (link.closest('.xhunt-special-marker')) continue;
     const href = link.getAttribute('href') || '';
-    const match = href.match(/^\/([a-zA-Z0-9_]+)(?:\/)?$/);
+    let pathname = '';
+    try {
+      pathname = new URL(href, window.location.origin).pathname;
+    } catch (_) {}
+    const match = pathname.match(/^\/([a-zA-Z0-9_]+)(?:\/)?$/);
     if (match) {
       const candidate = match[1].toLowerCase();
       if (!RESERVED_PATHS.has(candidate)) {
@@ -1526,6 +1535,7 @@ function collectAffectedTargets(
   const dmHeaders = new Set<HTMLElement>();
   const chatItems = new Set<HTMLElement>();
   const chatHeaderUsernames = new Set<HTMLElement>();
+  const profileNameHost = inChatPage ? null : resolveProfileDom().nameHost;
 
   for (const m of mutations) {
     // 仅处理 childList，不再订阅 characterData（避免抬高全局 MutationObserver 的
@@ -1581,6 +1591,12 @@ function collectAffectedTargets(
           }
         }
       } else {
+        const tweetArticle = targetEl.closest<HTMLElement>('article');
+        const tweetDom = tweetArticle ? resolveTweetDom(tweetArticle) : null;
+        if (tweetDom?.authorNameHost) {
+          tweetUserNames.add(tweetDom.authorNameHost);
+        }
+
         const tweetUserName = targetEl.closest<HTMLElement>(
           'div[data-testid="User-Name"]',
         );
@@ -1590,6 +1606,13 @@ function collectAffectedTargets(
           'main div[data-testid="UserName"]',
         );
         if (profileUserName) profileUserNames.add(profileUserName);
+        if (
+          profileNameHost &&
+          (profileNameHost.contains(targetEl) ||
+            targetEl.contains(profileNameHost))
+        ) {
+          profileUserNames.add(profileNameHost);
+        }
 
         const conv = targetEl.closest<HTMLElement>(
           'div[data-testid="conversation"]',
@@ -1635,6 +1658,10 @@ function collectAffectedTargets(
             });
         }
       } else {
+        resolveTweetCards(node).forEach(({ authorNameHost }) => {
+          if (authorNameHost) tweetUserNames.add(authorNameHost);
+        });
+
         // 推文 User-Name
         if (node.matches('div[data-testid="User-Name"]')) {
           tweetUserNames.add(node);
@@ -1656,6 +1683,12 @@ function collectAffectedTargets(
           node
             .querySelectorAll<HTMLElement>('main div[data-testid="UserName"]')
             .forEach((un) => profileUserNames.add(un));
+        }
+        if (
+          profileNameHost &&
+          (profileNameHost === node || node.contains(profileNameHost))
+        ) {
+          profileUserNames.add(profileNameHost);
         }
 
         // 私信会话
@@ -1744,9 +1777,16 @@ export function useSpecialUserMarkers() {
       .querySelectorAll<HTMLElement>('main div[data-testid="UserName"]')
       .forEach(processProfileUserName);
 
+    const profileNameHost = resolveProfileDom().nameHost;
+    if (profileNameHost) processProfileUserName(profileNameHost);
+
     document
       .querySelectorAll<HTMLElement>('div[data-testid="User-Name"]')
       .forEach(processTweetUserName);
+
+    resolveTweetCards().forEach(({ authorNameHost }) => {
+      if (authorNameHost) processTweetUserName(authorNameHost);
+    });
 
     document
       .querySelectorAll<HTMLElement>('div[data-testid="conversation"]')
@@ -1869,9 +1909,12 @@ export function useSpecialUserMarkers() {
         return;
       }
 
-      const tweetUserNames = document.querySelectorAll<HTMLElement>(
-        'div[data-testid="User-Name"]',
+      const tweetUserNames = new Set<HTMLElement>(
+        document.querySelectorAll<HTMLElement>('div[data-testid="User-Name"]'),
       );
+      resolveTweetCards().forEach(({ authorNameHost }) => {
+        if (authorNameHost) tweetUserNames.add(authorNameHost);
+      });
       tweetUserNames.forEach((un) => {
         if (!un.isConnected) return;
         // 未处理的推文进行处理（已处理为 'true' 或占位 'empty' 时不重复全量扫）

@@ -12,6 +12,7 @@ import { useLockFn, useRequest } from 'ahooks';
 import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { useI18n } from '~contents/hooks/i18n.ts';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
+import { resolveProfileDom } from '~contents/utils/xDomAdapter';
 
 function _KolAiChatButton() {
   const { t, lang } = useI18n();
@@ -31,6 +32,7 @@ function _KolAiChatButton() {
   const shadowRoot = useShadowContainer({
     selector:
       'div[data-testid="placementTracking"], a[data-testid="editProfileButton"]',
+    resolveBaseElement: () => resolveProfileDom().actionHost,
     useSiblings: true,
     siblingsPosition: 'beforebegin',
     styleText: cssText,

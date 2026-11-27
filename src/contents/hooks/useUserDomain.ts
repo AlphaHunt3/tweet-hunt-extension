@@ -17,6 +17,8 @@ const DEFAULT_PREFERENCE: UserDomainPreference = {
 // 存储 key
 const USER_DOMAIN_KEY = '@xhunt/user-domain-preference';
 const USER_DOMAIN_SETUP_COMPLETED = '@xhunt/user-domain-setup-completed';
+const USER_DOMAIN_SELECTION_CONFIRMED =
+  '@xhunt/user-domain-selection-confirmed';
 
 /**
  * 用户领域偏好管理 Hook
@@ -28,10 +30,20 @@ export function useUserDomain() {
     DEFAULT_PREFERENCE
   );
 
-  const [isSetupCompleted, setIsSetupCompleted, { isLoading: isSetupLoading }] = useLocalStorage<boolean>(
-    USER_DOMAIN_SETUP_COMPLETED,
-    false
-  );
+  const [
+    storedSetupCompleted,
+    setIsSetupCompleted,
+    { isLoading: isSetupLoading },
+  ] = useLocalStorage<boolean>(USER_DOMAIN_SETUP_COMPLETED, false);
+  const [
+    isSelectionConfirmed,
+    setIsSelectionConfirmed,
+    { isLoading: isSelectionConfirmationLoading },
+  ] = useLocalStorage<boolean>(USER_DOMAIN_SELECTION_CONFIRMED, false);
+  const isSetupCompleted =
+    storedSetupCompleted === true && isSelectionConfirmed === true;
+  const isSetupStateLoading =
+    isSetupLoading || isSelectionConfirmationLoading;
 
   const USER_DOMAIN_SETUP_VISIBLE = '@xhunt/domain-setup-visible';
 
@@ -43,13 +55,20 @@ export function useUserDomain() {
 
   // 防御性兜底：如果 setup 已完成但弹窗标记仍为 true，立即关闭
   useEffect(() => {
-    if (!isSetupLoading && isSetupCompleted && shouldShowSetup) {
+    if (!isSetupStateLoading && isSetupCompleted && shouldShowSetup) {
       setShouldShowSetup(false);
     }
-  }, [isSetupLoading, isSetupCompleted, shouldShowSetup, setShouldShowSetup]);
+  }, [
+    isSetupStateLoading,
+    isSetupCompleted,
+    shouldShowSetup,
+    setShouldShowSetup,
+  ]);
 
   // 检查是否需要显示设置弹框
   useEffect(() => {
+    if (isSetupStateLoading) return;
+
     // 延迟检查，等待其他初始化完成
     const timer = setTimeout(() => {
       if (!isSetupCompleted) {
@@ -58,7 +77,7 @@ export function useUserDomain() {
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [isSetupCompleted, setShouldShowSetup]);
+  }, [isSetupCompleted, isSetupStateLoading, setShouldShowSetup]);
 
   // 添加领域
   const addDomain = useCallback((domain: DomainType) => {
@@ -97,17 +116,27 @@ export function useUserDomain() {
   }, [setPreference]);
 
   // 完成设置
-  const completeSetup = useCallback((newPreference: UserDomainPreference) => {
-    setPreference(newPreference);
-    setIsSetupCompleted(true);
-    setShouldShowSetup(false);
-  }, [setPreference, setIsSetupCompleted, setShouldShowSetup]);
+  const completeSetup = useCallback(
+    (newPreference: UserDomainPreference) => {
+      setPreference(newPreference);
+      setIsSelectionConfirmed(true);
+      setIsSetupCompleted(true);
+      setShouldShowSetup(false);
+    },
+    [
+      setPreference,
+      setIsSelectionConfirmed,
+      setIsSetupCompleted,
+      setShouldShowSetup,
+    ],
+  );
 
   // 重置设置（用于调试或重新设置）
   const resetSetup = useCallback(() => {
+    setIsSelectionConfirmed(false);
     setIsSetupCompleted(false);
     setShouldShowSetup(true);
-  }, [setIsSetupCompleted]);
+  }, [setIsSelectionConfirmed, setIsSetupCompleted, setShouldShowSetup]);
 
   // 获取当前偏好（确保不会是 undefined）
   const currentPreference = preference || DEFAULT_PREFERENCE;
@@ -128,7 +157,7 @@ export function useUserDomain() {
     domains: currentPreference.domains,
     primaryDomain: currentPreference.primaryDomain,
     isSetupCompleted,
-    isSetupLoading,
+    isSetupLoading: isSetupStateLoading,
     shouldShowSetup,
 
     // 计算属性

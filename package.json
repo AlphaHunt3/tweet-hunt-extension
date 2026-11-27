@@ -1,7 +1,7 @@
 {
   "name": "xhunt",
   "displayName": "XHunt – Your AI Co-pilot on X",
-  "version": "0.4.6",
+  "version": "0.4.8",
   "description": "Your AI Co-pilot on X",
   "homepage_url": "https://github.com/AlphaHunt3/tweet-hunt-extension",
   "author": "luykin",
@@ -15,9 +15,13 @@
     "test:e2e": "playwright test tests/e2e"
   },
   "manifest": {
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5y9UX6UlNy3kA+yi6N+kZSTSzGQvhRS3tK0DawDe3JuJ0RpA5O1wtEmplMsQKkIukZrWrv6KoBSru3LNRts4ZaA9rmoJDiT0D/Fe6SxM4HNAHhB2BPCCOd4aPDa+3vfdXHecUJERS01MEjvegORNyHUDTv081DVBOHm7byEOiEmXvN6r8N4l3Jr6ea7620Muk8hvbppxfjGI5AhX6/nCWm4QPlhhJ8XpicxSm/z0g3Hfoks2c2ADnefcLPsy3BsOkVKI2gFLAb8iOIflRmGfZvBxKp8oR7a2hbweKJqjLJCjFT1qPxxdXRCxcAyk5L/faEmM3eBj2qg5GmMB+s+AyQIDAQAB",
     "permissions": [
       "idle",
       "storage"
+    ],
+    "host_permissions": [
+      "https://x.com/*"
     ]
   },
   "dependencies": {

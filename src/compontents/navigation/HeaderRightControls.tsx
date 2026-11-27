@@ -92,15 +92,21 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   const { t } = useI18n();
   const { navigateTo } = useNavigation();
   const { onMinimize: contextOnMinimize } = usePanelContext();
-  const [floatingPanelMode] = useLocalStorage<'default' | 'persistent'>(
+  const [
+    floatingPanelMode,
+    ,
+    { isLoading: isFloatingPanelModeLoading },
+  ] = useLocalStorage<'default' | 'persistent'>(
     '@xhunt/floatingPanelMode',
-    'default'
+    'default',
   );
-  const [dismissedGuides, setDismissedGuides] = useLocalStorage<
-    Record<HeaderControlGuideKey, boolean>
-  >(
+  const [
+    dismissedGuides,
+    setDismissedGuides,
+    { isLoading: isDismissedGuidesLoading },
+  ] = useLocalStorage<Record<HeaderControlGuideKey, boolean>>(
     '@xhunt/header-controls-guide-dismissed-map',
-    HEADER_CONTROL_GUIDE_DEFAULTS
+    HEADER_CONTROL_GUIDE_DEFAULTS,
   );
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -162,7 +168,10 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
     'drag',
     ...(hasPanelAction ? (['panel'] as HeaderControlGuideKey[]) : []),
   ];
-  const activeGuide = availableGuides.find((key) => !dismissedGuides?.[key]);
+  const activeGuide =
+    isFloatingPanelModeLoading || isDismissedGuidesLoading
+      ? undefined
+      : availableGuides.find((key) => !dismissedGuides?.[key]);
   const guideActionText = t('headerControlsGuideGotIt') || 'Got it';
   const guideText: Record<HeaderControlGuideKey, string> = {
     settings: t('headerControlsGuideSettingsDesc'),

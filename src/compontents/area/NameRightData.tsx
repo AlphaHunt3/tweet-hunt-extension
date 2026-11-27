@@ -13,7 +13,6 @@ import {
   MBTIData,
   MultiFieldData,
   MultiFieldItem,
-  SoulDensityData,
 } from '~types';
 import KolAbilityRadar, {
   buildAbilityFooter,
@@ -31,16 +30,14 @@ import usePersistentPortalHost from '~contents/hooks/usePersistentPortalHost';
 import { NotesSection } from '~compontents/NotesSection.tsx';
 import { NarrativeSection } from '~/compontents/NarrativeSection.tsx';
 import SoulDensity from '~/compontents/SoulDensity.tsx';
-import { getSoulInfo } from '~contents/services/api.ts';
-import { useRequest } from 'ahooks';
 import { ProjectMembersSection } from '~compontents/ProjectMembersSection';
 import { useCrossPageSettings } from '~/utils/settingsManager.ts';
 import { useUserDomain } from '~contents/hooks/useUserDomain';
-import { ProRequired } from '~compontents/ProRequired';
 import usePlacementTracking from '~contents/hooks/usePlacementTracking';
 import { useLocalStorage } from '~storage/useLocalStorage.ts';
 import { EditedTweetsSection } from '~compontents/EditedTweetsSection';
 import { useEditedTweets } from '~contents/hooks/useEditedTweets';
+import { resolveProfileDom } from '~contents/utils/xDomAdapter';
 
 type DomainType = 'web3' | 'ai';
 const AI_ABILITY_MIN_SCORE = 70;
@@ -61,10 +58,13 @@ type NameRightDataProps = Pick<
   | 'renameInfo'
   | 'reviewInfo'
   | 'loadingRenameInfo'
+  | 'loadingReviewInfo'
   | 'discussionInfo'
   | 'loadingDiscussionInfo'
   | 'projectMemberData'
   | 'loadingProjectMember'
+  | 'soulData'
+  | 'loadingSoulData'
 >;
 
 interface AbilityModelData {
@@ -472,21 +472,68 @@ function _NameRightData({
   renameInfo,
   reviewInfo,
   loadingRenameInfo,
+  loadingReviewInfo,
   discussionInfo,
   loadingDiscussionInfo,
   projectMemberData,
   loadingProjectMember,
+  soulData,
+  loadingSoulData,
 }: NameRightDataProps) {
+  const {
+    twitterId,
+    handler: userId,
+    loading: isLoadingHtml,
+  } = usePlacementTracking();
+  const profileDom = resolveProfileDom(userId);
   const shadowRoot = useShadowContainer({
     selector: 'div[data-testid="UserName"]',
+    resolveBaseElement: () => resolveProfileDom().nameHost,
     styleText: cssText,
   });
   const portalHost = usePersistentPortalHost(shadowRoot);
+  const noteShadowRoot = useShadowContainer({
+    selector: 'div[data-testid="UserName"]',
+    resolveBaseElement: () => {
+      const currentProfileDom = resolveProfileDom();
+      return currentProfileDom.variant === 'new'
+        ? currentProfileDom.noteHost
+        : null;
+    },
+    styleText: cssText,
+    autoZIndex: false,
+  });
+  const notePortalHost = usePersistentPortalHost(noteShadowRoot);
+  const isNewProfile = profileDom.variant === 'new';
+  const isProfileDomReady = Boolean(
+    !isLoadingHtml &&
+      twitterId &&
+      userId &&
+      profileDom.nameHost &&
+      (profileDom.variant === 'legacy' ||
+        (profileDom.variant === 'new' && profileDom.noteHost)),
+  );
+  const isNamePortalReady = Boolean(
+    isProfileDomReady && shadowRoot?.host === profileDom.nameHost,
+  );
+  const isNotePortalReady = Boolean(
+    isProfileDomReady &&
+      isNewProfile &&
+      noteShadowRoot?.host === profileDom.noteHost,
+  );
   const { t, lang } = useI18n();
   const [theme] = useLocalStorage('@xhunt/theme', 'dark');
 
   // 使用响应式设置管理
   const { isEnabled } = useCrossPageSettings();
+  const showSoulIndex = isEnabled('showSoulIndex');
+  const showReviews = isEnabled('showReviews');
+  // 人物摘要、排名和点评是同一个首屏区域。三者共用同一组就绪条件，
+  // 避免先绘制 MBTI/能力标签，随后再补灵魂指数并推动下方内容。
+  const isProfileInsightsLoading =
+    loadingTwInfo ||
+    (showReviews && loadingReviewInfo) ||
+    (showSoulIndex && loadingSoulData);
   const { hasWeb3, hasAi, primaryDomain } = useUserDomain();
   const [storedAbilityDomain, setStoredAbilityDomain] =
     useLocalStorage<DomainType | null>('@xhunt/name-ability-domain', null);
@@ -500,22 +547,8 @@ function _NameRightData({
     return 'web3';
   }, [hasWeb3, hasAi, primaryDomain]);
 
-  const {
-    twitterId,
-    handler: userId,
-    loading: isLoadingHtml,
-  } = usePlacementTracking();
   const showEditInfo = isEnabled('showEditInfo');
   const editedTweets = useEditedTweets(String(twitterId || ''), showEditInfo);
-
-  // 获取灵魂指数数据
-  const { data: soulData, loading: loadingSoulData } = useRequest<
-    SoulDensityData | undefined,
-    []
-  >(() => getSoulInfo(String(twitterId)), {
-    refreshDeps: [twitterId],
-    ready: Boolean(twitterId),
-  });
 
   const mbti = useMemo(() => {
     if (Array.isArray(twInfo?.mbti?.cn) && Array.isArray(twInfo?.mbti?.en)) {
@@ -667,19 +700,21 @@ function _NameRightData({
       : null;
   const compactAbilityText = abilityNames.slice(0, 3).join(', ');
   const compactMbtiText =
-    isEnabled('showPersonalityType') && !loadingTwInfo && twInfo?.mbti
+    isEnabled('showPersonalityType') && !isProfileInsightsLoading && twInfo?.mbti
       ? mbti?.mbti
       : '';
 
   const compactSoulText =
-    isEnabled('showSoulIndex') && !loadingSoulData && soulData
+    showSoulIndex &&
+    !isProfileInsightsLoading &&
+    soulData
       ? `${t('soulIndex')} ${soulData.score || 0}${t('points')}`
       : null;
 
   const compactInsightParts = [
     compactMbtiText || null,
     isEnabled('showKolAbilityModel') &&
-      !loadingTwInfo &&
+      !isProfileInsightsLoading &&
       shouldShowAbilityModel &&
       compactAbilityText
       ? compactAbilityText
@@ -688,7 +723,8 @@ function _NameRightData({
     compactInvestorsText,
     compactPortfolioText,
   ].filter(Boolean) as string[];
-  const shouldCollapseInsights = compactInsightParts.length > 0;
+  const shouldCollapseInsights =
+    !isProfileInsightsLoading && compactInsightParts.length > 0;
   const fullStatsClassName = [
     'flex flex-wrap items-center w-full mh-[40px] h-auto gap-1',
     shouldCollapseInsights ? 'mt-2' : 'mt-4',
@@ -707,17 +743,19 @@ function _NameRightData({
     </div>
   );
 
-  return ReactDOM.createPortal(
+  const nameDataPortal = isNamePortalReady ? ReactDOM.createPortal(
     <div
       data-theme={theme}
       data-xhunt-testid='name-right-data'
       style={{ display: 'contents' }}
     >
-      <NotesSection
-        userId={userId}
-        twitterId={twitterId}
-        reviewInfo={reviewInfo}
-      />
+      {!isNewProfile && (
+        <NotesSection
+          userId={userId}
+          twitterId={twitterId}
+          reviewInfo={reviewInfo}
+        />
+      )}
       {shouldCollapseInsights && !isInsightsExpanded && (
         <div className='mt-1.5 flex w-full items-center gap-1.5'>
           {compactInsightContent}
@@ -732,7 +770,7 @@ function _NameRightData({
           </button>
         </div>
       )}
-      {loadingTwInfo ? (
+      {isProfileInsightsLoading ? (
         <NameInsightsSkeleton />
       ) : (!shouldCollapseInsights || isInsightsExpanded) && (
         <div className={fullStatsClassName}>
@@ -850,7 +888,7 @@ function _NameRightData({
 
           {/*MBTI*/}
           {isEnabled('showPersonalityType') &&
-            !loadingTwInfo &&
+            !isProfileInsightsLoading &&
             twInfo &&
             twInfo?.mbti && (
               <HoverStatItem
@@ -889,14 +927,12 @@ function _NameRightData({
               label={t('delInfo')}
               value={`(${deletedTweets?.length || 0})`}
               hoverContent={
-                <ProRequired enableAnimation={false} showExtraTitle={true}>
-                  <DeletedTweetsSection
-                    isHoverPanel={true}
-                    deletedTweets={deletedTweets}
-                    loadingDel={loadingDel}
-                    isVip={deletedTweetsIsVip}
-                  />
-                </ProRequired>
+                <DeletedTweetsSection
+                  isHoverPanel={true}
+                  deletedTweets={deletedTweets}
+                  loadingDel={loadingDel}
+                  isVip={deletedTweetsIsVip}
+                />
               }
               panelMaxWidth={560}
               panelMaxHeight={560}
@@ -939,7 +975,7 @@ function _NameRightData({
 
           {/* 能力模型 - 🆕 使用自定义的最大宽高 */}
           {isEnabled('showKolAbilityModel') &&
-            !loadingTwInfo &&
+            !isProfileInsightsLoading &&
             shouldShowAbilityModel && (
               <HoverStatItem
                 label={t('kolAbilityModel')}
@@ -982,7 +1018,7 @@ function _NameRightData({
             )}
 
           {/* 灵魂指数 */}
-          {isEnabled('showSoulIndex') && !loadingSoulData && soulData && (
+          {showSoulIndex && !isProfileInsightsLoading && soulData && (
             <HoverStatItem
               label={t('soulIndex')}
               value={`(${soulData.score || 0}${t('points')})`}
@@ -1026,6 +1062,22 @@ function _NameRightData({
         )}
     </div>,
     portalHost!,
+  ) : null;
+
+  return (
+    <>
+      {isNotePortalReady && noteShadowRoot && (
+        ReactDOM.createPortal(
+          <NotesSection
+            userId={userId}
+            twitterId={twitterId}
+            reviewInfo={reviewInfo}
+          />,
+          notePortalHost!,
+        )
+      )}
+      {nameDataPortal}
+    </>
   );
 }
 
